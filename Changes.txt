@@ -1217,5 +1217,11 @@ Added -z option. This is to be used with the -a option. It
 provides more complete testing for small record sizes 
 when the file sizes are very large.
 Fixed -a so that the cross-over mechanism works correctly.
+=============================================================================
+Revision 3.59
+=============================================================================
+Fix a bug where the user specified -R -s but did not specify
+-a or -r. This caused the Excel report to print a bunch
+of zeros.
 
 

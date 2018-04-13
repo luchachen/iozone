@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.58 $"
+#define THISVERSION "        Version $Revision: 3.59 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -1410,6 +1410,10 @@ char **argv;
 		exit(20);
 	}
 		
+	if(!aflag && !rflag)
+		max_rec_size=min_rec_size;
+
+	init_record_sizes(min_rec_size,max_rec_size);
     	printf("\tTime Resolution = %1.6f seconds.\n",time_res);
 #ifdef NO_PRINT_LLD
     	printf("\tProcessor cache size set to %ld Kbytes.\n",cache_size/1024);
@@ -1779,6 +1783,7 @@ void auto_test()
 	if(NOCROSSflag) xover = max_file_size;
 
 	init_file_sizes(min_file_size, max_file_size);
+	del_record_sizes();
 	init_record_sizes(min_rec_size, max_rec_size);
 
 
