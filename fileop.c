@@ -102,8 +102,9 @@ void splash(void);
 void usage(void);
 void bzero();
 void clear_stats();
+int validate(char *, int , char );
 
-#define THISVERSION "        $Revision: 1.38 $"
+#define THISVERSION "        $Revision: 1.40 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;
@@ -544,6 +545,7 @@ file_create(int x)
 	int fd;
 	int ret;
 	char buf[100];
+	char value;
 	stats[_STAT_CREATE].best=(double)999999.9;
 	stats[_STAT_CREATE].worst=(double)0.0;
 	stats[_STAT_WRITE].best=(double)999999.9;
@@ -573,6 +575,8 @@ file_create(int x)
 	    for(k=0;k<x;k++)
 	    {
 	      sprintf(buf,"iozone_file_%d_%d_%d",i,j,k);
+	      value=(char) ((i^j^k) & 0xff);
+	      memset(mbuffer,value,sz);
 	      stats[_STAT_CREATE].starttime=time_so_far();
 	      fd=creat(buf,O_RDWR|0600);
 	      if(fd < 0)
@@ -985,6 +989,7 @@ file_read(int x)
 {
 	int i,j,k,y,fd;
 	char buf[100];
+	char value;
 	stats[_STAT_READ].best=(double)99999.9;
 	stats[_STAT_READ].worst=(double)0.00000000;
 	for(i=0;i<x;i++)
@@ -998,6 +1003,7 @@ file_read(int x)
 	    for(k=0;k<x;k++)
 	    {
 	      sprintf(buf,"iozone_file_%d_%d_%d",i,j,k);
+	      value=(char)((i^j^k) &0xff);
 	      fd=open(buf,O_RDONLY);
 	      if(fd < 0)
 	      {
@@ -1011,6 +1017,8 @@ file_read(int x)
 	        printf("Read failed\n");
 	        exit(1);
 	      }
+	      if(validate(mbuffer,sz, value) !=0)
+		printf("Error: Data Mis-compare\n");;
 	      stats[_STAT_READ].endtime=time_so_far();
 	      close(fd);
 	      stats[_STAT_READ].speed=stats[_STAT_READ].endtime-stats[_STAT_READ].starttime;
@@ -1127,3 +1135,21 @@ clear_stats()
 	for(i=0;i<_NUM_STATS;i++)
 		bzero((char *)&stats[i],sizeof(struct stat_struct));
 }
+int
+validate(char *buffer, int size, char value)
+{
+	register int i;
+	register char *cp;
+	register int size1;
+	register char v1;
+	v1=value;
+	cp = buffer;
+	size1=size;
+	for(i=0;i<size;i++)
+	{
+		if(*cp++ != v1)
+			return(1);
+	}
+	return(0);
+}
+

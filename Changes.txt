@@ -2091,4 +2091,6 @@ Add support for building with Sun's Studio 11 compiler
 Revision 3.283
 Bug fix for fread/fwrite with > 2Gig files.
 =============================================================================
+Revision 3.287
+Add O_DIRECT for Windows
 

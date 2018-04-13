@@ -223,9 +223,9 @@ have a file to measure.
 is also supported so that one may select more than one test.
 .TP
 .BI \-I
-Use VxFS VX_DIRECT for all file operations. Tells the VXFS filesystem that
+Use DIRECT IO if possible for all file operations. Tells the filesystem that
 all operations to the file are to bypass the buffer cache and go directly to 
-disk.
+disk. (not available on all platforms)
 .TP
 .BI \-j\ #
 Set stride of file accesses to (# * record size). The stride read test will

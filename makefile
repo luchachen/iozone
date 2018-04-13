@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.117 $
+# Version $Revision: 1.121 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -16,6 +16,7 @@ CCS	= /usr/ccs/bin/cc
 NACC	= /opt/ansic/bin/cc
 CFLAGS	=
 S10GCCFLAGS    = -m64 -mcpu=v9
+S10CCFLAGS     = -xarch=amd64
 
 all:  
 	@echo ""
@@ -64,6 +65,7 @@ all:
 	@echo "        ->   Solaris8-64          (64bit)   <-"
 	@echo "        ->   Solaris8-64-VXFS     (64bit)   <-"
 	@echo "        ->   Solaris10            (32bit)   <-"
+	@echo "        ->   Solaris10cc          (64bit)   <-"
 	@echo "        ->   Solaris10gcc         (32bit)   <-"
 	@echo "        ->   Solaris10gcc-64      (64bit)   <-"
 	@echo "        ->   sppux                (32bit)   <-"
@@ -194,7 +196,7 @@ linux-powerpc64: iozone_linux-powerpc64.o  libbif.o libasync.o fileop_linux-ppc6
 #
 # GNU 'C' compiler Linux build with threads, largefiles, async I/O
 #
-linux-arm:	iozone_linux-arm.o  libbif.o libasync.o
+linux-arm:	iozone_linux-arm.o  libbif.o libasync.o fileop_linux-arm.o
 	$(CC) -O3 $(LDFLAGS) iozone_linux-arm.o libbif.o libasync.o \
 		-lrt -lpthread -o iozone
 	$(CC) -O3 -Dlinux fileop_linux-arm.o -o fileop
@@ -345,6 +347,17 @@ Solaris10gcc-64:	iozone_solaris10gcc-64.o libasync10-64.o libbif10-64.o fileop_S
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
 	$(GCC)  -O $(S10GCCFLAGS) fileop_Solaris10gcc-64.o -o fileop
+
+
+#
+# Solaris 64 bit build with threads, largefiles, and async I/O
+#
+Solaris10cc-64:	iozone_solaris10cc-64.o libasync10-64.o libbif10-64.o fileop_Solaris10cc-64.o
+	$(CC)  -O $(LDFLAGS) $(S10CCFLAGS) iozone_solaris10cc-64.o libasync10-64.o libbif10-64.o \
+              -lthread -lpthread -lposix4 -lnsl -laio \
+              -lsocket -o iozone
+	$(CC)  -O $(S10CCFLAGS) fileop_Solaris10cc-64.o -o fileop
+
 
 
 #
@@ -714,6 +727,13 @@ fileop_Solaris10.o:	fileop.c
 	@echo ""
 	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_Solaris10.o
 
+fileop_Solaris10cc.o: fileop.c
+	@echo ""
+	@echo "Building fileop for Solaris10cc"
+	@echo ""
+	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_Solaris10cc.o
+
+
 fileop_Solaris10gcc.o:	fileop.c
 	@echo ""
 	@echo "Building fileop for Solaris10gcc"
@@ -725,6 +745,13 @@ fileop_Solaris10gcc-64.o:	fileop.c
 	@echo "Building fileop for Solaris10gcc-64"
 	@echo ""
 	$(GCC) -c -O $(CFLAGS) $(S10GCCFLAGS) fileop.c -o fileop_Solaris10gcc-64.o
+
+fileop_Solaris10cc-64.o:      fileop.c
+	@echo ""
+	@echo "Building fileop for Solaris10cc-64"
+	@echo ""
+	$(CC) -c -O $(CFLAGS) $(S10CCFLAGS) fileop.c -o fileop_Solaris10cc-64.o
+
 
 fileop_linux.o:	fileop.c
 	@echo ""
@@ -933,6 +960,21 @@ iozone_solaris10gcc-64.o:  iozone.c libbif.c
                 -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
                 -DNAME='"Solaris10gcc-64"' $(CFLAGS) $(S10GCCFLAGS) iozone.c -o iozone_solaris10gcc-64.o
 
+iozone_solaris10cc-64.o:  iozone.c libbif.c
+	@echo ""
+	@echo "Building iozone for Solaris10cc-64"
+	@echo ""
+	$(CC) -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
+		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+		$(CFLAGS) $(S10CCFLAGS) libbif.c -o libbif10-64.o
+	$(CC) -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
+		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+		-DNAME='"Solaris10cc-64"' $(CFLAGS) $(S10CCFLAGS) libasync.c -o libasync10-64.o
+	$(CC) -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO -Dstudio11 \
+		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+		-DNAME='"Solaris10cc-64"' $(CFLAGS) $(S10CCFLAGS) iozone.c -o iozone_solaris10cc-64.o
+
+
 #
 #		-DSHARED_MEM -Dsolaris libasync.c -o libasync.o
 #		-DSHARED_MEM -Dsolaris iozone.c -o iozone_solaris.o
@@ -985,7 +1027,8 @@ iozone_windows.o:	iozone.c libasync.c libbif.c fileop.c
 	@echo "Building iozone for Windows (No async I/O)"
 	@echo ""
 	$(GCC) -c -O -Dunix -DHAVE_ANSIC_C -DNO_MADVISE  \
-		-DWindows $(CFLAGS) iozone.c -o iozone_windows.o
+		-DWindows $(CFLAGS) -DDONT_HAVE_O_DIRECT iozone.c \
+		-o iozone_windows.o
 	$(GCC) -c -O -Dunix -DHAVE_ANSIC_C -DNO_MADVISE \
 		-DWindows $(CFLAGS) libbif.c -o libbif.o
 
