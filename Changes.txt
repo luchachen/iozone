@@ -2249,4 +2249,7 @@ Make -+S generate more uniqueness
 Revision 3.337
 Bug fix for -+S
 =============================================================================
+Revision 3.338
+Make umount/remount more robust, in the face of server errors.
+=============================================================================
 

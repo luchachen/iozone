@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.337 $"
+#define THISVERSION "        Version $Revision: 3.338 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1602,7 +1602,7 @@ char **argv;
     	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million, Gavin Brebner,\n");
     	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg, Benny Halevy, Dave Boone,\n");
     	sprintf(splash[splash_line++],"\t             Erik Habbinga, Kris Strecker, Walter Wong, Joshua Root,\n");
-    	sprintf(splash[splash_line++],"\t             Fabrice Bacchella.\n\n");
+    	sprintf(splash[splash_line++],"\t             Fabrice Bacchella, Zhenghua Xue.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
 	argvsave=argv;
@@ -11646,7 +11646,16 @@ purge_buffer_cache()
         }
 	strcpy(command,"mount ");
 	strcat(command, mountname);
-	system(command);
+	/*
+         mount might fail if the device is still busy, so
+         retry mounting several times with increasing delays
+        */
+        for (i = 1; i < 10; ++i) {
+              ret = system(command);
+              if (ret == 0)
+                   break;
+                   sleep(i); /* seconds */
+         }
 }
 
 /************************************************************************/
