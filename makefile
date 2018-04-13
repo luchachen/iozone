@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.90 $
+# Version $Revision: 1.91 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -719,7 +719,7 @@ iozone_AIX.o:	iozone.c libbif.c
 	$(CC) -c -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C  \
 		-DNAME='"AIX"' -DSHARED_MEM  $(CFLAGS) iozone.c -o iozone_AIX.o
 	$(CC) -c -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C  \
-		-DSHARED_MEM $(CFLAGS) libbif.c -o libbif.o
+		-DZBIG_ENDIAN -DSHARED_MEM $(CFLAGS) libbif.c -o libbif.o
 
 iozone_AIX-LF.o:	iozone.c libbif.c 
 	@echo ""
@@ -730,7 +730,7 @@ iozone_AIX-LF.o:	iozone.c libbif.c
 		-DNAME='"AIX-LF"' $(CFLAGS) iozone.c -o iozone_AIX-LF.o
 	$(CC) -c -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C  \
 		-DSHARED_MEM -D_LARGEFILE64_SOURCE -D_LARGE_FILES \
-		$(CFLAGS) libbif.c -o libbif.o
+		-DZBIG_ENDIAN $(CFLAGS) libbif.c -o libbif.o
 
 iozone_solaris.o:	iozone.c libasync.c libbif.c
 	@echo ""

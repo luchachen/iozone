@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.222 $"
+#define THISVERSION "        Version $Revision: 3.226 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -6180,14 +6180,14 @@ long long *data2;
 			printf("Unable to open wol.dat\n");
 			exit(40);
 		}
-		fprintf(wqfd,"Offset in Kbytes   Latency in microseconds\n");
+		fprintf(wqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
 		rwqfd=fopen("rwol.dat","a");
 		if(rwqfd==0)
 		{
 			printf("Unable to open rwol.dat\n");
 			exit(41);
 		}
-		fprintf(rwqfd,"Offset in Kbytes   Latency in microseconds\n");
+		fprintf(rwqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
 	}
 	fd = 0;
 	if(oflag)
@@ -6398,13 +6398,13 @@ long long *data2;
 				qtime_stop=time_so_far();
 				if(j==0)
 #ifdef NO_PRINT_LLD
-				fprintf(wqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000);
+				fprintf(wqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000,reclen);
 				else
-				fprintf(rwqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000);
+				fprintf(rwqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000,reclen);
 #else
-				fprintf(wqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000);
+				fprintf(wqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000,reclen);
 				else
-				fprintf(rwqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000);
+				fprintf(rwqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000,reclen);
 #endif
 			}
 			w_traj_ops_completed++;
@@ -7010,14 +7010,14 @@ long long *data1,*data2;
 			printf("Unable to open rol.dat\n");
 			exit(56);
 		}
-		fprintf(rqfd,"Offset in Kbytes   Latency in microseconds\n");
+		fprintf(rqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
 		rrqfd=fopen("rrol.dat","a");
 		if(rrqfd==0)
 		{
 			printf("Unable to open rrol.dat\n");
 			exit(57);
 		}
-		fprintf(rrqfd,"Offset in Kbytes   Latency in microseconds\n");
+		fprintf(rrqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
 	}
 	/* 
 	 * begin real testing
@@ -7209,13 +7209,13 @@ long long *data1,*data2;
 				qtime_stop=time_so_far();
 				if(j==0)
 #ifdef NO_PRINT_LLD
-				fprintf(rqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000);
+				fprintf(rqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000,reclen);
 				else
-				fprintf(rrqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000);
+				fprintf(rrqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000,reclen);
 #else
-				fprintf(rqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000);
+				fprintf(rqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000,reclen);
 				else
-				fprintf(rrqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000);
+				fprintf(rrqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000,reclen);
 #endif
 			}
 			r_traj_ops_completed++;
@@ -10814,7 +10814,7 @@ thread_write_test( x)
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
-		fprintf(thread_wqfd,"Offset in Kbytes   Latency in microseconds\n");
+		fprintf(thread_wqfd,"Offset in Kbytes   Latency in microseconds Transfer size in bytes\n");
 	}
 	starttime1 = time_so_far();
 	if(cpuutilflag)
@@ -10975,9 +10975,9 @@ again:
 		{
 			thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-			fprintf(thread_wqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+			fprintf(thread_wqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #else
-			fprintf(thread_wqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+			fprintf(thread_wqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #endif
 		}
 		w_traj_ops_completed++;
@@ -11352,7 +11352,7 @@ thread_pwrite_test( x)
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
-		fprintf(thread_wqfd,"Offset in Kbytes   Latency in microseconds\n");
+		fprintf(thread_wqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
 	}
 	starttime1 = time_so_far();
 	if(cpuutilflag)
@@ -11514,9 +11514,9 @@ again:
 		{
 			thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-			fprintf(thread_wqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+			fprintf(thread_wqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #else
-			fprintf(thread_wqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+			fprintf(thread_wqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #endif
 		}
 		w_traj_ops_completed++;
@@ -11837,7 +11837,7 @@ thread_rwrite_test(x)
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
-		fprintf(thread_rwqfd,"Offset in Kbytes   Latency in microseconds\n");
+		fprintf(thread_rwqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
 	}
 	child_stat->flag = CHILD_STATE_READY;
 	if(distributed && client_iozone)
@@ -11978,9 +11978,9 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 		{
 			thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-			fprintf(thread_rwqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+			fprintf(thread_rwqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #else
-			fprintf(thread_rwqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+			fprintf(thread_rwqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #endif
 		}
 		if(rlocking)
@@ -12269,7 +12269,7 @@ thread_read_test(x)
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
-		fprintf(thread_rqfd,"Offset in Kbytes   Latency in microseconds\n");
+		fprintf(thread_rqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
 	}
 
 	if(r_traj_flag)
@@ -12412,9 +12412,9 @@ thread_read_test(x)
                 {
                         thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-                        fprintf(thread_rqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+                        fprintf(thread_rqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #else
-                        fprintf(thread_rqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+                        fprintf(thread_rqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #endif
                 }
 
@@ -12702,7 +12702,7 @@ thread_pread_test(x)
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
-		fprintf(thread_rqfd,"Offset in Kbytes   Latency in microseconds\n");
+		fprintf(thread_rqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
 	}
 
 	if(r_traj_flag)
@@ -12845,9 +12845,9 @@ thread_pread_test(x)
                 {
                         thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-                        fprintf(thread_rqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+                        fprintf(thread_rqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #else
-                        fprintf(thread_rqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+                        fprintf(thread_rqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #endif
                 }
 
@@ -13136,7 +13136,7 @@ thread_rread_test(x)
                         printf("Unable to open %s\n",tmpname);
                         exit(40);
                 }
-		fprintf(thread_rrqfd,"Offset in Kbytes   Latency in microseconds\n");
+		fprintf(thread_rrqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
         }
 
 	child_stat = (struct child_stats *)&shmaddr[xx];
@@ -13277,9 +13277,9 @@ thread_rread_test(x)
                 {
                         thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-                        fprintf(thread_rrqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+                        fprintf(thread_rrqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #else
-                        fprintf(thread_rrqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+                        fprintf(thread_rrqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #endif
                 }
 
@@ -13551,7 +13551,7 @@ thread_reverse_read_test(x)
                         printf("Unable to open %s\n",tmpname);
                         exit(40);
                 }
-		fprintf(thread_revqfd,"Offset in Kbytes   Latency in microseconds\n");
+		fprintf(thread_revqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
         }
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = 0;
@@ -13699,9 +13699,9 @@ thread_reverse_read_test(x)
                 {
                         thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-                        fprintf(thread_revqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+                        fprintf(thread_revqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #else
-                        fprintf(thread_revqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+                        fprintf(thread_revqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #endif
                 }
 	}
@@ -13960,7 +13960,7 @@ thread_stride_read_test(x)
                         printf("Unable to open %s\n",tmpname);
                         exit(40);
                 }
-		fprintf(thread_strqfd,"Offset in Kbytes   Latency in microseconds\n");
+		fprintf(thread_strqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
         }
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = 0;
@@ -14127,9 +14127,9 @@ thread_stride_read_test(x)
                 {
                         thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-                        fprintf(thread_strqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+                        fprintf(thread_strqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #else
-                        fprintf(thread_strqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+                        fprintf(thread_strqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #endif
                 }
 	}
@@ -14468,7 +14468,7 @@ thread_ranread_test(x)
                         printf("Unable to open %s\n",tmpname);
                         exit(40);
                 }
-		fprintf(thread_randrfd,"Offset in Kbytes   Latency in microseconds\n");
+		fprintf(thread_randrfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
         }
 	child_stat=(struct child_stats *)&shmaddr[xx];
 	child_stat->flag = CHILD_STATE_READY;
@@ -14628,9 +14628,9 @@ thread_ranread_test(x)
                 {
                         thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-                        fprintf(thread_randrfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+                        fprintf(thread_randrfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #else
-                        fprintf(thread_randrfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+                        fprintf(thread_randrfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #endif
                 }
 	}
@@ -14950,7 +14950,7 @@ thread_ranwrite_test( x)
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
-		fprintf(thread_randwqfd,"Offset in Kbytes   Latency in microseconds\n");
+		fprintf(thread_randwqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
 	}
 	if(verify)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
@@ -15136,9 +15136,9 @@ again:
 		{
 			thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-			fprintf(thread_randwqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+			fprintf(thread_randwqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #else
-			fprintf(thread_randwqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+			fprintf(thread_randwqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
 #endif
 		}
 		w_traj_ops_completed++;
@@ -16296,8 +16296,8 @@ float comp_delay;
 #endif
 {
 	double starttime,tmptime;
-	if(comp_delay == (float)0)
-		return(0);
+	if(comp_delay == (float)0.0)
+		return(0.0);
 	starttime=time_so_far();
 	while(1)
 	{	
@@ -16305,6 +16305,7 @@ float comp_delay;
 		if(tmptime >= (double)comp_delay)
 			return(tmptime);
 	}
+	return(0.0);
 }
 
 /************************************************************************/
@@ -17340,6 +17341,7 @@ char *controlling_host_name;
 #endif
 {
 	int rc,child_socket_val;
+	int ecount = 0;
 	struct sockaddr_in addr,raddr;
 	struct hostent *he;
 	int tmp_port;
@@ -17406,11 +17408,17 @@ char *controlling_host_name;
                 perror("Child: bind failed\n");
                 exit(24);
         }
+again:
         rc = 
 		connect(child_socket_val, (struct sockaddr *)&raddr, 
 			sizeof(struct sockaddr_in));
 	        if (rc < 0)
         {
+		if(ecount++<300)
+		{
+			sleep(1);
+			goto again;
+		}
                 perror("Child: connect failed\n");
                 exit(25);
         }
@@ -17850,7 +17858,7 @@ again:
 			sizeof(struct sockaddr_in));
 	if (rc < 0)
         {
-		if(ecount++ < 30)
+		if(ecount++ < 300)
 		{
 			sleep(1);
 			goto again;
@@ -17930,7 +17938,7 @@ again:
 			sizeof(struct sockaddr_in));
 	if (rc < 0)
         {
-		if(ecount++ < 30)
+		if(ecount++ < 300)
 		{
 			sleep(1);
 			goto again;
@@ -18014,7 +18022,7 @@ long long numrecs64, reclen;
 	find_remote_shell(remote_shell);
 	sprintf(command,"%s ",remote_shell);
 	strcat(command,child_idents[x-1].child_name);
-	strcat(command," '");
+	strcat(command," -n '");
 	strcat(command,child_idents[x-1].execute_path);
 	strcat(command," -+s -t 1 -r 4 -s 4 -+c ");
 	strcat(command,controlling_host_name);
@@ -19509,7 +19517,7 @@ again:
 			sizeof(struct sockaddr_in));
 	if (rc < 0)
         {
-		if(ecount++ < 30)
+		if(ecount++ < 300)
 		{
 			sleep(1);
 			goto again;
@@ -19848,6 +19856,7 @@ struct in_addr *sp_my_cs_addr;
 	struct hostent *he;
 	int port,tmp_port;
 	struct in_addr *ip;
+	int ecount=0;
         he = gethostbyname(sp_master_host_name);
         if (he == NULL)
         {
@@ -19903,10 +19912,17 @@ struct in_addr *sp_my_cs_addr;
                 perror("Child: bind failed for sync channel to child.\n");
                 exit(24);
         }
+again:
         rc = connect(sp_child_socket_val, (struct sockaddr *)&raddr, 
 			sizeof(struct sockaddr_in));
 	if (rc < 0)
         {
+		if(ecount++<300)
+		{
+			sleep(1);
+			goto again;
+		}
+
                 perror("child: connect failed\n");
 		printf("Error %d\n",errno);
 		exit(25);
