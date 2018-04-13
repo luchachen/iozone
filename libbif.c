@@ -24,7 +24,7 @@
 #include <string.h>
 #endif
 
-#if defined(linux) || defined(__DragonFly__)
+#if defined(linux) || defined(__DragonFly__) || defined(macosx)
 #include <unistd.h>
 #include <stdlib.h>
 #endif
@@ -84,7 +84,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.18 $";
+char libbif_version[] = "Libbif Version $Revision: 3.21 $";
 void do_eof(int );		/* Used internally */
 void do_header(int );		/* Used internally */
 int endian(void);
@@ -420,15 +420,15 @@ endian(void)
 	/*--------------------------------------------------------------*/
 
 	/* Little Endian format ? ( Intel ) */
-	if( (c1==0x08) && (c2=0x07) && (c3==0x06) && (c4==0x05) &&
+	if( (c1==0x08) && (c2==0x07) && (c3==0x06) && (c4==0x05) &&
 		(c5==0x04) && (c6==0x03) && (c7==0x02) && (c8==0x01) )
 		return(ENDIAN_1);
 	/* Big Endian format ?    ( Sparc, Risc... */
-	if( (c1==0x01) && (c2=0x02) && (c3==0x03) && (c4==0x04) &&
+	if( (c1==0x01) && (c2==0x02) && (c3==0x03) && (c4==0x04) &&
 		(c5==0x05) && (c6==0x06) && (c7==0x07) && (c8==0x08) )
 		return(ENDIAN_2);
 	/* Middle Endian format ? ( ARM ... ) */
-	if( (c1==0x04) && (c2=0x03) && (c3==0x02) && (c4==0x01) &&
+	if( (c1==0x04) && (c2==0x03) && (c3==0x02) && (c4==0x01) &&
 		(c5==0x08) && (c6==0x07) && (c7==0x06) && (c8==0x05) )
 		return(ENDIAN_3);
 

@@ -9,7 +9,7 @@
  * of this code will be considered a derivative work and will
  * be the sole property of me.
  *
-  fileop [-f X ]|[-l # -u #] [-s Y] [-t] [-v] [-e] [-b] [-w]
+  fileop [-f X ]|[-l # -u #] [-s Y] [-t] [-v] [-e] [-b] [-w] [-h] [-d]
        -f # Force factor. X^3 files will be created and removed.
        -l # Lower limit on the value of the Force factor.
        -u # Upper limit on the value of the Force factor.
@@ -19,6 +19,8 @@
        -e # Excel importable format.
        -b Output best case
        -w Output worst case
+       -h Help text
+       -d <dir> specify starting directory.
  *
  * X is a force factor. The total number of files will
  *   be X * X * X   ( X ^ 3 )
@@ -101,15 +103,17 @@ void usage(void);
 void bzero();
 void clear_stats();
 
-#define THISVERSION "        $Revision: 1.37 $"
+#define THISVERSION "        $Revision: 1.38 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;
+char thedir[]="."; /* Default is to use the current directory */
 
 int cret;
 int lower, upper,range;
 int i;
 int best, worst;
+int dirlen;
 
 int main(int argc, char **argv)
 {
@@ -118,8 +122,21 @@ int main(int argc, char **argv)
 		usage();
 		exit(1);
 	}
-	while((cret = getopt(argc,argv,"bwetvf:s:l:u: ")) != EOF){
+	while((cret = getopt(argc,argv,"hbwetvf:s:l:u:d: ")) != EOF){
 		switch(cret){
+                case 'h':
+                        usage();
+                        exit(0);
+                        break;
+                case 'd' :
+                        dirlen=strlen(optarg);
+                        if (optarg[dirlen-1]=='/') {
+                          strncpy(thedir, optarg, dirlen-1);
+                        }
+                        else {
+                          strncpy(thedir, optarg, dirlen);
+                        }
+                        break;
 		case 'f':	/* Force factor */
 			x=atoi(optarg);
 			if(x < 0)
@@ -471,6 +488,7 @@ dir_create(int x)
 	char buf[100];
 	stats[_STAT_DIR_CREATE].best=(double)99999.9;
 	stats[_STAT_DIR_CREATE].worst=(double)0.00000000;
+	chdir(thedir); /* change starting point */
 	for(i=0;i<x;i++)
 	{
 	  sprintf(buf,"iozone_L1_%d",i);

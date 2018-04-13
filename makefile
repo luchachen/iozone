@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.114 $
+# Version $Revision: 1.117 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -63,6 +63,7 @@ all:
 	@echo "        ->   Solaris7gcc          (32bit)   <-"
 	@echo "        ->   Solaris8-64          (64bit)   <-"
 	@echo "        ->   Solaris8-64-VXFS     (64bit)   <-"
+	@echo "        ->   Solaris10            (32bit)   <-"
 	@echo "        ->   Solaris10gcc         (32bit)   <-"
 	@echo "        ->   Solaris10gcc-64      (64bit)   <-"
 	@echo "        ->   sppux                (32bit)   <-"
@@ -318,6 +319,15 @@ Solaris7gcc:	iozone_solaris7gcc.o libasync7.o libbif7.o
 	$(GCC)  -O $(LDFLAGS) iozone_solaris7gcc.o libasync7.o libbif7.o \
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
+#
+# Solaris 32 bit build with threads, largefiles, and async I/O
+#
+Solaris10:	iozone_solaris10.o libasync10.o libbif10.o fileop_Solaris10.o
+	$(CC)  -O $(LDFLAGS) iozone_solaris10.o libasync10.o libbif10.o \
+		-lthread -lpthread -lposix4 -lnsl -laio \
+		-lsocket -o iozone
+	$(CC)  -O fileop_Solaris10.o -o fileop
+
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
 #
@@ -698,6 +708,12 @@ fileop_Solaris.o:	fileop.c
 	@echo ""
 	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_Solaris.o
 
+fileop_Solaris10.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for Solaris10"
+	@echo ""
+	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_Solaris10.o
+
 fileop_Solaris10gcc.o:	fileop.c
 	@echo ""
 	@echo "Building fileop for Solaris10gcc"
@@ -874,6 +890,20 @@ iozone_solaris7gcc.o:	iozone.c libasync.c libbif.c
 	$(GCC) -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
 		-DNAME='"Solaris7gcc"' $(CFLAGS) iozone.c -o iozone_solaris7gcc.o
+
+iozone_solaris10.o:  iozone.c libbif.c
+	@echo ""
+	@echo "Building iozone for Solaris10"
+	@echo ""
+	$(CC) -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
+	        -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+	        $(CFLAGS) libbif.c -o libbif10.o
+	$(CC) -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
+	        -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+	        -DNAME='"Solaris10"' $(CFLAGS) libasync.c -o libasync10.o
+	$(CC) -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO -Dstudio11 \
+	        -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+	        -DNAME='"Solaris10"' $(CFLAGS) iozone.c -o iozone_solaris10.o
 
 iozone_solaris10gcc.o:  iozone.c libbif.c
 	@echo ""
@@ -1084,9 +1114,9 @@ iozone_macosx.o:	iozone.c libbif.c
 	@echo ""
 	@echo "Build iozone for MacOSX"
 	@echo ""
-	$(CC) -c -O -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
+	$(CC) -c -O -Dunix -Dbsd4_2 -Dmacosx -DHAVE_ANSIC_C -DNO_THREADS \
 		-DNAME='"macosx"' -DSHARED_MEM $(CFLAGS) iozone.c -o iozone_macosx.o
-	$(CC) -c -O -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
+	$(CC) -c -O -Dunix -Dbsd4_2 -Dmacosx -DHAVE_ANSIC_C -DNO_THREADS \
 		-DSHARED_MEM $(CFLAGS) libbif.c -o libbif.o
 
 iozone_openbsd.o:	iozone.c libbif.c

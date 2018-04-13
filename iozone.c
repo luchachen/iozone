@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.279 $"
+#define THISVERSION "        Version $Revision: 3.281 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -283,7 +283,10 @@ THISVERSION,
 #include <arpa/inet.h>
 
 #endif
-
+#if ( defined(solaris) && defined(studio11) )
+#include <strings.h>
+#include <stdlib.h>
+#endif
 
 #if defined(OSFV5) || defined(linux)
 #include <string.h>
@@ -10919,7 +10922,7 @@ int shared_flag;
 
 	size1=l_max(size,page_size);
 	size1=(size1 +page_size) & ~(page_size-1);
-#ifdef bsd4_2
+#if defined(bsd4_2) && !defined(macosx)
 	if((tfd = creat("mmap.tmp", 0666))<0)
 	{
 		printf("Unable to create tmp file\n");
@@ -17023,7 +17026,7 @@ int flag, prot;
 #endif
 #endif
 
-#ifdef bsd4_2
+#if defined(bsd4_2) && !defined(macosx)
 	 pa = (char *)mmap( 0,&filebytes, (int)prot, 
 	 		(int)mflags, (int)fd, 0);
 #else
