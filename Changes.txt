@@ -1312,5 +1312,12 @@ Fix throughput labels when user is selecting specific tests with -i option.
 Revision 3.80
 =============================================================================
 Remove dependency on min() and max(). They are not portable.
-
+=============================================================================
+Revision 3.81
+=============================================================================
+Changes for 64bit architectures. Brad Smith. OpenBSD.
+=============================================================================
+Revision 3.83
+=============================================================================
+Add -+m cluster option to the help list and the list of options.
 

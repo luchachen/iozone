@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.80 $"
+#define THISVERSION "        Version $Revision: 3.83 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -64,8 +64,9 @@ extern  int errno;
 #endif
 
 
-#if defined (__LP64__) || defined(OSF_64)
+#if defined (__LP64__) || defined(OSF_64) || defined(__alpha__) || defined(__arch64__)
 #define MODE "\tCompiled for 64 bit mode."
+#define _64BIT_ARCH_
 #else
 #define MODE "\tCompiled for 32 bit mode."
 #endif
@@ -104,7 +105,7 @@ char *help[] = {
 "                  [-n minfilesize_Kb] [-N] [-Q] [-P start_cpu] [-e] [-c] [-b Excel.xls]",
 "                  [-J milliseconds] [-X write_telemetry_filename] [-w] [-W]",
 "                  [-Y read_telemetry_filename] [-y minrecsize_Kb] [-q maxrecsize_Kb]",
-"                  [-+u]",
+"                  [-+u] [-+m cluster_filename]",
 " ",
 "           -a  Auto mode",
 "           -A  Auto2 mode",
@@ -167,6 +168,7 @@ char *help[] = {
 "           -Y filename  Read  telemetry file. Contains lines with (offset reclen compute_time) in ascii",
 "           -z  Used in conjunction with -a to test all possible record sizes",
 "           -Z  Enable mixing of mmap I/O and file I/O",
+"           -+m  Cluster_filename   Enable Cluster testing",
 "           -+u  Enable CPU utilization output (Experimental)",
 "" };
 
@@ -294,11 +296,7 @@ typedef long long off64_t;
 #define AMAP_FILE (0)
 #endif
 
-#ifdef SCO_Unixware_gcc
-#define MAP_FILE (0)
-#endif
-
-#ifdef solaris
+#if defined(SCO_Unixware_gcc) || defined(solaris)
 #define MAP_FILE (0)
 #endif
 
@@ -1040,7 +1038,7 @@ char **argv;
         	exit(1);
         }
 
-#ifdef __LP64__ 
+#ifdef _64BIT_ARCH_
      	buffer = (char *) ((long long )(buffer + cache_size ) & 
 		~(cache_size-1));
 #else
@@ -1713,7 +1711,7 @@ char **argv;
                        	perror("Memory allocation failed:");
                        	exit(9);
 		}
-#ifdef __LP64__ 
+#ifdef _64BIT_ARCH_
 	     	pbuffer = (char *) 
 			(((unsigned long long)pbuffer + cache_size ) 
 				& ~(cache_size-1));
@@ -2451,7 +2449,7 @@ throughput_test()
 	if(!haveshm)
 	{
 		shmaddr=(struct child_stats *)alloc_mem((long long)SHMSIZE);
-#ifdef __LP64__ 
+#ifdef _64BIT_ARCH_
 		if((long long)shmaddr==(long long)-1)
 #else
 		if((long )shmaddr==(long)-1)
@@ -2554,7 +2552,7 @@ throughput_test()
 			printf("Parent starting slot %lld\n",xx);	
 #endif
 		if( childids[xx] == 0 ){
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 		  thread_write_test((void *)xx);
 #else
 		  thread_write_test((void *)(long)xx);
@@ -2588,7 +2586,7 @@ throughput_test()
 			~(cache_size-1));
 		}
 
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create(thread_write_test,(void*)xx);
 #else
 		childids[xx] = mythread_create(thread_write_test,(void*)(long)xx);
@@ -2802,7 +2800,7 @@ waitout:
 			exit(28);
 		}
 		if(childids[xx] == 0){
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 			thread_rwrite_test((void *)xx);
 #else
 			thread_rwrite_test((void *)((long)xx));
@@ -2814,7 +2812,7 @@ waitout:
 	else
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_rwrite_test,xx);
 #else
 		childids[xx] = mythread_create( thread_rwrite_test,(void *)(long)xx);
@@ -3023,7 +3021,7 @@ next0:
 			exit(30);
 		}
 		if(childids[xx]==0){
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 			thread_read_test((void *)xx);
 #else
 			thread_read_test((void *)((long)xx));
@@ -3035,7 +3033,7 @@ next0:
 	else
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_read_test,xx);
 #else
 		childids[xx] = mythread_create( thread_read_test,(void *)(long)xx);
@@ -3235,7 +3233,7 @@ jumpend:
 			exit(32);
 		}
 		if(childids[xx]==0){
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 			thread_rread_test((void *)xx);
 #else
 			thread_rread_test((void *)((long)xx));
@@ -3248,7 +3246,7 @@ jumpend:
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 		chid=xx;
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_rread_test,xx);
 #else
 		childids[xx] = mythread_create( thread_rread_test,(void *)(long)xx);
@@ -3449,7 +3447,7 @@ next1:
 			exit(34);
 		}
 		if(childids[xx]==0){
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 			thread_reverse_read_test((void *)xx);
 #else
 			thread_reverse_read_test((void *)((long)xx));
@@ -3462,7 +3460,7 @@ next1:
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 		chid=xx;
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_reverse_read_test,xx);
 #else
 		childids[xx] = mythread_create( thread_reverse_read_test,(void *)(long)xx);
@@ -3657,7 +3655,7 @@ next2:
 			exit(36);
 		}
 		if(childids[xx]==0){
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 			thread_stride_read_test((void *)xx);
 #else
 			thread_stride_read_test((void *)((long)xx));
@@ -3670,7 +3668,7 @@ next2:
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 		chid=xx;
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_stride_read_test,xx);
 #else
 		childids[xx] = mythread_create( thread_stride_read_test,(void *)(long)xx);
@@ -3866,7 +3864,7 @@ next3:
 			exit(38);
 		}
 		if(childids[xx]==0){
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 			thread_ranread_test((void *)xx);
 #else
 			thread_ranread_test((void *)((long)xx));
@@ -3879,7 +3877,7 @@ next3:
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 		chid=xx;
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_ranread_test,xx);
 #else
 		childids[xx] = mythread_create( thread_ranread_test,(void *)(long)xx);
@@ -4074,7 +4072,7 @@ next4:
 			exit(38);
 		}
 		if(childids[xx]==0){
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 			thread_ranwrite_test((void *)xx);
 #else
 			thread_ranwrite_test((void *)((long)xx));
@@ -4087,7 +4085,7 @@ next4:
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 		chid=xx;
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_ranwrite_test,xx);
 #else
 		childids[xx] = mythread_create( thread_ranwrite_test,(void *)(long)xx);
@@ -4274,7 +4272,7 @@ next5:
 				exit(28);
 			}
 			if(childids[xx] == 0){
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 				thread_cleanup_test((void *)xx);
 #else
 				thread_cleanup_test((void *)((long)xx));
@@ -4286,7 +4284,7 @@ next5:
 		else
 		{
 		   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 			childids[xx] = mythread_create( thread_cleanup_test,xx);
 #else
 			childids[xx] = mythread_create( thread_cleanup_test,(void *)(long)xx);
@@ -4608,7 +4606,7 @@ long long reclen;
 	cache_lines_per_rec = (long)(reclen/cache_line_size);
 	cache_lines_per_cache = (long)(cache_size/cache_line_size);
 	rsize = (long)l_min((long long)cache_lines_per_rec,(long long)cache_lines_per_cache);
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 	where=(char *)pbuffer + ((unsigned long long)buffer & (cache_size-1));
 #else
 	where=(char *)pbuffer + ((long)buffer & ((long)cache_size-1));
@@ -5312,7 +5310,7 @@ long long *data1,*data2;
 				purgeit(buffer,reclen);
 			if(fread(buffer, (size_t) reclen,1, stream) != 1)
 			{
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 #ifdef NO_PRINT_LLD
 				printf("\nError freading block %ld %x\n", i,
 					(unsigned long long)buffer);
@@ -5544,7 +5542,7 @@ long long *data1,*data2;
 			fetchit(buffer,reclen);
 		if(read(fd, (void *)buffer, (size_t) 1) != 1)
 		{
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 			printf("\nError reading block %d %x\n", 0,
 				(unsigned long long)buffer);
 #else
@@ -5635,7 +5633,7 @@ long long *data1,*data2;
 			  {
 			    if(read((int)fd, (void*)buffer, (size_t) reclen) != reclen)
 			    {
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 #ifdef NO_PRINT_LLD
 				printf("\nError reading block %ld %lx\n", i,
 					(unsigned long long)buffer);
@@ -8515,7 +8513,7 @@ long long size;
 	 * is not specified then it will be read/write.
 	 */
         addr = (char *)shmat((int)shmid, 0, 0);
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
         if((long long)addr == (long long)-1)
 #else
         if((long)addr == (long)-1)
@@ -12334,7 +12332,7 @@ mythread_create( func,x)
 	pthread_attr_t attr;
 	int xx;
 	int *yy;
-#ifdef __LP64__
+#ifdef _64BIT_ARCH_
 	long long meme;
 	meme = (long long)x;
 #else

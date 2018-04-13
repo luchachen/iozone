@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.49 $
+# Version $Revision: 1.51 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -212,7 +212,8 @@ convex: iozone_convex.o libbif.o
 Solaris: iozone_solaris.o libasync.o libbif.o 
 	cc  -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-Dsolaris iozone_solaris.o libasync.o libbif.o \
-		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -lthread -lpthread -lposix4 -o iozone
+		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -lthread \
+                 -lpthread -lposix4 -lnsl -laio -lsocket -o iozone
 
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
@@ -220,14 +221,15 @@ Solaris: iozone_solaris.o libasync.o libbif.o
 Solaris7gcc: iozone_solaris7gcc.o libasync7.o libbif7.o 
 	gcc  -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-Dsolaris iozone_solaris7gcc.o libasync7.o libbif7.o \
-		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -lthread -lpthread -lposix4 -o iozone
+		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -lthread 
+		-lpthread -lposix4 -lnsl -laio -lsocket -o iozone
 
 #
 # Solaris 2.6 (32 bit) build with no threads, no largefiles, and no async I/O
 #
 Solaris-2.6: iozone_solaris-2.6.o libbif.o 
 	cc  -O -Dunix -DHAVE_ANSIC_C -Dsolaris iozone_solaris-2.6.o libbif.o \
-		-o iozone
+		-lnsl -laio -l socket -o iozone
 
 #
 # Windows build requires Cygnus development environment. You
