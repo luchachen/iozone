@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.88 $"
+#define THISVERSION "        Version $Revision: 3.89 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -464,7 +464,7 @@ struct master_command {
 #define MAXBUFFERSIZE (16*1024*1024)		/*maximum buffer size*/
 #endif
 
-#define	MAXSTREAMS	48		/* maximum number of children */
+#define	MAXSTREAMS	80		/* maximum number of children */
 #define MINBUFFERSIZE 128
 #define TOOFAST 10
 #define MAXTESTS 10
@@ -938,6 +938,7 @@ void child_listen();
 void child_listen_async();
 void stop_child_send();
 void stop_child_listen();
+void cleanup_comm();
 
 void master_send();
 int start_master_send();
