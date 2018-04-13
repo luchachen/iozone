@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.143 $"
+#define THISVERSION "        Version $Revision: 3.144 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -15142,9 +15142,9 @@ int size_of_message;
 	int rc;
 	int xx;
 	int tmp_port;
-	xx = 0;
 	int sockerr;
 	int recv_buf_size=65536;
+	xx = 0;
 	tsize=size_of_message; /* Number of messages to receive */
         s = socket(AF_INET, SOCK_STREAM, 0);
         if (s < 0)
