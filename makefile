@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.130 $
+# Version $Revision: 1.131 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -222,16 +222,20 @@ linux-AMD64:	iozone_linux-AMD64.o  libbif.o libasync.o fileop_linux-AMD64.o pit_
 #
 # GNU 'C' compiler Linux build with S/390, threads, largfiles, async I/O
 #
-linux-S390:	iozone_linux-s390.o libbif.o libasync.o
+linux-S390:	iozone_linux-s390.o libbif.o libasync.o fileop_linux-s390.o pit_server.o
 	$(CC)  -O2 $(LDFLAGS) -lpthread -lrt iozone_linux-s390.o \
 		libbif.o libasync.o -o iozone
+	$(CC)  -O3 -Dlinux fileop_linux-s390.o -o fileop
+	$(CC)  -O3 -Dlinux pit_server.o -o pit_server
 
 #
 # GNU 'C' compiler Linux build with S/390, threads, largfiles, async I/O
 #
-linux-S390X:	iozone_linux-s390x.o libbif.o libasync.o
+linux-S390X:	iozone_linux-s390x.o libbif.o libasync.o fileop_linux-s390x.o pit_server.o
 	$(CC)  -O2 $(LDFLAGS) -lpthread -lrt iozone_linux-s390x.o \
 		libbif.o libasync.o -o iozone
+	$(CC)  -O3 -Dlinux fileop_linux-s390x.o -o fileop
+	$(CC)  -O3 -Dlinux pit_server.o -o pit_server
 
 
 # 
@@ -845,6 +849,18 @@ fileop_linux-arm.o:  fileop.c
 	@echo "Building fileop for Linux-arm"
 	@echo ""
 	$(GCC) -Wall -c -O3 $(CFLAGS) fileop.c -o fileop_linux-arm.o
+
+fileop_linux-s390.o:  fileop.c
+	@echo ""
+	@echo "Building fileop for Linux-S390"
+	@echo ""
+	$(GCC) -Wall -c -O3 $(CFLAGS) fileop.c -o fileop_linux-s390.o
+
+fileop_linux-s390x.o:  fileop.c
+	@echo ""
+	@echo "Building fileop for Linux-s390x"
+	@echo ""
+	$(GCC) -Wall -c -O3 $(CFLAGS) fileop.c -o fileop_linux-s390x.o
 
 fileop_windows.o: fileop.c
 	@echo ""

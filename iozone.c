@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.345 $"
+#define THISVERSION "        Version $Revision: 3.347 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -11644,11 +11644,13 @@ long long mint, maxt;
 #endif
 {
         int *t_rangeptr, *t_rangecurs;
+        int *saveptr = (int *)0;
         int tofree = 0;
 	long long i;
         if(t_count == 0){
             t_count = (int) maxt - mint + 1;
             t_rangeptr = (int *) malloc((size_t)sizeof(int)*t_count);
+	    saveptr = t_rangeptr;
             tofree = 1;
             t_rangecurs = t_rangeptr;
             for(i=mint; i<= maxt; i++) {
@@ -11668,7 +11670,7 @@ long long mint, maxt;
 	if(Rflag)
 		dump_throughput();
         if(tofree)
-            free(t_rangeptr);
+            free(saveptr);
 
 }
 
