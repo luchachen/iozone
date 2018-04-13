@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.389 $"
+#define THISVERSION "        Version $Revision: 3.392 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -70,7 +70,7 @@
 #include <windows.h>
 #include <errno.h>
 #else
-#if defined(linux) || defined(solaris) || defined(macosx) || defined(__AIX__) || defined(FreeBSD)
+#if defined(linux) || defined(solaris) || defined(macosx) || defined(__AIX__) || defined(FreeBSD) || defined(_HPUX_SOURCE)
 #include <errno.h>
 #else
 extern  int errno;   /* imported for errors */
@@ -1611,6 +1611,8 @@ char **argv;
 	int num_child1;
 	int cret;
 	int anwser,bind_cpu;
+	char *evalue;
+
 
 	anwser=bind_cpu=0;
 	/* Used to make fread/fwrite do something better than their defaults */
@@ -1619,6 +1621,16 @@ char **argv;
 	
 	/* Save the master's name */
 	gethostname(controlling_host_name,100);
+
+	/* Let user activate mdebug or cdebug via environmental variables */
+	evalue = (char *)NULL;
+	evalue=(char *)getenv("CDEBUG");
+	if(evalue)
+		cdebug=atoi(evalue);
+	evalue = (char *)NULL;
+	evalue=(char *)getenv("MDEBUG");
+	if(evalue)
+		mdebug=atoi(evalue);
 
 	srand(time(0));
 	mygen=rand(); /* Pick a random generation number */
@@ -1655,7 +1667,8 @@ char **argv;
     	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million, Gavin Brebner,\n");
     	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg, Benny Halevy, Dave Boone,\n");
     	sprintf(splash[splash_line++],"\t             Erik Habbinga, Kris Strecker, Walter Wong, Joshua Root,\n");
-    	sprintf(splash[splash_line++],"\t             Fabrice Bacchella, Zhenghua Xue, Qin Li, Darren Sawyer.\n\n");
+    	sprintf(splash[splash_line++],"\t             Fabrice Bacchella, Zhenghua Xue, Qin Li, Darren Sawyer.\n");
+    	sprintf(splash[splash_line++],"\t             Ben England.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
 	argvsave=argv;
@@ -10288,6 +10301,7 @@ long long reclen;
 long long *data1,*data2;
 #endif
 {
+	int	wval;
 	double starttime1;
 	double pwritevtime[2];
 	double walltime[2], cputime[2];
@@ -10428,7 +10442,7 @@ long long *data1,*data2;
 					purgeit(piov[xx].piov_base,reclen);
 			}
 			if(pwritev(fd, piov,numvecs
-#ifdef PER_VECTOR_OFFSET
+#ifndef PER_VECTOR_OFFSET
 				, list_off[0]
 #endif
 				) != (reclen*numvecs))
@@ -10559,9 +10573,9 @@ off64_t numrecs64;
 {
 	long long found,i,j;
 	long long numvecs;
+	unsigned long long big_rand = -1;
 #if defined (bsd4_2) || defined(Windows)
 	long long rand1,rand2,rand3;
-	unsigned long long big_rand;
 #endif
 
 	numvecs = PVECMAX;
@@ -10755,7 +10769,7 @@ long long *data1,*data2;
 				   purgeit(piov[xx].piov_base,reclen);
 			}
 			if(preadv(fd, piov, numvecs
-#ifdef PERVECTOR_OFFSET
+#ifndef PER_VECTOR_OFFSET
 				, list_off[0]
 #endif
 				) != (numvecs * reclen))

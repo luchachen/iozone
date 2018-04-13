@@ -2380,3 +2380,12 @@ Fixup remainder for nanosleep()
 Revision 3.389
 Fixup remainder for nanosleep()
 =============================================================================
+Revision 3.390
+Add code for pread/pwrite from Ben England (Redhat)
+=============================================================================
+Revision 3.391
+Add code for MDEBUG and CDEBUG from Bob England (Redhat)
+=============================================================================
+Revision 3.392
+Add code for building HPUX. Errno.h
+=============================================================================

@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.136 $
+# Version $Revision: 1.137 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -941,6 +941,7 @@ iozone_linux-AMD64.o:	iozone.c libbif.c libasync.c
 	@echo ""
 	$(CC) -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DNAME='"linux-AMD64"' \
 		-D__AMD64__ -DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE \
+		-DHAVE_PREAD -DHAVE_PWRITE -DHAVE_PREADV -DHAVE_PWRITEV \
 		$(CFLAGS) iozone.c \
 		-o iozone_linux-AMD64.o
 	$(CC) -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
