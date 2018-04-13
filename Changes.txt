@@ -2395,3 +2395,9 @@ Fixes for Windows (nanosleep doesn't always work )
 Revision 3.394
 Fixes for preadv and pwritev from RedHat (Ben Englanc)
 =============================================================================
+Revision 3.395
+Add warnings for default switch cases, and exit with value for unknowns.
+=============================================================================
+Revision 3.396
+Fix warnings from RedHat patches
+=============================================================================

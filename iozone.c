@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.394 $"
+#define THISVERSION "        Version $Revision: 3.396 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1740,7 +1740,7 @@ char **argv;
   	sprintf(dummyfile[0],"%s.DUMMY",default_filename);
 	if(argc <=1){
 		printf(USAGE);
-		exit(0);
+		exit(255);
 	}
 	auto_mode = 0; 		/* Default is to disable auto mode */
 	inp_pat = PATTERN; 	/* Init default pattern for verification */
@@ -2486,6 +2486,11 @@ char **argv;
 #ifndef NO_MADVISE
 				case 'A':  /* Argument is madvise selector */
 					subarg=argv[optind++];
+					if(subarg==(char *)0)
+					{
+					   printf("-+A take an operand !!\n");
+					   exit(200);
+					}
 					advise_flag=1;
 					advise_op=atoi(subarg);
 					sprintf(splash[splash_line++],"\tMadvise enabled: %d\n",advise_op);
@@ -2688,10 +2693,13 @@ char **argv;
 					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
-					exit(0);
+					exit(255);
 					break;
 			}	
 			break;
+		default:
+			printf("Unsupported option -> %c <-\n",(char)cret);
+			exit(255);
 		}
 	}
 	base_time=(long)time_so_far();
