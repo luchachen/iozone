@@ -2215,4 +2215,7 @@ Add read-only, external file, with no-verify. -+E
 Revision 3.325
 Permit -+E on dedup files.
 =============================================================================
+Revision 3.327
+Permit -+E on random read only testing, on existing file.
+=============================================================================
 

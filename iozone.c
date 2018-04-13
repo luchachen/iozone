@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.326 $"
+#define THISVERSION "        Version $Revision: 3.327 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -2797,7 +2797,7 @@ char **argv;
 	}
 	if(no_write) /* Disable if any writer would disturbe existing file */
 	{
-	   if(include_test[0] || include_test[2] || include_test[4] ||
+	   if(include_test[0] || include_test[4] ||
 	      include_test[6] || include_test[8] || include_test[9] ||
               include_test[11])
 	   {
@@ -5374,7 +5374,7 @@ next5:
 	/*** random writer throughput tests  **************************/
 	/**************************************************************/
 	if(include_tflag)
-		if(!(include_mask & (long long)RANDOM_RW_MASK))
+		if(!(include_mask & (long long)RANDOM_RW_MASK) || no_write)
 			goto next6;
 	
 	toutputindex++;
@@ -8225,7 +8225,8 @@ long long *data1, *data2;
 	filebytes64 = numrecs64*reclen;
 	for( j=0; j<2; j++ )
 	{
-
+	     if (no_write && (j == 1))
+		continue;
 	     if(cpuutilflag)
 	     {
 		     walltime[j] = time_so_far();
@@ -8593,18 +8594,23 @@ long long *data1, *data2;
 	}
         for(j=0;j<2;j++)
         {
-		if(MS_flag)
-		{
-			randreadrate[j]=1000000.0*(randreadtime[j] / (double)filebytes64);
-			continue;
-		}
+	    if(no_write && (j==1))
+	    {
+	        randreadrate[1] = 0.0;
+		continue;
+	    }
+	    if(MS_flag)
+	    {
+		randreadrate[j]=1000000.0*(randreadtime[j] / (double)filebytes64);
+		continue;
+	    }
             else
             {
                   randreadrate[j] = 
 		      (unsigned long long) ((double) filebytes64 / randreadtime[j]);
             }
-		if(!(OPS_flag || MS_flag))
-			randreadrate[j] >>= 10;
+	    if(!(OPS_flag || MS_flag))
+		randreadrate[j] >>= 10;
 	}
 	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
         if(cpuutilflag)

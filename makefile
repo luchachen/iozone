@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.126 $
+# Version $Revision: 1.128 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -17,6 +17,7 @@ NACC	= /opt/ansic/bin/cc
 CFLAGS	=
 S10GCCFLAGS    = -m64
 S10CCFLAGS     = -m64
+FLAG64BIT      = -m64
 
 all:  
 	@echo ""
@@ -191,8 +192,8 @@ linux-powerpc64: iozone_linux-powerpc64.o  libbif.o libasync.o fileop_linux-ppc6
 	$(CC) -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE -Dlinux \
 		iozone_linux-powerpc64.o libasync.o libbif.o -lpthread \
-		-lrt -o iozone
-	$(CC)  -O3 -Dlinux fileop_linux-ppc64.o -o fileop
+		-lrt $(FLAG64BIT) -o iozone
+	$(CC)  -O3 -Dlinux fileop_linux-ppc64.o $(FLAG64BIT) -o fileop
 		
 #
 # GNU 'C' compiler Linux build with threads, largefiles, async I/O
@@ -664,11 +665,11 @@ iozone_linux-powerpc64.o:	iozone.c libbif.c libasync.c
 	@echo ""
 	$(CC) -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DNAME='"linux-powerpc64"' \
 		-DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE $(CFLAGS) iozone.c \
-		-o iozone_linux-powerpc64.o
+		$(FLAG64BIT) -o iozone_linux-powerpc64.o
 	$(CC) -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
-		-DSHARED_MEM -Dlinux $(CFLAGS) libbif.c -o libbif.o
+		-DSHARED_MEM -Dlinux $(CFLAGS) libbif.c $(FLAG64BIT) -o libbif.o
 	$(CC) -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
-		-D_LARGEFILE64_SOURCE $(CFLAGS) libasync.c  -o libasync.o 
+		-D_LARGEFILE64_SOURCE $(CFLAGS) libasync.c $(FLAG64BIT) -o libasync.o 
 		
 
 iozone_linux-sparc.o:	iozone.c libbif.c libasync.c
@@ -797,7 +798,7 @@ fileop_linux-ppc64.o:	fileop.c
 	@echo ""
 	@echo "Building fileop for Linux-powerpc64"
 	@echo ""
-	$(CC) -Wall -c -O3 $(CFLAGS) fileop.c -o fileop_linux-ppc64.o
+	$(CC) -Wall -c -O3 $(CFLAGS) $(FLAG64BIT) fileop.c -o fileop_linux-ppc64.o
 
 fileop_linux-AMD64.o:	fileop.c
 	@echo ""
