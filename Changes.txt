@@ -1506,4 +1506,8 @@ Make a better 32 bit random offset from calling rand()<<16||rand()
 Revision 3.134 
 =============================================================================
 Add -+p percentage read option.
+=============================================================================
+Revision 3.135 
+=============================================================================
+Improve the mixed mode distribution algorithm.
 

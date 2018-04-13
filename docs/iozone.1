@@ -58,6 +58,7 @@ Iozone \- Filesystem Benchmark
 [\fB\-+d\fP]
 [\fB\-+u\fP]
 [\fB\-+m\fP \fIclient_filename\fP]
+[\fB\-+p\fP \fIpercent_read\fP]
 
 .hy
 .SH DESCRIPTION
@@ -470,8 +471,12 @@ on the client.
 .BI \-+u
 Used to enable CPU statistics collection.
 .TP
-.BI \-+d
+.BI \-+d percent_read
 Diagnostic mode to troubleshoot a broken file I/O subsystem.
+.TP
+.BI \-+p
+Used to set the percentage of threads/processes that will perform read
+testing.
 
 .SH AUTHOR
 Original Author: William D. Norcott. wnorcott@us.oracle.com

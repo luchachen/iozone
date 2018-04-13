@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.134 $"
+#define THISVERSION "        Version $Revision: 3.135 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -11952,7 +11952,7 @@ thread_mix_test(x)
 #endif
 {
 	int selector;
-	int slots[100];
+	int slots[1000];
 	int i,which;
 	int xx;
 
@@ -11970,16 +11970,16 @@ thread_mix_test(x)
 #endif
 	if(pct_read!=0)
 	{
-		srand((unsigned int)xx);
+		srand((unsigned int)((xx+1)*100));
 		if(cdebug) printf("Child: %d Pct read %d \n",xx,pct_read);
-		for(i=0;i<100;i++)
+		for(i=0;i<1000;i++)
 		{
-			if(i<pct_read)
+			if(i<(pct_read*10))
 				slots[i]=0;
 			else
 				slots[i]=1;
 		}
-		which=rand()%100;
+		which=rand()%1000;
 		if(cdebug) printf("Child: %d Pct which %d\n",xx, which);
 		selector=slots[which];
 	}
