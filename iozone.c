@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.198 $"
+#define THISVERSION "        Version $Revision: 3.199 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1456,8 +1456,8 @@ char **argv;
 	sprintf(splash[splash_line++],"\t             Al Slater, Scott Rhine, Mike Wisner, Ken Goss\n");
     	sprintf(splash[splash_line++],"\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR,\n");
     	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million, \n");
-    	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg.\n");
-    	sprintf(splash[splash_line++],"\t             Eric Habbinga.\n\n");
+    	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg,\n");
+    	sprintf(splash[splash_line++],"\t             Erik Habbinga, Kris Streker.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
 	argvsave=argv;
@@ -10088,19 +10088,26 @@ long long size;
 	unlink("mmap.tmp");
 #else
 #if defined(solaris) 
-	if((tfd = creat("mmap.tmp", 0666))<0)
+        char mmapFileName[64];
+#ifdef NO_PRINT_LLD
+        sprintf(mmapFileName, "mmap.tmp_%ld", getpid());
+#else
+        sprintf(mmapFileName, "mmap.tmp_%lld", getpid());
+#endif
+        sprintf(mmapFileName, "mmap.tmp", getpid());
+        if((tfd = creat(mmapFileName, 0666))<0)
 	{
 		printf("Unable to create tmp file\n");
 		exit(121);
 	}
-	tfd=open("mmap.tmp",O_RDWR);
+	tfd=open(mmapFileName,O_RDWR);
 	dumb=(char *)malloc((size_t)size1);
 	bzero(dumb,size1);
 	write(tfd,dumb,size1);
 	free(dumb);
 	addr=(char *)mmap(0,(size_t)size1,PROT_WRITE|PROT_READ,
 		MAP_SHARED, tfd, 0);
-	unlink("mmap.tmp");
+	unlink("mmapFileName");
 #else
 #if defined(SCO) || defined(SCO_Unixware_gcc) || defined(Windows)
         if((tfd = creat("mmap.tmp", 0666))<0)
