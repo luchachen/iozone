@@ -57,7 +57,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.4 $";
+char libbif_version[] = "Libbif Version $Revision: 3.5 $";
 void do_eof(int );		/* Used internally */
 void do_header(int );		/* Used internally */
 #endif
@@ -257,7 +257,7 @@ int row,column;
         floatrec.lo_column=(char)((column>>8)&0xff);
 	sptr =(unsigned char *) &value;
 	dptr =(unsigned char *) &floatrec.data;
-#ifdef BIG_ENDIAN
+#if defined(BIG_ENDIAN) && !defined(linux)
 	dptr[0]=sptr[7]; /* Convert to Little Endian */
 	dptr[1]=sptr[6];
 	dptr[2]=sptr[5];

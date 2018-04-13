@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.59 $"
+#define THISVERSION "        Version $Revision: 3.60 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -670,6 +670,8 @@ off64_t min_file_size = KILOBYTES_START;
 off64_t max_file_size = KILOBYTES_END;
 long long min_rec_size = RECLEN_START;
 long long max_rec_size = RECLEN_END;
+long long orig_min_rec_size;
+long long orig_max_rec_size;
 long long xover = CROSSOVER;
 char *throughput_tests[] = {"Initial write","Rewrite","Read","Re-read",
 	"Reverse Read","Stride read","Random read","Random write"};
@@ -1784,6 +1786,8 @@ void auto_test()
 
 	init_file_sizes(min_file_size, max_file_size);
 	del_record_sizes();
+	orig_min_rec_size=min_rec_size;
+	orig_max_rec_size=max_rec_size;
 	init_record_sizes(min_rec_size, max_rec_size);
 
 
@@ -6582,6 +6586,13 @@ long long who;
 	if(bif_flag)
 		bif_column++;
 	printf("        ");
+
+	/* 
+	 * Need to reconstruct the record size list
+	 * as the crossover in -a changed the list.
+	*/
+	del_record_sizes();
+	init_record_sizes(orig_min_rec_size, orig_max_rec_size);
 
 	for(rec_size=get_next_record_size(0);rec_size < max_rec_size;
 		rec_size=get_next_record_size(rec_size))

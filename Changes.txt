@@ -1223,5 +1223,9 @@ Revision 3.59
 Fix a bug where the user specified -R -s but did not specify
 -a or -r. This caused the Excel report to print a bunch
 of zeros.
+=============================================================================
+Revision 3.60
+=============================================================================
+Fix headers in the Excel output when cross over kicks in.
 
 
