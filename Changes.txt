@@ -2579,3 +2579,9 @@ Make more friendly to build on Solaris.
 Revision 3.459
 Make more friendly to build on Solaris.
 =============================================================================
+Revision 3.460
+Make more friendly to build on Solaris.
+=============================================================================
+Revision 3.461
+Make more friendly to build on Solaris.
+=============================================================================

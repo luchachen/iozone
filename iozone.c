@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.459 $"
+#define THISVERSION "        Version $Revision: 3.461 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1043,7 +1043,7 @@ long long l_max(long long,long long);
 void Kill(long long,long long);
 long long l_min(long long,long long);
 void multi_throughput_test(long long,long long);
-long long mythread_create( void *(*func)(void *),int );
+long long mythread_create( void *, int );
 int thread_exit(void);
 void get_resolution(void);
 #ifndef NO_THREADS
@@ -4013,7 +4013,7 @@ throughput_test()
 		}
 
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create(( void *)thread_write_test,(int)xx);
+		childids[xx] = mythread_create((void *)tthread_write_test,(int)xx);
 #else
 		childids[xx] = mythread_create((void *)thread_write_test,(int)xx);
 #endif
@@ -4508,9 +4508,9 @@ next0:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( (void *)thread_read_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_read_test,(int)xx);
 #else
-		childids[xx] = mythread_create( (void *)thread_read_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_read_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -4743,9 +4743,9 @@ jumpend4:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( (void *)thread_rread_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_rread_test,(int)xx);
 #else
-		childids[xx] = mythread_create( (void *)thread_rread_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_rread_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -4983,9 +4983,9 @@ next1:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( (void *)thread_reverse_read_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_reverse_read_test,(int)xx);
 #else
-		childids[xx] = mythread_create( (void *)thread_reverse_read_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_reverse_read_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -5217,9 +5217,9 @@ next2:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( (void *)thread_stride_read_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_stride_read_test,(int)xx);
 #else
-		childids[xx] = mythread_create( (void *)thread_stride_read_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_stride_read_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -5452,9 +5452,9 @@ next3:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( (void *)thread_ranread_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_ranread_test,(int)xx);
 #else
-		childids[xx] = mythread_create( (void *)thread_ranread_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_ranread_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -5682,9 +5682,9 @@ next4:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( (void *)thread_mix_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_mix_test,(int)xx);
 #else
-		childids[xx] = mythread_create( (void *)thread_mix_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_mix_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -5912,9 +5912,9 @@ next5:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( (void *)thread_ranwrite_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_ranwrite_test,(int)xx);
 #else
-		childids[xx] = mythread_create( (void *)thread_ranwrite_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_ranwrite_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -6145,9 +6145,9 @@ next6:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( (void *)thread_pwrite_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_pwrite_test,(int)xx);
 #else
-		childids[xx] = mythread_create( (void *)thread_pwrite_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_pwrite_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -6380,9 +6380,9 @@ next7:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( (void *)thread_pread_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_pread_test,(int)xx);
 #else
-		childids[xx] = mythread_create( (void *)thread_pread_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_pread_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -6605,9 +6605,9 @@ next8:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( (void *)thread_fwrite_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_fwrite_test,(int)xx);
 #else
-		childids[xx] = mythread_create( (void *)thread_fwrite_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_fwrite_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -6835,9 +6835,9 @@ next9:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( (void *)thread_fread_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_fread_test,(int)xx);
 #else
-		childids[xx] = mythread_create( (void *)thread_fread_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_fread_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -7051,9 +7051,9 @@ next10:
 		{
 		   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 #ifdef _64BIT_ARCH_
-			childids[xx] = mythread_create( (void *)thread_cleanup_test,(int)xx);
+			childids[xx] = mythread_create((void *)thread_cleanup_test,(int)xx);
 #else
-			childids[xx] = mythread_create( (void *)thread_cleanup_test,(int)xx);
+			childids[xx] = mythread_create((void *)thread_cleanup_test,(int)xx);
 #endif
 			if(childids[xx]==-1){
 				printf("\nThread create failed\n");
@@ -18910,11 +18910,11 @@ return(0);
 #ifndef NO_THREADS
 #ifdef HAVE_ANSIC_C
 long long 
-mythread_create( void *(*func)(void *),int x)
+mythread_create( void *func,int x)
 #else
 long long 
 mythread_create( func,x)
-void *(*func)(void *);
+void *func;
 int x;
 #endif
 {
@@ -18924,6 +18924,9 @@ int x;
 	long long meme;
 	void *myptr;
 	char foo[10];
+/*
+mythread_create( void *(*func)(void *),int x)
+*/
 
 	/* DAMN COMPILERS !!! */
 	sprintf(foo,"%x",x);
@@ -18933,12 +18936,12 @@ int x;
 #ifdef OSFV3
 	
 	xx=(int )pthread_create(&ts, pthread_attr_default,
-		func, myptr);
+		(void *)(func), myptr);
 
 #else
 	pthread_attr_init(&attr);
 	xx=(int )pthread_create((pthread_t *)&ts, (pthread_attr_t *) &attr,
-		func, myptr);
+		(void *)(func), myptr);
 #endif
 	bcopy(&ts,&p_childids[meme],sizeof(pthread_t));
 	if(xx < (int)0)
