@@ -2197,6 +2197,7 @@ char **argv;
                         break;
 
 		case 'P':	/* Set beginning processor for binding. */
+#if ! defined(__Android__)
 #ifndef NO_THREADS
 #if defined(_HPUX_SOURCE) || defined(linux)
 #if defined(_HPUX_SOURCE)
@@ -2214,6 +2215,9 @@ char **argv;
 #else
 			sprintf(splash[splash_line++],"\tProcessor binding not available in this version\n");
 #endif
+#endif
+#else
+			sprintf(splash[splash_line++],"\tProcessor binding not available in Android version\n");
 #endif
                         break;
 		case 'p':	/* purge the processor cache */
@@ -2748,8 +2752,12 @@ char **argv;
 					break;
 #if defined(_HPUX_SOURCE) || defined(linux) || defined(solaris)
 				case 'r':  /* Read sync too */
+#if ! defined(__Android__)
 					read_sync=1;
     					sprintf(splash[splash_line++],"\tRead & Write sync mode active.\n");
+#else
+					sprintf(splash[splash_line++],"\tRead sync mode is not supported in Android.\n");
+#endif
 					break;
 #endif
 #ifndef NO_MADVISE
@@ -3365,6 +3373,7 @@ char **argv;
 		bzero(buffer,(size_t)l_min(reclen,(long long)cache_size));
 	}
 
+#if ! defined(__Android__)
 #ifndef NO_THREADS
 #if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
@@ -3382,6 +3391,7 @@ char **argv;
 #endif
 		my_nap(40);	/* Switch to new cpu */
 	}
+#endif
 #endif
 #endif
 	orig_size=kilobytes64;
@@ -7669,9 +7679,11 @@ long long *data2;
 	if(odsync)
 		file_flags |= O_DSYNC;
 #endif
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux) || defined(__FreeBSD__) || defined(__DragonFly__)
 	if(read_sync)
 		file_flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
@@ -8679,9 +8691,11 @@ long long *data1,*data2;
 	numrecs64 = (kilo64*1024)/reclen;
 
 	open_flags = O_RDONLY;
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		open_flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
@@ -9255,9 +9269,11 @@ long long *data1, *data2;
 	if(odsync)
 		flags |= O_DSYNC;
 #endif
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 	filebytes64 = numrecs64*reclen;
 	for( j=0; j<2; j++ )
@@ -9726,9 +9742,11 @@ long long *data1,*data2;
 		open_flags |=O_DIRECTIO;
 #endif
 #endif
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		open_flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
@@ -10032,9 +10050,11 @@ long long *data1,*data2;
 	if(odsync)
 		flags |= O_DSYNC;
 #endif
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 /*
 	if (!no_unlink)
@@ -10350,9 +10370,11 @@ long long *data1, *data2;
 		open_flags |=O_DIRECTIO;
 #endif
 #endif
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		open_flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 	next64 = (off64_t)0;
 	numrecs64 = (kilos64*1024)/reclen;
@@ -10679,9 +10701,11 @@ long long *data1,*data2;
 		flags_here |= O_DSYNC;
 #endif
 
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags_here |=O_RSYNC|O_SYNC;
+#endif
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
@@ -10949,9 +10973,11 @@ long long *data1, *data2;
 		open_flags |=O_DIRECTIO;
 #endif
 #endif
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux) || defined(__FreeBSD__) || defined(__DragonFly__)
 	if(read_sync)
 		open_flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 	if(r_traj_flag)
 	{
@@ -11199,9 +11225,11 @@ long long *data1,*data2;
 	if(odsync)
 		flags_here |= O_DSYNC;
 #endif
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags_here |=O_RSYNC|O_SYNC;
+#endif
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
@@ -11540,9 +11568,11 @@ long long *data1,*data2;
 		open_flags |=O_DIRECTIO;
 #endif
 #endif
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		open_flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
@@ -12783,6 +12813,7 @@ thread_write_test( x)
 		xx=chid;
 	}
 #endif
+#if ! defined(__Android__)
 #ifndef NO_THREADS
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(ioz_processor_bind)
@@ -12801,6 +12832,7 @@ thread_write_test( x)
 #endif
 		my_nap(40);	/* Switch to new cpu */
 	}
+#endif
 #endif
 #endif
 	if(use_thread)
@@ -12870,9 +12902,11 @@ thread_write_test( x)
 	if(odsync)
 		flags |= O_DSYNC;
 #endif
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
@@ -13497,6 +13531,7 @@ thread_pwrite_test( x)
 		xx=chid;
 	}
 #endif
+#if ! defined(__Android__)
 #ifndef NO_THREADS
 #if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
@@ -13514,6 +13549,7 @@ thread_pwrite_test( x)
 #endif
 		my_nap(40);	/* Switch to new cpu */
 	}
+#endif
 #endif
 #endif
 	if(use_thread)
@@ -13581,9 +13617,11 @@ thread_pwrite_test( x)
 	if(odsync)
 		flags |= O_DSYNC;
 #endif
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
@@ -14134,6 +14172,7 @@ thread_rwrite_test(x)
 		xx=chid;
 	}
 #endif
+#if ! defined(__Android__)
 #ifndef NO_THREADS
 #if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
@@ -14151,6 +14190,7 @@ thread_rwrite_test(x)
 #endif
 		my_nap(40);	/* Switch to new cpu */
 	}
+#endif
 #endif
 #endif
 	if(use_thread)
@@ -14203,9 +14243,11 @@ thread_rwrite_test(x)
 	if(odsync)
 		flags|= O_DSYNC;
 #endif
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
@@ -14732,6 +14774,7 @@ thread_read_test(x)
 		xx=chid;
 	}
 #endif
+#if ! defined(__Android__)
 #ifndef NO_THREADS
 #if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
@@ -14750,6 +14793,7 @@ thread_read_test(x)
 #endif
 		my_nap(40);	/* Switch to new cpu */
 	}
+#endif
 #endif
 #endif
 	if(use_thread)
@@ -14780,9 +14824,11 @@ thread_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
@@ -15358,9 +15404,11 @@ thread_pread_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
@@ -15848,6 +15896,7 @@ thread_rread_test(x)
 		xx=chid;
 	}
 #endif
+#if ! defined(__Android__)
 #ifndef NO_THREADS
 #if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
@@ -15866,6 +15915,7 @@ thread_rread_test(x)
 #endif
 		my_nap(40);	/* Switch to new cpu */
 	}
+#endif
 #endif
 #endif
 	if(use_thread)
@@ -15912,9 +15962,11 @@ thread_rread_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
@@ -16416,6 +16468,7 @@ thread_reverse_read_test(x)
 		xx=chid;
 	}
 #endif
+#if ! defined(__Android__)
 #ifndef NO_THREADS
 #if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
@@ -16434,6 +16487,7 @@ thread_reverse_read_test(x)
 #endif
 		my_nap(40);	/* Switch to new cpu */
 	}
+#endif
 #endif
 #endif
 	if(use_thread)
@@ -16480,9 +16534,11 @@ thread_reverse_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
@@ -16952,6 +17008,7 @@ thread_stride_read_test(x)
 		xx=chid;
 	}
 #endif
+#if ! defined(__Android__)
 #ifndef NO_THREADS
 #if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
@@ -16970,6 +17027,7 @@ thread_stride_read_test(x)
 #endif
 		my_nap(40);	/* Switch to new cpu */
 	}
+#endif
 #endif
 #endif
 	if(use_thread)
@@ -17016,9 +17074,11 @@ thread_stride_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
@@ -17624,6 +17684,7 @@ void *x;
 		xx=chid;
 	}
 #endif
+#if ! defined(__Android__)
 #ifndef NO_THREADS
 #if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
@@ -17642,6 +17703,7 @@ void *x;
 #endif
 		my_nap(40);	/* Switch to new cpu */
 	}
+#endif
 #endif
 #endif
 	if(use_thread)
@@ -17674,9 +17736,11 @@ void *x;
 	}
 	else
 		flags=O_RDONLY;
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
@@ -18258,6 +18322,7 @@ thread_ranwrite_test( x)
 		xx=chid;
 	}
 #endif
+#if ! defined(__Android__)
 #ifndef NO_THREADS
 #if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
@@ -18276,6 +18341,7 @@ thread_ranwrite_test( x)
 #endif
 		my_nap(40);	/* Switch to new cpu */
 	}
+#endif
 #endif
 #endif
 	if(use_thread)
@@ -18331,9 +18397,11 @@ thread_ranwrite_test( x)
 	if(odsync)
 		flags |= O_DSYNC;
 #endif
+#if ! defined(__Android__)
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
+#endif
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
