@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.263 $"
+#define THISVERSION "        Version $Revision: 3.267 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -257,15 +257,15 @@ THISVERSION,
 #include <unistd.h>
 
 #include <fcntl.h>
-#if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__APPLE__)
+#if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__APPLE__) && !defined(__DragonFly__)
 #include <malloc.h>
 #endif
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__)
 #include <stdlib.h>
 #include <string.h>
 #endif
 
-#if defined (__FreeBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__APPLE__)
+#if defined (__FreeBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__APPLE__) || defined(__DragonFly__)
 #ifndef O_SYNC
 #define O_SYNC O_FSYNC
 #endif
@@ -306,6 +306,12 @@ THISVERSION,
 typedef long long off64_t;
 #endif
 
+#if defined(__DragonFly__)
+#define __off64_t_defined
+typedef off_t off64_t;
+#endif
+
+
 #ifndef solaris
 #ifndef off64_t
 #ifndef _OFF64_T
@@ -313,7 +319,9 @@ typedef long long off64_t;
 #ifndef __off64_t_defined
 #ifndef SCO_Unixware_gcc
 #ifndef UWIN
+#ifndef __DragonFly__
 typedef long long off64_t;
+#endif
 #endif
 #endif
 #endif
@@ -331,7 +339,7 @@ typedef long long off64_t;
 #endif
 
 #ifdef unix
-#if defined (__APPLE__) || defined(__FreeBSD__)
+#if defined (__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
 #include <sys/time.h>
 #endif
 #include <sys/times.h>
@@ -363,7 +371,7 @@ typedef long long off64_t;
 #define MS_ASYNC 0
 #endif
 
-#ifdef bsd4_4
+#if defined(bsd4_4) || defined(__DragonFly__)
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
@@ -387,9 +395,19 @@ long long page_size = 4096; /* Used when all else fails */
 
 #ifdef HAVE_PREAD
 #ifdef HAVE_PREADV
-#include <sys/puio.h>
 #define PVECMAX 16
+
+#ifdef _HPUX_SOURCE
+#define PER_VECTOR_OFFSET
+#include <sys/puio.h>
 struct piovec piov[PVECMAX];
+#else
+#include <sys/uio.h>
+struct iovec piov[PVECMAX];
+#define piov_base iov_base
+#define piov_len iov_len
+#endif
+
 #endif
 #endif
 
@@ -939,6 +957,10 @@ int async_read_no_copy();
 size_t async_write_no_copy();
 void end_async();
 void async_init();
+#else
+size_t async_write();
+size_t async_write_no_copy();
+void async_release();
 #endif
 void do_float();
 int create_xls();
@@ -2071,6 +2093,8 @@ char **argv;
 			}
 			if(minimum_file_size < RECLEN_START/1024)
 				minimum_file_size=(off64_t)(RECLEN_START/1024);
+			if(minimum_file_size < page_size/1024)
+				minimum_file_size=(off64_t)(page_size/1024);
 #ifdef NO_PRINT_LLD
 			sprintf(splash[splash_line++],"\tUsing minimum file size of %ld kilobytes.\n",minimum_file_size);
 #else
@@ -6299,7 +6323,7 @@ long long *data2;
 	if(odsync)
 		file_flags |= O_DSYNC;
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(freebsd) || defined(__DragonFly__)
 	if(read_sync)
 		file_flags |=O_RSYNC|O_SYNC;
 #endif
@@ -7264,7 +7288,7 @@ long long *data1,*data2;
 #endif
 		if((fd = I_OPEN(filename, open_flags,0))<0)
 		{
-			printf("\nCan not open temporary file for read\n");
+			printf("\nCan not open temporary file %s for read\n",filename);
 			perror("open");
 			exit(58);
 		}
@@ -9198,7 +9222,7 @@ long long *data1, *data2;
 		open_flags |=O_DIRECTIO;
 #endif
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(freebsd) || defined(__DragonFly__)
 	if(read_sync)
 		open_flags |=O_RSYNC|O_SYNC;
 #endif
@@ -9231,7 +9255,7 @@ long long *data1, *data2;
 		}
 		if((fd = I_OPEN(filename, (int)open_flags,0))<0)
 		{
-			printf("\nCan not open temporary file for read\n");
+			printf("\nCan not open temporary file %s for read\n",filename);
 			perror("open");
 			exit(101);
 		}
@@ -9543,11 +9567,17 @@ long long *data1,*data2;
 				if(verify)
 					fill_buffer(piov[xx].piov_base,reclen,(long long)pattern,sverify,i);
 				piov[xx].piov_len = reclen;
+#ifdef PER_VECTOR_OFFSET
 				piov[xx].piov_offset = list_off[xx];
+#endif
 				if(purge)
 					purgeit(piov[xx].piov_base,reclen);
 			}
-			if(pwritev(fd, piov,numvecs) != (reclen*numvecs))
+			if(pwritev(fd, piov,numvecs
+#ifdef PER_VECTOR_OFFSET
+				, list_off[0]
+#endif
+				) != (reclen*numvecs))
 			{
 #ifdef NO_PRINT_LLD
 			    	printf("\nError pwriteving block %ld, fd= %d\n", i,
@@ -9650,7 +9680,6 @@ long long reclen;
 off64_t numrecs64;
 #endif
 {
-	off64_t offset;
 	long long found,i,j;
 	long long numvecs;
 #if defined (bsd4_2) || defined(Windows)
@@ -9818,11 +9847,17 @@ long long *data1,*data2;
 				piov[xx].piov_base = 
 					(caddr_t)(nbuff+(xx * reclen));
 				piov[xx].piov_len = reclen;
+#ifdef PER_VECTOR_OFFSET
 				piov[xx].piov_offset = list_off[xx];
+#endif
 				if(purge)
 				   purgeit(piov[xx].piov_base,reclen);
 			}
-			if(preadv(fd, piov, numvecs) != (numvecs * reclen))
+			if(preadv(fd, piov, numvecs
+#ifdef PERVECTOR_OFFSET
+				, list_off[0]
+#endif
+				) != (numvecs * reclen))
 			{
 #ifdef NO_PRINT_LLD
 				printf("\nError preadving block %ld \n", i);
@@ -16151,6 +16186,7 @@ void *x;
 #endif
 {
 	printf("This version does not support threads\n");
+	return(-1);
 }
 #endif
 
@@ -16179,6 +16215,7 @@ thread_exit()
 #endif
 {
 	printf("This version does not support threads\n");
+	return(-1);
 }
 #endif
 
@@ -16208,6 +16245,7 @@ mythread_self()
 #endif
 {
 	printf("This version does not support threads\n");
+	return(-1);
 }
 #endif
 
@@ -16247,6 +16285,7 @@ void *status;
 #endif
 {
 	printf("This version does not support threads\n");
+	return((void *)-1);
 }
 #endif
 
@@ -16659,26 +16698,37 @@ long long length;
 }
 
 #ifndef ASYNC_IO
+int
 async_read()
 {
 	printf("Your system does not support async I/O\n");
 	exit(169);
 }
+size_t
 async_write_no_copy()
 {
 	printf("Your system does not support async I/O\n");
 	exit(170);
 }
+size_t
 async_write()
 {
 	printf("Your system does not support async I/O\n");
 	exit(171);
 }
+void
+async_init()
+{
+	printf("Your system does not support async I/O\n");
+	exit(172);
+}
+int
 async_read_no_copy()
 {
 	printf("Your system does not support async I/O\n");
 	exit(172);
 }
+void
 async_release()
 {
 	printf("Your system does not support async I/O\n");
@@ -18360,7 +18410,8 @@ child_attach(s, flag)
 int s,flag;
 #endif
 {
-	int me,ns;
+	unsigned int me;
+	int ns;
 	struct sockaddr_in *addr;
 	if(flag)
 	{
@@ -20376,7 +20427,8 @@ int size_of_message;
 #endif
 {
 	int tsize;
-	int s,ns,me;
+	int s,ns;
+	unsigned int me;
 	int rc;
 	int xx;
 	int tmp_port;
@@ -20597,7 +20649,8 @@ int sp_master_listen_port;
 #endif
 {
 	int tsize;
-	int s,ns,me;
+	int s,ns;
+	unsigned int me;
 	int rc;
 	int xx;
 	int tmp_port;
@@ -20795,7 +20848,7 @@ get_date(char *where)
 	time_t t;
 	char *value;
 	t=time(0);
-	value=ctime(&t);
+	value=(char *)ctime(&t);
 	strcpy(where,value);
 }
 

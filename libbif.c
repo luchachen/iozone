@@ -14,17 +14,17 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <sys/file.h>
-#ifdef __AIX__
+#if defined(__AIX__) || defined(__FreeBSD__) || defined(__DragonFly__)
 #include <fcntl.h>
 #else
 #include <sys/fcntl.h>
 #endif
 
-#if defined(OSV5) || defined(linux) || defined (__FreeBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__APPLE__)
+#if defined(OSV5) || defined(linux) || defined (__FreeBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__APPLE__) || defined(__DragonFly__)
 #include <string.h>
 #endif
 
-#if defined(linux)
+#if defined(linux) || defined(__DragonFly__)
 #include <unistd.h>
 #include <stdlib.h>
 #endif
@@ -84,7 +84,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.15 $";
+char libbif_version[] = "Libbif Version $Revision: 3.17 $";
 void do_eof(int );		/* Used internally */
 void do_header(int );		/* Used internally */
 int endian(void);
@@ -405,7 +405,7 @@ endian(void)
 {
 	long long foo = 0x0102030405060708LL;
 	unsigned char *c,c1,c2,c3,c4,c5,c6,c7,c8;
-	c=(char *)&foo;
+	c=(unsigned char *)&foo;
 	c1=*c++;
 	c2=*c++;
 	c3=*c++;

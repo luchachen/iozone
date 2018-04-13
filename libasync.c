@@ -102,7 +102,9 @@
 #endif
 #include <sys/errno.h>
 #include <unistd.h>
+#ifndef bsd4_4
 #include <malloc.h>
+#endif
 #ifdef VXFS
 #include <sys/fs/vx_ioctl.h>
 #endif
@@ -148,7 +150,7 @@ extern int one;
  * cache, pointed to by async_init(gc) will be of
  * this structure type.
  */
-char version[] = "Libasync Version $Revision: 3.19 $";
+char version[] = "Libasync Version $Revision: 3.20 $";
 struct cache_ent {
 	struct aiocb myaiocb;			/* For use in small file mode */
 #ifdef _LARGEFILE64_SOURCE 

@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.103 $
+# Version $Revision: 1.112 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -15,6 +15,7 @@ GCC	= gcc
 CCS	= /usr/ccs/bin/cc
 NACC	= /opt/ansic/bin/cc
 CFLAGS	=
+S10GCCFLAGS    = -m64 -mcpu=v9
 
 all:  
 	@echo ""
@@ -24,6 +25,7 @@ all:
 	@echo "        ->   bsdi                 (32bit)   <-" 
 	@echo "        ->   convex               (32bit)   <-" 
 	@echo "        ->   CrayX1               (32bit)   <-"
+	@echo "        ->   dragonfly            (32bit)   <-"
 	@echo "        ->   freebsd              (32bit)   <-"
 	@echo "        ->   generic              (32bit)   <-"
 	@echo "        ->   ghpux                (32bit)   <-"
@@ -62,6 +64,7 @@ all:
 	@echo "        ->   Solaris8-64          (64bit)   <-"
 	@echo "        ->   Solaris8-64-VXFS     (64bit)   <-"
 	@echo "        ->   Solaris10gcc         (32bit)   <-"
+	@echo "        ->   Solaris10gcc-64      (64bit)   <-"
 	@echo "        ->   sppux                (32bit)   <-"
 	@echo "        ->   sppux-10.1           (32bit)   <-"
 	@echo "        ->   sppux_no_ansi-10.1   (32bit)   <-"
@@ -226,7 +229,7 @@ linux-S390X:	iozone_linux-s390x.o libbif.o libasync.o
 AIX:	iozone_AIX.o  libbif.o  fileop_AIX.o
 	$(CC)  -O $(LDFLAGS) iozone_AIX.o libbif.o \
 		-lpthreads -o iozone
-	$(CC)  -O -Dlinux fileop_linux-AIX.o -o fileop
+	$(CC)  -O -Dlinux fileop_AIX.o -o fileop
 
 # 
 # AIX-LF
@@ -323,6 +326,15 @@ Solaris10gcc:	iozone_solaris10gcc.o libasync10.o libbif10.o fileop_Solaris10gcc.
 		-lsocket -o iozone
 	$(GCC)  -O fileop_Solaris10gcc.o -o fileop
 
+#
+# Solaris 64 bit build with threads, largefiles, and async I/O
+#
+Solaris10gcc-64:	iozone_solaris10gcc-64.o libasync10-64.o libbif10-64.o fileop_Solaris10gcc-64.o
+	$(GCC)  -O $(LDFLAGS) $(S10GCCFLAGS) iozone_solaris10gcc-64.o libasync10-64.o libbif10-64.o \
+		-lthread -lpthread -lposix4 -lnsl -laio \
+		-lsocket -o iozone
+	$(GCC)  -O $(S10GCCFLAGS) fileop_Solaris10gcc-64.o -o fileop
+
 
 #
 # Solaris 2.6 (32 bit) build with no threads, no largefiles, and no async I/O
@@ -343,7 +355,7 @@ Solaris8-64: iozone_solaris8-64.o libasync.o libbif.o
 # Solaris 64 bit build with threads, largefiles, async I/O, and Vxfs
 #
 Solaris8-64-VXFS: iozone_solaris8-64-VXFS.o libasync.o libbif.o
-	$(CC) $(LDFLAGS) -fast -xtarget=generic64 -v -I/opt/VRTSxfs/include/ 
+	$(CC) $(LDFLAGS) -fast -xtarget=generic64 -v -I/opt/VRTSvxfs/include/ 
 		iozone_solaris8-64-VXFS.o libasync.o libbif.o \
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
@@ -376,9 +388,17 @@ bsdi:	iozone_bsdi.o libbif.o fileop_bsdi.o
 # GNU C compiler FreeBSD build with no threads, no largefiles, no async I/O
 #
 
-freebsd:	iozone_freebsd.o libbif.o fileop_freebsd.o
-	$(CC) $(LDFLAGS) iozone_freebsd.o libbif.o -o iozone
+freebsd:	iozone_freebsd.o libbif.o fileop_freebsd.o libasync.o
+	$(CC) $(LDFLAGS) iozone_freebsd.o libbif.o -lpthread libasync.o \
+		-o iozone
 	$(CC)  -O fileop_freebsd.o -o fileop
+
+#
+# GNU C compiler DragonFly build with no threads, no largefiles
+#
+dragonfly:	iozone_dragonfly.o libbif.o fileop_dragonfly.o
+	$(CC) $(LDFLAGS) iozone_dragonfly.o libbif.o -o iozone
+	$(CC)  -O fileop_dragonfly.o -o fileop
 
 #
 # GNU C compiler MacosX build with no threads, no largefiles, no async I/O
@@ -681,7 +701,13 @@ fileop_Solaris10gcc.o:	fileop.c
 	@echo ""
 	@echo "Building fileop for Solaris10gcc"
 	@echo ""
-	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_Solaris10gcc.o
+	$(GCC) -c -O $(CFLAGS) fileop.c -o fileop_Solaris10gcc.o
+
+fileop_Solaris10gcc-64.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for Solaris10gcc-64"
+	@echo ""
+	$(GCC) -c -O $(CFLAGS) $(S10GCCFLAGS) fileop.c -o fileop_Solaris10gcc-64.o
 
 fileop_linux.o:	fileop.c
 	@echo ""
@@ -856,6 +882,20 @@ iozone_solaris10gcc.o:  iozone.c libbif.c
                 -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
                 -DNAME='"Solaris10gcc"' $(CFLAGS) iozone.c -o iozone_solaris10gcc.o
 
+iozone_solaris10gcc-64.o:  iozone.c libbif.c
+	@echo ""
+	@echo "Building iozone for Solaris10gcc-64"
+	@echo ""
+	$(GCC) -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
+                -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+                $(CFLAGS) $(S10GCCFLAGS) libbif.c -o libbif10-64.o
+	$(GCC) -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
+                -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+                -DNAME='"Solaris10gcc-64"' $(CFLAGS) $(S10GCCFLAGS) libasync.c -o libasync10-64.o
+	$(GCC) -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
+                -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+                -DNAME='"Solaris10gcc-64"' $(CFLAGS) $(S10GCCFLAGS) iozone.c -o iozone_solaris10gcc-64.o
+
 #
 #		-DSHARED_MEM -Dsolaris libasync.c -o libasync.o
 #		-DSHARED_MEM -Dsolaris iozone.c -o iozone_solaris.o
@@ -1008,14 +1048,30 @@ iozone_bsdi.o:	iozone.c libbif.c
 	$(CC) -c -O -Dunix -Dbsd4_4 -DHAVE_ANSIC_C \
 		$(CFLAGS) libbif.c -o libbif.o
 
-iozone_freebsd.o:	iozone.c libbif.c
+iozone_freebsd.o:	iozone.c libbif.c libasync.c
 	@echo ""
 	@echo "Build iozone for FreeBSD"
 	@echo ""
-	$(CC) -c ${CFLAGS}  -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
-		-DNAME='"freebsd"' -DSHARED_MEM $(CFLAGS) iozone.c -o iozone_freebsd.o
-	$(CC) -c ${CFLAGS} -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
-		-DSHARED_MEM $(CFLAGS) libbif.c -o libbif.o
+	$(CC) -c ${CFLAGS}  -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DASYNC_IO \
+		-DHAVE_PREAD -DNAME='"freebsd"' -DSHARED_MEM \
+		$(CFLAGS) iozone.c -o iozone_freebsd.o
+	$(CC) -c ${CFLAGS} -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DASYNC_IO \
+		-DSHARED_MEM -DHAVE_PREAD $(CFLAGS) libbif.c \
+		-o libbif.o
+	$(CC) -c ${CFLAGS} -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DASYNC_IO \
+		-DSHARED_MEM -DHAVE_PREAD $(CFLAGS) libasync.c \
+		-o libasync.o
+
+iozone_dragonfly.o:	iozone.c libbif.c
+	@echo ""
+	@echo "Build iozone for DragonFly"
+	@echo ""
+	$(CC) -c ${CFLAGS}  -D__DragonFly__ -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
+		-DNAME='"dragonfly"' -DSHARED_MEM -DHAVE_PREAD -DHAVE_PREADV \
+		$(CFLAGS) iozone.c -o iozone_dragonfly.o
+	$(CC) -c ${CFLAGS} -D__DragonFly__ -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
+		-DSHARED_MEM -DHAVE_PREAD -DHAVE_PREADV $(CFLAGS) libbif.c \
+		-o libbif.o
 
 iozone_macosx.o:	iozone.c libbif.c
 	@echo ""

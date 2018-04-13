@@ -109,7 +109,8 @@ set ylabel "Record size in Kbytes"
 set zlabel "Kbytes/sec"
 set data style lines
 set dgrid3d 80,80,3
-set terminal png small picsize 900 700
+#set terminal png small picsize 900 700
+set terminal png small size 900 700
 set output "$column.png"
 };
 
@@ -122,7 +123,8 @@ set output "$column.png"
     open(G, ">$outdir/2d-$column.do") or die "cannot open $outdir/$column.do for writing";
     print G qq{
 set title "Iozone performance: $column"
-set terminal png small picsize 450 350
+#set terminal png small picsize 450 350
+set terminal png small size 450 350
 set logscale x
 set xlabel "File size in KBytes"
 set ylabel "Kbytes/sec"
