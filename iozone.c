@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.132 $"
+#define THISVERSION "        Version $Revision: 3.134 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -107,7 +107,7 @@ char *help[] = {
 "                  [-n minfilesize_Kb] [-N] [-Q] [-P start_cpu] [-e] [-c] [-b Excel.xls]",
 "                  [-J milliseconds] [-X write_telemetry_filename] [-w] [-W]",
 "                  [-Y read_telemetry_filename] [-y minrecsize_Kb] [-q maxrecsize_Kb]",
-"                  [-+u] [-+m cluster_filename] [-+d] [-+x multiplier]",
+"                  [-+u] [-+m cluster_filename] [-+d] [-+x multiplier] [-+p # ]",
 " ",
 "           -a  Auto mode",
 "           -A  Auto2 mode",
@@ -174,6 +174,7 @@ char *help[] = {
 "           -+d  File I/O diagnostic mode. (To troubleshoot a broken file I/O subsystem)",
 "           -+u  Enable CPU utilization output (Experimental)",
 "           -+x # Multiplier to use for incrementing file and record sizes",
+"           -+p # Percentage of mix to be reads",
 "" };
 
 char *head1[] = {
@@ -432,6 +433,8 @@ struct client_command {
 	int c_pattern;
 	int c_version;
 	int c_base_time;
+	int c_num_child;
+	int c_pct_read;
 	long long c_stride;
 	long long c_delay;
 	long long c_purge;
@@ -504,6 +507,8 @@ struct client_neutral_command {
 	char c_pattern[20]; 		/* int */
 	char c_version[20]; 		/* int */
 	char c_base_time[20]; 		/* int */
+	char c_num_child[20]; 		/* int */
+	char c_pct_read[6]; 		/* int */
 	char c_depth[20]; 		/* small long long */
 	char c_child_flag[40]; 		/* small long long */
 	char c_delay[80]; 		/* long long */
@@ -1044,6 +1049,7 @@ long long include_mask;
 char RWONLYflag, NOCROSSflag;		/*auto mode 2 - kcollins 8-21-96*/
 char mfflag;
 long long status, x, y, childids[MAXSTREAMS+1], myid, num_child;
+int pct_read;
 #ifndef NO_THREADS
 pthread_t p_childids[MAXSTREAMS+1];
 #endif
@@ -1174,7 +1180,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 5;
+int proto_version = 6;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -2036,6 +2042,20 @@ char **argv;
 					multiplier = atoi(subarg);
 					if(multiplier <=1)
 						multiplier = 2;
+					break;
+				case 'p':  /* Argument is the percentage read */
+					subarg=argv[optind++];
+					if(subarg==(char *)0)
+					{
+					     printf("-+p takes an operand !!\n");
+					     exit(200);
+					}
+					pct_read = atoi(subarg);
+					if(pct_read < 1)
+						pct_read = 1;
+					if(pct_read >=100)
+						pct_read = 100;
+    					sprintf(splash[splash_line++],"\tPercent read in mix test is %d\n",pct_read);
 					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
@@ -6514,6 +6534,8 @@ long long *data1, *data2;
 	double starttime2;
 	double walltime[2], cputime[2];
 	double compute_val = (double)0;
+	unsigned int rand1,rand2;
+	long big_rand;
 	long long j;
 	off64_t i,numrecs64;
 	long long Index=0;
@@ -6615,10 +6637,16 @@ long long *data1, *data2;
 			if(purge)
 				purgeit(nbuff,reclen);
 #ifdef bsd4_2
-                        offset64 = reclen * (rand()%numrecs64);
+			rand1=rand();
+			rand2=rand();
+			big_rand=(rand1<<16)||(rand2);
+                        offset64 = reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
-			offset64 = reclen * (rand()%numrecs64);
+			rand1=rand();
+			rand2=rand();
+			big_rand=(rand1<<16)||(rand2);
+                        offset64 = reclen * (big_rand%numrecs64);
 #else
 			offset64 = reclen * (lrand48()%numrecs64);
 #endif
@@ -6698,10 +6726,16 @@ long long *data1, *data2;
                                	    nbuff = mbuffer + Index;
                         	}
 #ifdef bsd4_2
-				offset64 = reclen * (rand()%numrecs64);
+				rand1=rand();
+				rand2=rand();
+				big_rand=(rand1<<16)||(rand2);
+				offset64 = reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
-                                offset64 = reclen * (rand()%numrecs64);
+				rand1=rand();
+				rand2=rand();
+				big_rand=(rand1<<16)||(rand2);
+				offset64 = reclen * (big_rand%numrecs64);
 #else
 				offset64 = reclen * (lrand48()%numrecs64);
 #endif
@@ -8243,6 +8277,8 @@ off64_t numrecs64;
 	off64_t offset;
 	long long found,i,j;
 	long long numvecs;
+	unsigned int rand1,rand2;
+	long big_rand;
 
 	numvecs = PVECMAX;
 	if(numrecs64< numvecs)
@@ -8254,10 +8290,16 @@ off64_t numrecs64;
 again:
 		found = 0;
 #ifdef bsd4_2
-		offset64 = reclen * (rand()%numrecs64);
+		rand1=rand();
+		rand2=rand();
+		big_rand=(rand1<<16)||(rand2);
+		offset64 = reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
-                offset64 = reclen * (rand()%numrecs64);
+		rand1=rand();
+		rand2=rand();
+		big_rand=(rand1<<16)||(rand2);
+		offset64 = reclen * (big_rand%numrecs64);
 #else
 		offset64 = reclen * (lrand48()%numrecs64);
 #endif
@@ -11910,12 +11952,42 @@ thread_mix_test(x)
 #endif
 {
 	int selector;
+	int slots[100];
+	int i,which;
+	int xx;
+
+#ifdef NO_THREADS
+	xx=chid;
+#else
 	if(use_thread)
-		selector = (int)((long)x);
+	{
+		xx = (int)x;
+	}
 	else
-		selector = (int)chid;
-	selector=selector%2;
-		
+	{
+		xx=chid;
+	}
+#endif
+	if(pct_read!=0)
+	{
+		srand((unsigned int)xx);
+		if(cdebug) printf("Child: %d Pct read %d \n",xx,pct_read);
+		for(i=0;i<100;i++)
+		{
+			if(i<pct_read)
+				slots[i]=0;
+			else
+				slots[i]=1;
+		}
+		which=rand()%100;
+		if(cdebug) printf("Child: %d Pct which %d\n",xx, which);
+		selector=slots[which];
+	}
+	else
+	{
+		/* Simple round robin */
+		selector= xx % 2;
+	}		
 	if(selector==0)
 	{
 		if(cdebug || mdebug) printf("Mix read %d\n",selector);
@@ -11963,6 +12035,8 @@ thread_ranread_test(x)
 	FILE *thread_randrfd=0;
 	int test_foo;
 	long long save_pos;
+	unsigned int rand1,rand2;
+	long big_rand;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -12127,10 +12201,16 @@ thread_ranread_test(x)
 		if(purge)
 			purgeit(nbuff,reclen);
 #ifdef bsd4_2
-		current_offset = (off64_t)reclen * (rand()%numrecs64);
+		rand1=rand();
+		rand2=rand();
+		big_rand=(rand1<<16)||(rand2);
+		current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
-                current_offset = (off64_t)reclen * (rand()%numrecs64);
+		rand1=rand();
+		rand2=rand();
+		big_rand=(rand1<<16)||(rand2);
+		current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
 		current_offset = reclen * (lrand48()%numrecs64);
 #endif
@@ -12368,6 +12448,8 @@ thread_ranwrite_test( x)
 	char tmpname[256];
 	FILE *thread_randwqfd=0;
 	int test_foo;
+	unsigned int rand1,rand2;
+	long big_rand;
 
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -12541,10 +12623,16 @@ thread_ranwrite_test( x)
 		if(compute_flag)
 			compute_val+=do_compute(delay);
 #ifdef bsd4_2
-		current_offset = (off64_t)reclen * (rand()%numrecs64);
+		rand1=rand();
+		rand2=rand();
+		big_rand=(rand1<<16)||(rand2);
+		current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
-                current_offset = (off64_t)reclen * (rand()%numrecs64);
+		rand1=rand();
+		rand2=rand();
+		big_rand=(rand1<<16)||(rand2);
+		current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
 		current_offset = reclen * (lrand48()%numrecs64);
 #endif
@@ -14632,6 +14720,8 @@ int send_size;
 	sprintf(outbuf.c_pattern,"%d",send_buffer->c_pattern);
 	sprintf(outbuf.c_version,"%d",send_buffer->c_version);
 	sprintf(outbuf.c_base_time,"%d",send_buffer->c_base_time);
+	sprintf(outbuf.c_num_child,"%d",send_buffer->c_num_child);
+	sprintf(outbuf.c_pct_read,"%d",send_buffer->c_pct_read);
 #ifdef NO_PRINT_LLD
 	sprintf(outbuf.c_stride,"%ld",send_buffer->c_stride);
 	sprintf(outbuf.c_delay,"%ld",send_buffer->c_delay);
@@ -15417,6 +15507,8 @@ long long numrecs64, reclen;
 	cc.c_pattern = pattern;
 	cc.c_version = proto_version;
 	cc.c_base_time = base_time;
+	cc.c_num_child = (int)num_child;
+	cc.c_pct_read = pct_read;
 	cc.c_Q_flag = Q_flag;
 	cc.c_xflag = xflag;
 	cc.c_w_traj_flag = w_traj_flag;
@@ -15642,6 +15734,8 @@ become_client()
 	sscanf(cnc->c_pattern,"%d",&cc.c_pattern);
 	sscanf(cnc->c_version,"%d",&cc.c_version);
 	sscanf(cnc->c_base_time,"%d",&cc.c_base_time);
+	sscanf(cnc->c_num_child,"%d",&cc.c_num_child);
+	sscanf(cnc->c_pct_read,"%d",&cc.c_pct_read);
 	sscanf(cnc->c_Q_flag,"%d",&cc.c_Q_flag);
 	sscanf(cnc->c_xflag,"%d",&cc.c_xflag);
 	sscanf(cnc->c_include_flush,"%d",&cc.c_include_flush);
@@ -15689,6 +15783,8 @@ become_client()
 	pattern = cc.c_pattern;
 	/* proto_version = cc.c_version; Don't copy it back. */
 	base_time=cc.c_base_time;
+	num_child=(long long)cc.c_num_child;
+	pct_read=cc.c_pct_read;
 	Q_flag = cc.c_Q_flag;
 	xflag = cc.c_xflag;
 	w_traj_flag = cc.c_w_traj_flag;
