@@ -1277,5 +1277,10 @@ Added comment for the support for -+u option. Cpu utilization.
 Revision 3.72
 =============================================================================
 Added network testing mode. -+m  (Experimental) Tested: Linux, HP-UX
+=============================================================================
+Revision 3.73
+=============================================================================
+Added -xflag support for distributed mode.
+Handle interrupts when in distributed mode.
 
 

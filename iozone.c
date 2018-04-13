@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.72 $"
+#define THISVERSION "        Version $Revision: 3.73 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -372,6 +372,7 @@ struct client_command {
 	char c_include_close;
 	char c_disrupt_flag;
 	char c_compute_flag;
+	char c_xflag;
 	int c_direct_flag;
 	int c_client_number;
 	int c_command;
@@ -384,6 +385,7 @@ struct client_command {
 	long long c_numrecs64;
 	long long c_reclen;
 	long long c_child_flag;
+	double c_stop_flag;
 };	
 
 /* 
@@ -394,6 +396,7 @@ struct master_command {
 	char m_client_name[128];
 	int m_client_number;
 	int m_child_port;
+	int m_child_async_port;
 	int m_command;
 	int m_testnum;
 	double m_throughput;
@@ -419,6 +422,9 @@ struct master_command {
  * The R_FLAG_DATA is also used by the master to tell the 
  * client to update its flags.
  */
+#define R_JOIN_ACK        4
+#define R_STOP_FLAG       5
+#define R_TERMINATE       6
 
 
 /* These are the defaults for the processor. They can be 
@@ -613,6 +619,7 @@ void *(thread_rwrite_test)(void *);
 void *(thread_write_test)(void *);
 void *(thread_read_test)(void*);
 void *(thread_cleanup_test)(void*);
+void *(thread_cleanup_quick)(void*);
 void *(thread_ranread_test)(void *);
 void *(thread_ranwrite_test)(void *);
 void *(thread_rread_test)(void *);
@@ -850,6 +857,9 @@ char client_filename[256];
 #define CHILD_ESEND_PORT (HOST_ESEND_PORT+MAXSTREAMS)
 #define CHILD_LIST_PORT (CHILD_ESEND_PORT+MAXSTREAMS)
 
+/* Childs async message port. Used for stop flag and terminate */
+#define CHILD_ALIST_PORT (CHILD_LIST_PORT+MAXSTREAMS)
+
 
 #define THREAD_WRITE_TEST 1
 #define THREAD_REWRITE_TEST 2
@@ -861,28 +871,45 @@ char client_filename[256];
 #define THREAD_REVERSE_READ_TEST 8
 #define THREAD_CLEANUP_TEST 9
 
+/*
+ * Child states that the master is tracking.
+ * The master uses these to determine how to shutdown
+ * the clients when some fool hits control-C.
+ */
+#define C_STATE_ZERO 1
+#define C_STATE_WAIT_WHO 2
+#define C_STATE_WAIT_BARRIER 3
+
 struct child_ident {
 	char child_name[100];
 	char workdir[256];
 	char execute_path[256];
+	int state;
 	int child_number;
 	int child_port;
+	int child_async_port;
 	int master_socket_num;
+	int master_async_socket_num;
 }child_idents[MAXSTREAMS];
 
-int c_port;
+int c_port,a_port;
 int child_port; /* Virtualized due to fork */
+int child_async_port; /* Virtualized due to fork */
+int client_listen_pid; /* Virtualized due to fork */
 int master_join_count;
-int l_sock,s_sock;
+int l_sock,s_sock,l_async_sock;
 char master_rcv_buf[10240];
 int master_listen_pid;
 char master_send_buf[10240];
 char child_rcv_buf[10240];
+char child_async_rcv_buf[10240];
 char child_send_buf[10240];
 int child_send_socket;
 int child_listen_socket;
+int child_listen_socket_async;
 int master_send_socket; /* Needs to be an array. One for each child*/
 int master_send_sockets[MAXSTREAMS]; /* Needs to be an array. One for each child*/
+int master_send_async_sockets[MAXSTREAMS]; /* Needs to be an array. One for each child*/
 int master_listen_port;
 int master_listen_socket;
 int clients_found;
@@ -898,7 +925,10 @@ int mdebug = 0;
 void child_send();
 int start_child_send();
 int start_child_listen();
+int start_child_listen_async();
+void start_child_listen_loop();
 void child_listen();
+void child_listen_async();
 void stop_child_send();
 void stop_child_listen();
 
@@ -932,6 +962,11 @@ void master_send();
 void child_send();
 void master_listen();
 int start_master_listen();
+void child_remove_files();
+void terminate_child_async();
+void distribute_stop();
+void send_stop();
+void cleanup_children();
 
 
 /****************************************************************/
@@ -2192,8 +2227,7 @@ void signal_handler()
 	if(distributed)
 	{
 		if(master_iozone)
-			printf("\nPlease do not interrupt while running in distributed mode.\n\n");
-		return;
+			cleanup_children();
 	}
 	if((long long)getpid()==myid)
 	{
@@ -8781,10 +8815,16 @@ thread_write_test( x)
 	if(distributed && client_iozone)
 	{
 		if(cdebug)
+		{
 			fprintf(newstdout,"Child %d waiting for go from master\n",(int)xx);
+			fflush(newstdout);
+		}
 		wait_for_master_go(chid);
 		if(cdebug)
+		{
 			fprintf(newstdout,"Child %d received go from master\n",(int)xx);
+			fflush(newstdout);
+		}
 	}
 	else
 	{
@@ -8999,7 +9039,11 @@ again:
 	}
 #endif
 	if(!xflag)
+	{
 		*stop_flag=1;
+		if(distributed && client_iozone)
+			send_stop();
+	}
 	
 	if(include_flush)
 	{
@@ -9036,8 +9080,11 @@ again:
 		child_stat->stop_time = temp_time;
 	}
 	if(cdebug)
+	{
 		fprintf(newstdout,"Child: throughput %f actual %f \n",child_stat->throughput,
 			child_stat->actual);
+		fflush(newstdout);
+	}
 	if(distributed && client_iozone)
 		tell_master_stats(THREAD_WRITE_TEST, chid, child_stat->throughput, 
 			child_stat->actual, child_stat->stop_time,
@@ -9454,7 +9501,11 @@ thread_rwrite_test(x)
 		(double)re_written_so_far/child_stat->throughput;
 	child_stat->actual = (double)re_written_so_far;
 	if(!xflag)
+	{
 		*stop_flag=1;
+		if(distributed && client_iozone)
+			send_stop();
+	}
 	if(cdebug)
 		fprintf(newstdout,"Child: throughput %f actual %f \n",child_stat->throughput,
 			child_stat->actual);
@@ -9874,7 +9925,11 @@ thread_read_test(x)
 	child_stat->throughput = read_so_far/child_stat->throughput;
 	child_stat->actual = read_so_far;
 	if(!xflag)
+	{
 		*stop_flag=1;
+		if(distributed && client_iozone)
+			send_stop();
+	}
         if(cdebug)
                 fprintf(newstdout,"Child: throughput %f actual %f \n",child_stat->throughput,
                         child_stat->actual);
@@ -10288,7 +10343,11 @@ thread_rread_test(x)
 	child_stat->throughput = re_read_so_far/child_stat->throughput;
 	child_stat->actual = re_read_so_far;
 	if(!xflag)
+	{
 		*stop_flag=1;
+		if(distributed && client_iozone)
+			send_stop();
+	}
 	if(distributed && client_iozone)
 	{
 		tell_master_stats(THREAD_REREAD_TEST,chid, child_stat->throughput,
@@ -10704,7 +10763,11 @@ thread_reverse_read_test(x)
 	child_stat->throughput = reverse_read/child_stat->throughput;
 	child_stat->actual = reverse_read;
 	if(!xflag)
+	{
 		*stop_flag=1;
+		if(distributed && client_iozone)
+			send_stop();
+	}
         if(distributed && client_iozone)
                 tell_master_stats(THREAD_REVERSE_READ_TEST, chid, child_stat->throughput,
                         child_stat->actual, child_stat->stop_time,
@@ -11138,7 +11201,11 @@ thread_stride_read_test(x)
 	child_stat->throughput = stride_read/child_stat->throughput;
 	child_stat->actual = stride_read;
 	if(!xflag)
+	{
 		*stop_flag=1;
+		if(distributed && client_iozone)
+			send_stop();
+	}
         if(distributed && client_iozone)
         {
                 tell_master_stats(THREAD_STRIDE_TEST,chid, child_stat->throughput,
@@ -11549,7 +11616,11 @@ thread_ranread_test(x)
 	child_stat->throughput = ranread_so_far/child_stat->throughput;
 	child_stat->actual = ranread_so_far;
 	if(!xflag)
+	{
 		*stop_flag=1;
+		if(distributed && client_iozone)
+			send_stop();
+	}
         if(cdebug)
                 fprintf(newstdout,"Child: throughput %f actual %f \n",child_stat->throughput,
                         child_stat->actual);
@@ -12005,7 +12076,11 @@ again:
 	}
 #endif
 	if(!xflag)
+	{
 		*stop_flag=1;
+		if(distributed && client_iozone)
+			send_stop();
+	}
 	
 	if(include_flush)
 	{
@@ -12153,6 +12228,8 @@ thread_cleanup_test(x)
         }
 
 	*stop_flag=1;
+	if(distributed && client_iozone)
+		send_stop();
         if(distributed && client_iozone)
                 tell_master_stats(THREAD_CLEANUP_TEST, chid, child_stat->throughput,
                         child_stat->actual, child_stat->stop_time,
@@ -13853,7 +13930,10 @@ int send_size;
 	struct in_addr *ip;
 
 	if(cdebug>=1)
+	{
 		printf("Child sending message to %s\n",controlling_host_name);
+		fflush(newstdout);
+	}
         rc = send(child_socket_val, send_buffer, send_size, 0);
         if (rc < 0)
         {
@@ -13917,20 +13997,23 @@ char *controlling_host_name;
         he = gethostbyname(controlling_host_name);
         if (he == NULL)
         {
-                printf("Child: Bad server host %s\n",controlling_host_name);
-		fflush(stdout);
+		if(cdebug)
+		{
+                   fprintf(newstdout,"Child: Bad server host %s\n",controlling_host_name);
+		   fflush(newstdout);
+		}
                 exit(22);
         }
 	if(cdebug ==1)
 	{
-	        printf("Child: start child send to hostname: %s\n", he->h_name);
-		fflush(stdout);
+	        fprintf(newstdout,"Child: start child send to hostname: %s\n", he->h_name);
+		fflush(newstdout);
 	}
         ip = (struct in_addr *)he->h_addr_list[0];
 	if(cdebug ==1)
 	{
-        	printf("Child: server host: %s\n", (char *)inet_ntoa(ip->s_addr));
-		fflush(stdout);
+        	fprintf(newstdout,"Child: server host: %s\n", (char *)inet_ntoa(ip->s_addr));
+		fflush(newstdout);
 	}
 
 
@@ -13960,8 +14043,8 @@ char *controlling_host_name;
         }
 	if(cdebug ==1)
 	{
-		printf("Child: Bound to host port %d\n",addr.sin_port);
-		fflush(stdout);
+		fprintf(newstdout,"Child: Bound to host port %d\n",addr.sin_port);
+		fflush(newstdout);
 	}
         if (rc < 0)
         {
@@ -13978,8 +14061,8 @@ char *controlling_host_name;
         }
 	if(cdebug ==1)
 	{
-		printf("Child Connected\n");
-		fflush(stdout);
+		fprintf(newstdout,"Child Connected\n");
+		fflush(newstdout);
 	}
 	return (child_socket_val);
 }
@@ -14146,6 +14229,107 @@ int sock, size_of_message;
 		fflush(newstdout);
 	}
 }
+/*
+ * Start the childs async listening service for messages from the master.
+ */
+#ifdef HAVE_ANSIC_C
+int
+start_child_listen_async(int size_of_message)
+#else
+int
+start_child_listen_async(size_of_message)
+int size_of_message;
+#endif
+{
+	int tsize;
+	int rcvd;
+	int s;
+	int rc;
+	int xx;
+	struct sockaddr_in addr, raddr;
+	xx = 0;
+	tsize=size_of_message; /* Number of messages to receive */
+        s = socket(AF_INET, SOCK_DGRAM, 0);
+        if (s < 0)
+        {
+                perror("socket failed:");
+                exit(19);
+        }
+        bzero(&addr, sizeof(struct sockaddr_in));
+        addr.sin_port = CHILD_ALIST_PORT;
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = INADDR_ANY;
+        rc = -1;
+        while (rc < 0)
+        {
+                rc = bind(s, (struct sockaddr *)&addr,
+                                sizeof(struct sockaddr));
+		if(rc < 0)
+		{
+                	addr.sin_port++;
+			continue;
+		}
+        }
+	child_async_port = addr.sin_port;
+	if(cdebug ==1)
+	{
+		fprintf(newstdout,"Child: Async Listen: Bound at port %d\n",addr.sin_port);
+		fflush(newstdout);
+	}
+	if(rc < 0)
+	{
+		perror("bind failed\n");
+		exit(20);
+	}
+	return(s);
+}
+/*
+ * The clients use this to block waiting for an async message from
+ * the master.
+ */
+#ifdef HAVE_ANSIC_C
+void
+child_listen_async(int sock, int size_of_message)
+#else
+void
+child_listen_async(sock, size_of_message)
+int sock, size_of_message;
+#endif
+{
+	int tsize;
+	int rcvd;
+	int s;
+	int rc;
+	struct sockaddr_in addr, raddr;
+	s = sock;
+	tsize=size_of_message; /* Number of messages to receive */
+	rcvd = 0;
+	while(rcvd < tsize)
+	{
+		if(cdebug ==1)
+		{
+			fprintf(newstdout,"Child In async recieve \n");
+			fflush(newstdout);
+		}
+		rc=recv(s,child_async_rcv_buf,size_of_message,0);
+		if(rc < 0)
+		{
+			perror("Read failed\n");
+			exit(21);
+		}
+		if(cdebug >= 1)
+		{
+			fprintf(newstdout,"Child: Got %d bytes (async) \n",rc);
+			fflush(newstdout);
+		}
+		rcvd+=rc;
+	}
+	if(cdebug >= 1)
+	{
+		fprintf(newstdout,"Child: return from async listen\n");
+		fflush(newstdout);
+	}
+}
 
 /*
  * Start the channel for the master to send a message to 
@@ -14171,7 +14355,7 @@ int child_port;
         he = gethostbyname(child_host_name);
         if (he == NULL)
         {
-                printf("Child: Bad hostname %s\n",child_host_name);
+                printf("Master: Bad hostname %s\n",child_host_name);
 		fflush(stdout);
                 exit(22);
         }
@@ -14197,7 +14381,7 @@ int child_port;
         master_socket_val = socket(AF_INET, SOCK_DGRAM, 0);
         if (master_socket_val < 0)
         {
-                perror("Child: socket failed:");
+                perror("Master: socket failed:");
                 exit(23);
         }
         bzero(&addr, sizeof(struct sockaddr_in));
@@ -14235,6 +14419,97 @@ int child_port;
 	if(mdebug ==1)
 	{
 		printf("Master Connected\n");
+		fflush(stdout);
+	}
+	return (master_socket_val);
+}
+/*
+ * Start the channel for the master to send a message to 
+ * a particular child on a particular port that the child
+ * has created for the parent to use to communicate.
+ */
+#ifdef HAVE_ANSIC_C
+int
+start_master_send_async(char *child_host_name, int child_port)
+#else
+int
+start_master_send_async(child_host_name, child_port)
+char *child_host_name; 
+int child_port;
+#endif
+{
+	int rc,master_socket_val,tsize;
+	struct sockaddr_in addr,raddr;
+	struct hostent *he;
+	int port, linger;
+	struct in_addr *ip;
+
+        he = gethostbyname(child_host_name);
+        if (he == NULL)
+        {
+                printf("Master: Bad hostname %s\n",child_host_name);
+		fflush(stdout);
+                exit(22);
+        }
+	if(mdebug ==1)
+	{
+	        printf("Master: start master async send: %s\n", he->h_name);
+		fflush(stdout);
+	}
+        ip = (struct in_addr *)he->h_addr_list[0];
+	if(mdebug ==1)
+	{
+        	printf("Master: child name: %s\n", (char *)inet_ntoa(ip->s_addr));
+        	printf("Master: child Port: %d\n", child_port);
+		fflush(stdout);
+	}
+
+	port=child_port;
+
+        raddr.sin_family = AF_INET;
+        raddr.sin_port = port;
+        raddr.sin_addr.s_addr = ip->s_addr;
+        master_socket_val = socket(AF_INET, SOCK_DGRAM, 0);
+        if (master_socket_val < 0)
+        {
+                perror("Master: async socket failed:");
+                exit(23);
+        }
+        bzero(&addr, sizeof(struct sockaddr_in));
+        addr.sin_port = HOST_ESEND_PORT;
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = INADDR_ANY;
+        rc = -1;
+        while (rc < 0)
+        {
+                rc = bind(master_socket_val, (struct sockaddr *)&addr,
+                                                sizeof(struct sockaddr_in));
+		if(rc < 0)
+		{
+                	addr.sin_port++;
+			continue;
+		}
+        }
+	if(mdebug ==1)
+	{
+		printf("Master: Bound async port\n");
+		fflush(stdout);
+	}
+        if (rc < 0)
+        {
+                perror("Master: bind async failed\n");
+                exit(24);
+        }
+        rc = connect(master_socket_val, (struct sockaddr *)&raddr, 
+			sizeof(struct sockaddr_in));
+	if (rc < 0)
+        {
+                perror("Master: async connect failed\n");
+                exit(25);
+        }
+	if(mdebug ==1)
+	{
+		printf("Master async Connected\n");
 		fflush(stdout);
 	}
 	return (master_socket_val);
@@ -14299,6 +14574,7 @@ long long numrecs64, reclen;
 	current_client_number++; /* Need to start with 1 */
 	x=current_client_number;
 
+	child_idents[x-1].state = C_STATE_ZERO;
 	/* Step 1. Now start client going on remote node.	*/
 
 	sprintf(command,"%s ",REMOTE_SHELL);
@@ -14323,11 +14599,14 @@ long long numrecs64, reclen;
 
 	/* Step 2. Wait for join from new client.		*/
 
+	child_idents[x-1].state = C_STATE_WAIT_WHO;
+
 	if(mdebug>=1)
 		printf("Master listening for child to send join message.\n");
 	master_listen(master_listen_socket,sizeof(struct master_command));
 	mc = (struct master_command *)&master_rcv_buf;
 	c_port = mc->m_child_port; 
+	a_port = mc->m_child_async_port; 
 	c_command = mc->m_command;
 	if(mdebug>=1)
 	{
@@ -14339,9 +14618,15 @@ long long numrecs64, reclen;
 	if(mdebug>=1)
 		printf("Starting master send channel\n");
         master_send_sockets[x-1]= start_master_send(child_idents[x-1].child_name,c_port); 
+	if(mdebug>=1)
+		printf("Starting master send async channel\n");
+        master_send_async_sockets[x-1]= start_master_send_async(child_idents[x-1].child_name,a_port); 
+
 	child_idents[x-1].master_socket_num = master_send_sockets[x-1];
+	child_idents[x-1].master_async_socket_num = master_send_async_sockets[x-1];
 	child_idents[x-1].child_number = x-1;
 	child_idents[x-1].child_port = c_port;
+	child_idents[x-1].child_async_port = a_port;
 
 	/* 								*/
 	/* Step 4. Send message to client telling him his name, number, */
@@ -14349,6 +14634,7 @@ long long numrecs64, reclen;
 	strcpy(cc.c_host_name ,controlling_host_name);
 	strcpy(cc.c_client_name ,child_idents[x-1].child_name);
 	strcpy(cc.c_working_dir ,child_idents[x-1].workdir);
+	cc.c_command = R_JOIN_ACK;
 	cc.c_client_number = x-1;
 	cc.c_testnum = testnum;
 	cc.c_numrecs64 = numrecs64;
@@ -14362,6 +14648,7 @@ long long numrecs64, reclen;
 	cc.c_verify = verify;
 	cc.c_file_lock = file_lock;
 	cc.c_Q_flag = Q_flag;
+	cc.c_xflag = xflag;
 	cc.c_include_flush = include_flush;
 	cc.c_OPS_flag = OPS_flag;
 	cc.c_purge = purge;
@@ -14377,7 +14664,9 @@ long long numrecs64, reclen;
 
 	if(mdebug)
 		printf("Master sending client who he is\n");
-	master_send(master_send_sockets[x-1],"rsnperf", &cc,sizeof(struct client_command));
+	master_send(master_send_sockets[x-1],cc.c_client_name, &cc,sizeof(struct client_command));
+
+	child_idents[x-1].state = C_STATE_WAIT_BARRIER;
 	
 	/* 								*/
 	/* Step 5. Wait until you receive message that the chile is at  */
@@ -14447,30 +14736,47 @@ become_client()
 
 	/* 1. Start client receive channel 					*/
 
-		l_sock = start_child_listen(sizeof(struct client_command));
+	l_sock = start_child_listen(sizeof(struct client_command));
+	l_async_sock = start_child_listen_async(sizeof(struct client_command));
 
 	/* 2. Start client send channel 					*/
 
-		s_sock = start_child_send(controlling_host_name);
+	s_sock = start_child_send(controlling_host_name);
 
 	/* 3. Send message to controller saying I'm joining. 			*/
 
-		strcpy(mc.m_host_name,controlling_host_name);
-		strcpy(mc.m_client_name,client_name);
-		mc.m_child_port = child_port;
-		mc.m_command = R_CHILD_JOIN;
+	strcpy(mc.m_host_name,controlling_host_name);
+	strcpy(mc.m_client_name,client_name);
+	mc.m_child_port = child_port;
+	mc.m_child_async_port = child_async_port;
+	mc.m_command = R_CHILD_JOIN;
 	if(cdebug)
+	{
 		fprintf(newstdout,"Child sends JOIN to master %s My port %d\n",
 			controlling_host_name,child_port);
-		child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
+		fflush(newstdout);
+	}
+	child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
 
 	/* 4. Go into a loop and get all instructions from 			*/
         /*    the controlling process. 						*/
 
 	if(cdebug>=1)
+	{
 		fprintf(newstdout,"Child waiting for who am I\n");
+		fflush(newstdout);
+	}
 	child_listen(l_sock,sizeof(struct client_command));
 	cc = (struct client_command *)&child_rcv_buf;
+	if(cc->c_command == R_TERMINATE)
+	{
+		if(cdebug)
+		{
+			fprintf(newstdout,"Child received terminate on sync channel !!\n");
+			fflush(newstdout);
+		}
+		exit(1);
+	}
 	
 	if(cdebug)
 	{
@@ -14500,6 +14806,7 @@ become_client()
 	verify = cc->c_verify;
 	file_lock = cc->c_file_lock;
 	Q_flag = cc->c_Q_flag;
+	xflag = cc->c_xflag;
 	include_flush = cc->c_include_flush;
 	OPS_flag = cc->c_OPS_flag;
 	purge = cc->c_purge;
@@ -14512,11 +14819,17 @@ become_client()
 	compute_flag = cc->c_compute_flag;
 	delay = cc->c_delay;
 	if(cdebug)
+	{
 		fprintf(newstdout,"Child change directory to %s\n",workdir);
+		fflush(newstdout);
+	}
 
 	/* 6. Change to the working directory */
 
 	chdir(workdir);
+	start_child_listen_loop(); /* The async channel listener */
+
+	/* Need to start this after getting into the correct directory */
 
 	/* 7. Run the test */
 	switch(testnum) {
@@ -14649,7 +14962,10 @@ long long child_flag;
 	mc.m_child_flag = child_flag;
 	mc.m_command = R_STAT_DATA;
 	if(cdebug>=1)
+	{
 		fprintf(newstdout, "Child: Tell master stats and terminate\n");
+		fflush(newstdout);
+	}
 	child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
 }
 	
@@ -14687,7 +15003,10 @@ long long chid;
 {
 	struct master_command mc;
 	if(cdebug>=1)
+	{
 		fprintf(newstdout,"Child: Tell master to go\n");
+		fflush(newstdout);
+	}
 	mc.m_command = R_FLAG_DATA;
 	mc.m_child_flag = CHILD_STATE_READY; 
 	mc.m_client_number = (int)chid; 
@@ -14706,7 +15025,18 @@ wait_for_master_go()
 long long chid;
 #endif
 {
+	struct client_command *cc;
 	child_listen(l_sock,sizeof(struct client_command));
+	cc = (struct client_command *)child_rcv_buf;
+	if(cc->c_command == R_TERMINATE)
+	{
+		if(cdebug)
+		{
+			fprintf(newstdout,"Child received terminate on sync channel at barrier !!\n");
+			fflush(newstdout);
+		}
+		exit(1);
+	}
 	if(cdebug>=1)
 		fprintf(newstdout,"Return from wait_for_master_go\n");
 }
@@ -14767,16 +15097,65 @@ int num;
 			child_stat = (struct child_stats *)&shmaddr[i];	
 			child_stat->flag = (long long)(mc->m_child_flag);
 			break;
-		case R_CHILD_JOIN:
+		case R_STOP_FLAG:
 			if(mdebug)
-			  printf("loop: R_CHILD_JOIN: Client %d Port %d \n",
-				  (int)mc->m_client_number,
-				  (int)mc->m_child_port);
+			  printf("Master loop: R_STOP_FLAG: Client %d STOP_FLAG \n",
+				  (int)mc->m_client_number);
+			*stop_flag=1;
+			distribute_stop();
 			break;
 		}
 			
 	}
 	exit(0);
+}
+/*
+ * Create a client listener for receiving async data from the
+ * the master. 
+ */
+#ifdef HAVE_ANSIC_C
+void
+start_child_listen_loop(void)
+#else
+void
+start_child_listen_loop()
+#endif
+{
+	int i;
+	struct child_stats *child_stat;
+	struct client_command *cc;
+
+	client_listen_pid=fork();
+	if(client_listen_pid!=0)
+		return;
+	if(mdebug>=1)
+		printf("Starting client listen loop\n");
+
+	while(1)
+	{
+		child_listen_async(l_async_sock,sizeof(struct client_command));
+		cc=(struct client_command *)&child_async_rcv_buf;
+		switch(cc->c_command) {
+		case R_STOP_FLAG:
+			i = cc->c_client_number;
+			if(cdebug)
+				fprintf(newstdout,"child loop: R_STOP_FLAG for client %d\n",i);
+			child_stat = (struct child_stats *)&shmaddr[i];	
+			*stop_flag = cc->c_stop_flag; /* In shared memory with other copy */
+			break;
+		case R_TERMINATE:
+			if(cdebug)
+			{
+				fprintf(newstdout,"Child loop: R_TERMINATE: Client %d \n",
+				  (int)cc->c_client_number);
+				fflush(newstdout);
+			}
+			i = cc->c_client_number;
+			child_remove_files(i);
+			exit(0);
+		}
+			
+	}
 }
 
 /*
@@ -14799,7 +15178,7 @@ long long childnum;
 		printf("Master: Tell child %d to begin\n",x);
 	cc.c_command = R_FLAG_DATA;
 	cc.c_child_flag = CHILD_STATE_BEGIN; 
-	cc.c_client_number = (int)childnum+1; 
+	cc.c_client_number = (int)childnum; 
 	master_send(master_send_sockets[x],"rsnperf", &cc,sizeof(struct client_command));
 }
 
@@ -14817,6 +15196,9 @@ wait_dist_join()
 #endif
 {
 	wait(0);
+	if(mdebug)
+		printf("Master: All children have finished. Sending terminate\n");
+	terminate_child_async(); /* All children are done, so terminate their async channel */
 	current_client_number=0; /* start again */
 }
 
@@ -14899,4 +15281,154 @@ int line_num;
 		child_idents[line_num].execute_path);
 	}
 	return(1);
+}
+
+/* 
+ * This is a mechanism that the child uses to remove all
+ * of its temporary files. Only used at terminate time.
+ */
+#ifdef HAVE_ANSIC_C
+void
+child_remove_files(int i)
+#else
+void
+child_remove_files(i)
+int i;
+#endif
+{
+
+	char *dummyfile[MAXSTREAMS];           /* name of dummy file     */
+	dummyfile[i]=(char *)malloc((size_t)MAXNAMESIZE);
+#ifdef NO_PRINT_LLD
+	sprintf(dummyfile[i],"%s.DUMMY.%ld",filearray[i],i);
+#else
+	sprintf(dummyfile[i],"%s.DUMMY.%lld",filearray[i],i);
+#endif
+	unlink(dummyfile[i]);
+}
+
+	
+/*
+ * The master tells the child async listener that it is time
+ * to terminate its services.
+ */
+#ifdef HAVE_ANSIC_C
+void
+terminate_child_async(void)
+#else
+void
+terminate_child_async()
+#endif
+{
+	int i;
+	struct client_command cc;
+	cc.c_command = R_TERMINATE;
+	for(i=0;i<num_child;i++)
+	{
+		child_idents[i].state = C_STATE_ZERO;
+		cc.c_client_number = (int)i; 
+		if(mdebug)
+			printf("Master terminating async channels to children.\n");
+		master_send(master_send_async_sockets[i],child_idents[i].child_name, &cc,sizeof(struct client_command));
+	}
+}
+
+/*
+ * The master has received an update to the stop flag and is
+ * now distributing this to all of the clients.
+ */
+#ifdef HAVE_ANSIC_C
+void
+distribute_stop(void)
+#else
+void
+distribute_stop()
+#endif
+{
+	int i;
+	struct client_command cc;
+	cc.c_command = R_STOP_FLAG;
+	for(i=0;i<num_child;i++)
+	{
+		cc.c_client_number = (int)i; 
+		if(mdebug)
+			printf("Master distributing stop flag to child %d\n",i);
+		master_send(master_send_async_sockets[i],cc.c_client_name, &cc,sizeof(struct client_command));
+	}
+}
+
+/*
+ * Child is sending its stop flag to the master.
+ */
+#ifdef HAVE_ANSIC_C
+void
+send_stop(void)
+#else
+void
+send_stop()
+#endif
+{
+	struct master_command mc;
+
+	mc.m_command = R_STOP_FLAG,
+	mc.m_client_number = chid;
+	if(cdebug)
+	{
+		fprintf(newstdout,"Child sending stop flag to master\n");
+		fflush(newstdout);
+	}
+        child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
+}
+
+/*
+ * This is very tricky stuff. There are points in time when 
+ * someone can hit control-c and cause the master to want to die.
+ * Ok..now how does the master contact all the clients and tell
+ * them to stop ?  The clients may be in 3 different states.
+ * Not started yet, Joined and waiting for the WHO information, 
+ * or at the barrier.  If the client is not started... cool.
+ * ignore it. If the client has joined and is waiting at WHO
+ * then the client does not have an async listener yet. So 
+ * the master only needs to tell the client (sync) channel
+ * to terminate. If the client is at the barrier then the 
+ * client has two processes. One at the barrier and another
+ * that is providing the async services. So... the master
+ * needs to terminate both of these processes.
+ */
+#ifdef HAVE_ANSIC_C
+void
+cleanup_children(void)
+#else
+void
+cleanup_children()
+#endif
+{
+	int i;
+	struct client_command cc;
+	cc.c_command = R_TERMINATE;
+	for(i=0;i<num_child;i++)
+	{
+		cc.c_client_number = (int)i; 
+		/* Child not started yet */
+		if(child_idents[i].state == C_STATE_ZERO)
+			;
+		/* Child is waiting for who info */
+		if(child_idents[i].state == C_STATE_WAIT_WHO)
+		{
+			if(mdebug)
+				printf("Master sending signaled death to child !!\n");
+			master_send(master_send_sockets[i],child_idents[i].child_name, &cc,sizeof(struct client_command));
+		}
+		/* Child is waiting at the barrier */
+		if(child_idents[i].state == C_STATE_WAIT_BARRIER)
+		{
+			if(mdebug)
+				printf("Master sending signaled death to child !!\n");
+			master_send(master_send_sockets[i],child_idents[i].child_name, &cc,sizeof(struct client_command));
+			if(mdebug)
+				printf("Master sending signaled death to child async !!\n");
+			master_send(master_send_async_sockets[i],child_idents[i].child_name, &cc,sizeof(struct client_command));
+		}
+			
+	}
 }
