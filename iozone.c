@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.206 $"
+#define THISVERSION "        Version $Revision: 3.207 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -194,6 +194,7 @@ char *help[] = {
 "           -+t Enable network performance test. Requires -+m ",
 "           -+n No retests selected.",
 "           -+k Use constant aggregate data set size.",
+"           -+q Delay in seconds between tests.",
 #ifndef NO_MADVISE
 "           -+A #  Enable madvise. 0 = normal, 1=random, 2=sequential",
 "                                  3=dontneed, 4=willneed",
@@ -466,7 +467,9 @@ struct client_command {
 	int c_pct_read;
 	int c_advise_op;
 	int c_advise_flag;
+	int c_restf;
 	long long c_stride;
+	long long c_rest_val;
 	long long c_delay;
 	long long c_purge;
 	long long c_fetchon;
@@ -530,6 +533,7 @@ struct client_neutral_command {
 	char c_direct_flag[2]; 		/* small int */
 	char c_cpuutilflag[2]; 		/* small int */
 	char c_stride[10]; 		/* small long long */
+	char c_rest_val[10]; 		/* small long long */
 	char c_purge[10]; 		/* very small long long */
 	char c_fetchon[10]; 		/* very small long long */
 	char c_multiplier[10]; 		/* small int */
@@ -545,6 +549,7 @@ struct client_neutral_command {
 	char c_pct_read[6]; 		/* small int */
 	char c_advise_op[4]; 		/* small int */
 	char c_advise_flag[4]; 		/* small int */
+	char c_restf[4]; 		/* small int */
 	char c_depth[20]; 		/* small long long */
 	char c_child_flag[40]; 		/* small long long */
 	char c_delay[80]; 		/* long long */
@@ -1298,7 +1303,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 12;
+int proto_version = 13;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1323,6 +1328,7 @@ char oflag,jflag,k_flag,h_flag,mflag,pflag;
 char noretest;
 char async_flag,stride_flag,mmapflag,mmapasflag,mmapssflag,mmapnsflag,mmap_mix;
 char verify = 1;
+int restf;
 char sverify = 1;
 char Q_flag,OPS_flag;
 char no_copy_flag,include_close,include_flush;
@@ -1344,6 +1350,8 @@ long long delay_start,depth;
 VOLATILE char *stop_flag;		/* Used to stop all children */
 float compute_time;
 int multiplier = MULTIPLIER;
+long long rest_val;
+
 /******************************************************************************/
 /* End of Tele-port zone.                                                     */
 /******************************************************************************/
@@ -2207,6 +2215,19 @@ char **argv;
 					break;
 				case 'k':	/* Constant aggregate data set size */
 					aggflag=1;
+					break;
+				case 'q':  /* Argument is the rest time between tests in seconds */
+					subarg=argv[optind++];
+					if(subarg==(char *)0)
+					{
+					     printf("-+q takes an operand !!\n");
+					     exit(200);
+					}
+					rest_val = (long long)atoi(subarg);
+					if(rest_val <=0)
+						rest_val = 0;
+					restf=1;
+					sprintf(splash[splash_line++],"\tDelay %d seconds between tests enabled.\n",atoi(subarg));
 					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
@@ -3330,6 +3351,8 @@ waitout:
 	/**********************************************************/
 	sync();
 	sleep(2);
+	if(restf)
+		sleep((int)rest_val);
 	*stop_flag=0;
 	if(distributed && master_iozone)
 	{
@@ -3563,6 +3586,8 @@ jump3:
 	/**********************************************************/
 	sync();
 	sleep(2);
+	if(restf)
+		sleep((int)rest_val);
 	if(distributed && master_iozone)
 	{
 		stop_master_listen(master_listen_socket);
@@ -3777,6 +3802,8 @@ jumpend:
 	/**********************************************************/
 	sync();
 	sleep(2);
+	if(restf)
+		sleep((int)rest_val);
 	if(distributed && master_iozone)
 	{
 		stop_master_listen(master_listen_socket);
@@ -4006,6 +4033,8 @@ jumpend2:
 	/**********************************************************/
 	sync();
 	sleep(2);
+	if(restf)
+		sleep((int)rest_val);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -4226,6 +4255,8 @@ next1:
 	}
 	sync();
 	sleep(2);
+	if(restf)
+		sleep((int)rest_val);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -4444,6 +4475,8 @@ next2:
 	}
 	sync();
 	sleep(2);
+	if(restf)
+		sleep((int)rest_val);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -4658,6 +4691,8 @@ next3:
 	}
 	sync();
 	sleep(2);
+	if(restf)
+		sleep((int)rest_val);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -4872,6 +4907,8 @@ next4:
 	}
 	sync();
 	sleep(2);
+	if(restf)
+		sleep((int)rest_val);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -5086,6 +5123,8 @@ next5:
 	}
 	sync();
 	sleep(2);
+	if(restf)
+		sleep((int)rest_val);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -5303,6 +5342,8 @@ next6:
 	}
 	sync();
 	sleep(2);
+	if(restf)
+		sleep((int)rest_val);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -5522,6 +5563,8 @@ next7:
 	}
 	sync();
 	sleep(2);
+	if(restf)
+		sleep((int)rest_val);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -6383,6 +6426,8 @@ long long *data2;
 			if (walltime[j] < cputime[j])
 			   walltime[j] = cputime[j];
 		}
+		if(restf)
+			sleep((int)rest_val);
 	}
 	if(OPS_flag || MS_flag){
 	   filebytes64=w_traj_ops_completed;
@@ -6578,6 +6623,8 @@ long long *data2;
 			if (walltime[j] < cputime[j])
 			   walltime[j] = cputime[j];
 		}
+		if(restf)
+			sleep((int)(int)rest_val);
 	}
 	free(stdio_buf);
 	if(OPS_flag || MS_flag){
@@ -6769,6 +6816,8 @@ long long *data1,*data2;
 			if (walltime[j] < cputime[j])
 			   walltime[j] = cputime[j];
 		}
+		if(restf)
+			sleep((int)rest_val);
     	}
 	free(stdio_buf);
 	if(OPS_flag || MS_flag){
@@ -7174,6 +7223,8 @@ long long *data1,*data2;
 			if (walltime[j] < cputime[j])
 			   walltime[j] = cputime[j];
 		}
+		if(restf)
+			sleep((int)rest_val);
     	}
 	if(OPS_flag || MS_flag){
 	   filebytes64=r_traj_ops_completed;
@@ -7570,6 +7621,8 @@ long long *data1, *data2;
 		if (walltime[j] < cputime[j])
 		   walltime[j] = cputime[j];
 	    }
+	    if(restf)
+		sleep((int)rest_val);
     	}
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
@@ -7830,6 +7883,8 @@ long long *data1,*data2;
 			if (walltime[j] < cputime[j])
 			   walltime[j] = cputime[j];
 		}
+		if(restf)
+			sleep((int)rest_val);
         }
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
@@ -8107,6 +8162,8 @@ long long *data1,*data2;
 	if(!silent) printf("%8lld",writeinrate);
 #endif
 	if(!silent) fflush(stdout);
+	if(restf)
+		sleep((int)rest_val);
 }
 
 /************************************************************************/
@@ -8398,6 +8455,8 @@ long long *data1, *data2;
 	if(!silent) printf("%8lld",strideinrate);
 #endif
 	if(!silent) fflush(stdout);
+	if(restf)
+		sleep((int)rest_val);
 }
 
 #ifdef HAVE_PREAD
@@ -8593,6 +8652,8 @@ long long *data1,*data2;
 			if (walltime[j] < cputime[j])
 			   walltime[j] = cputime[j];
 		}
+		if(restf)
+			sleep((int)rest_val);
 	}
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
@@ -8785,6 +8846,8 @@ long long *data1, *data2;
 			if (walltime[j] < cputime[j])
 			   walltime[j] = cputime[j];
 		}
+		if(restf)
+			sleep((int)rest_val);
     	}
 
 	filebytes64 = numrecs64*reclen;
@@ -9032,6 +9095,8 @@ long long *data1,*data2;
 			if (walltime[j] < cputime[j])
 			   walltime[j] = cputime[j];
 		}
+		if(restf)
+			sleep((int)rest_val);
 	}
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
@@ -9302,6 +9367,8 @@ long long *data1,*data2;
 			if (walltime[j] < cputime[j])
 			   walltime[j] = cputime[j];
 		}
+		if(restf)
+			sleep((int)rest_val);
     	}
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
@@ -16775,8 +16842,10 @@ int send_size;
 	sprintf(outbuf.c_pct_read,"%d",send_buffer->c_pct_read);
 	sprintf(outbuf.c_advise_op,"%d",send_buffer->c_advise_op);
 	sprintf(outbuf.c_advise_flag,"%d",send_buffer->c_advise_flag);
+	sprintf(outbuf.c_restf,"%d",send_buffer->c_restf);
 #ifdef NO_PRINT_LLD
 	sprintf(outbuf.c_stride,"%ld",send_buffer->c_stride);
+	sprintf(outbuf.c_rest_val,"%ld",send_buffer->c_rest_val);
 	sprintf(outbuf.c_delay,"%ld",send_buffer->c_delay);
 	sprintf(outbuf.c_purge,"%ld",send_buffer->c_purge);
 	sprintf(outbuf.c_fetchon,"%ld",send_buffer->c_fetchon);
@@ -16788,6 +16857,7 @@ int send_size;
 #else
 	sprintf(outbuf.c_delay,"%lld",send_buffer->c_delay);
 	sprintf(outbuf.c_stride,"%lld",send_buffer->c_stride);
+	sprintf(outbuf.c_rest_val,"%lld",send_buffer->c_rest_val);
 	sprintf(outbuf.c_purge,"%lld",send_buffer->c_purge);
 	sprintf(outbuf.c_fetchon,"%lld",send_buffer->c_fetchon);
 	sprintf(outbuf.c_numrecs64,"%lld",send_buffer->c_numrecs64);
@@ -17588,6 +17658,7 @@ long long numrecs64, reclen;
 	cc.c_pct_read = pct_read;
 	cc.c_advise_op = advise_op;
 	cc.c_advise_flag = advise_flag;
+	cc.c_restf = restf;
 	cc.c_Q_flag = Q_flag;
 	cc.c_xflag = xflag;
 	cc.c_w_traj_flag = w_traj_flag;
@@ -17606,6 +17677,7 @@ long long numrecs64, reclen;
 	cc.c_compute_flag = compute_flag;
 	cc.c_delay = delay;
 	cc.c_stride = stride;
+	cc.c_rest_val = rest_val;
 	cc.c_delay_start = delay_start;
 	cc.c_compute_time = compute_time;
 	cc.c_depth = depth;
@@ -17780,6 +17852,7 @@ become_client()
 	sscanf(cnc->c_purge,"%ld",&cc.c_purge);
 	sscanf(cnc->c_delay,"%ld",&cc.c_delay);
 	sscanf(cnc->c_stride,"%ld",&cc.c_stride);
+	sscanf(cnc->c_rest_val,"%ld",&cc.c_rest_val);
 	sscanf(cnc->c_delay_start,"%ld",&cc.c_delay_start);
 	sscanf(cnc->c_depth,"%ld",&cc.c_depth);
 #else
@@ -17789,6 +17862,7 @@ become_client()
 	sscanf(cnc->c_purge,"%lld",&cc.c_purge);
 	sscanf(cnc->c_delay,"%lld",&cc.c_delay);
 	sscanf(cnc->c_stride,"%lld",&cc.c_stride);
+	sscanf(cnc->c_rest_val,"%lld",&cc.c_rest_val);
 	sscanf(cnc->c_delay_start,"%lld",&cc.c_delay_start);
 	sscanf(cnc->c_depth,"%lld",&cc.c_depth);
 #endif
@@ -17820,6 +17894,7 @@ become_client()
 	sscanf(cnc->c_pct_read,"%d",&cc.c_pct_read);
 	sscanf(cnc->c_advise_op,"%d",&cc.c_advise_op);
 	sscanf(cnc->c_advise_flag,"%d",&cc.c_advise_flag);
+	sscanf(cnc->c_restf,"%d",&cc.c_restf);
 	sscanf(cnc->c_Q_flag,"%d",&cc.c_Q_flag);
 	sscanf(cnc->c_xflag,"%d",&cc.c_xflag);
 	sscanf(cnc->c_include_flush,"%d",&cc.c_include_flush);
@@ -17874,6 +17949,7 @@ become_client()
 	pct_read=cc.c_pct_read;
 	advise_op=cc.c_advise_op;
 	advise_flag=cc.c_advise_flag;
+	restf=cc.c_restf;
 	Q_flag = cc.c_Q_flag;
 	xflag = cc.c_xflag;
 	w_traj_flag = cc.c_w_traj_flag;
@@ -17894,6 +17970,7 @@ become_client()
 	mmap_mix = cc.c_mmap_mix;
 	delay = cc.c_delay;
 	stride = cc.c_stride;
+	rest_val = cc.c_rest_val;
 	depth = cc.c_depth;
 	delay_start = cc.c_delay_start;
 	compute_time = cc.c_compute_time;

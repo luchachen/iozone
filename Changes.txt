@@ -1795,3 +1795,9 @@ Support for the AMD64
 Revision 3.206
 =============================================================================
 Add -+k for constant aggregate data set size in throughput mode.
+=============================================================================
+Revision 3.207
+=============================================================================
+Add pread support for the TRU64 target. Department of Defense in Canada.
+Add -+q for delay in seconds between tests.
+

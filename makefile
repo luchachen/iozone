@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.83 $
+# Version $Revision: 1.84 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -432,7 +432,7 @@ OSFV5:	iozone_OSFV5.o libbif.o libasync.o
 #
 
 TRU64:	iozone_TRU64.o libbif.o libasync.o
-	cc -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 -DTRU64 \
+	cc -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 -DTRU64 -DHAVE_PREAD \
 		-DNO_PRINT_LLD -DOSF_64 iozone_TRU64.o libbif.o -lpthread \
 		libasync.o -laio -o iozone
 
@@ -924,12 +924,12 @@ iozone_TRU64.o:	iozone.c libbif.c
 	@echo ""
 	@echo "Build iozone for TRU64"
 	@echo ""
-	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 -DTRU64 \
+	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 -DTRU64 -DHAVE_PREAD \
 		-DNAME='"TRU64"' -DNO_PRINT_LLD -DOSF_64 -pthread iozone.c \
 		-o iozone_TRU64.o
-	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 \
+	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 -DHAVE_PREAD \
 		-DNO_PRINT_LLD  -DOSF_64 libbif.c -o libbif.o
-	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 \
+	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 -DHAVE_PREAD \
 		-DNO_PRINT_LLD -DOSF_64 libasync.c -o libasync.o
 
 iozone_SCO.o:	iozone.c libbif.c
