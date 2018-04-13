@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.141 $"
+#define THISVERSION "        Version $Revision: 3.143 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -108,7 +108,7 @@ char *help[] = {
 "                  [-J milliseconds] [-X write_telemetry_filename] [-w] [-W]",
 "                  [-Y read_telemetry_filename] [-y minrecsize_Kb] [-q maxrecsize_Kb]",
 "                  [-+u] [-+m cluster_filename] [-+d] [-+x multiplier] [-+p # ]",
-"                  [-+r]",
+"                  [-+r] [-+t]",
 " ",
 "           -a  Auto mode",
 "           -A  Auto2 mode",
@@ -177,6 +177,7 @@ char *help[] = {
 "           -+x # Multiplier to use for incrementing file and record sizes",
 "           -+p # Percentage of mix to be reads",
 "           -+r Enable O_RSYNC|O_SYNC for all testing.",
+"           -+t Enable network performance test. Requires -+m ",
 "" };
 
 char *head1[] = {
@@ -655,7 +656,7 @@ struct master_neutral_command {
 #endif
 
 /* Maximum number of children. Threads/procs/clients */
-#define	MAXSTREAMS	48		
+#define	MAXSTREAMS	256		
 
 /* Minimum buffer size */
 #define MINBUFFERSIZE 128
@@ -668,7 +669,7 @@ struct master_neutral_command {
 /* Used for Excel internal tables */
 #define MAX_X 100			
 /* Used for Excel internal tables */
-#define MAX_Y 200			
+#define MAX_Y 512			
 
 #define USAGE  "\tUsage: For usage information type iozone -h \n\n"
 
@@ -1362,7 +1363,8 @@ char **argv;
     	sprintf(splash[splash_line++],"\tContributors:William Norcott, Don Capps, Isom Crawford, Kirby Collins\n");
 	sprintf(splash[splash_line++],"\t             Al Slater, Scott Rhine, Mike Wisner, Ken Goss\n");
     	sprintf(splash[splash_line++],"\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR,\n");
-    	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million.\n\n");
+    	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million, \n");
+    	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
 	argvsave=argv;
