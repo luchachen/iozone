@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.163 $"
+#define THISVERSION "        Version $Revision: 3.164 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -7236,7 +7236,7 @@ long long *data1, *data2;
              srand48(0);
 #endif
 #endif
-             compute_val=0;
+	     compute_val=(double)0;
 	     starttime2 = time_so_far();
 	     if ( j==0 ){
 		for(i=0; i<numrecs64; i++) {
@@ -7604,6 +7604,7 @@ long long *data1,*data2;
 			exit(77);
 		  };
 		}
+	        compute_val=(double)0;
 		for(i=0; i<numrecs64; i++) 
 		{
 			if(compute_flag)
@@ -8411,6 +8412,7 @@ long long *data1,*data2;
 		if(verify)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 		starttime1 = time_so_far();
+	        compute_val=(double)0;
 		for(i=0; i<numrecs64; i++){
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
@@ -8584,6 +8586,7 @@ long long *data1, *data2;
 		if(fetchon)
 			fetchit(nbuff,reclen);
 		starttime2 = time_so_far();
+	        compute_val=(double)0;
 		for(i=0; i<numrecs64; i++) 
 		{
 			if(compute_flag)
@@ -8812,6 +8815,7 @@ long long *data1,*data2;
 #endif
 #endif
 		starttime1 = time_so_far();
+	        compute_val=(double)0;
 		for(i=0; i<numrecs64; i+=numvecs){
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
@@ -9065,6 +9069,7 @@ long long *data1,*data2;
 #endif
 #endif
 		starttime2 = time_so_far();
+	        compute_val=(double)0;
 		for(i=0; i<(numrecs64); i+=numvecs) 
 		{
 			if(compute_flag)
