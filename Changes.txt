@@ -1358,5 +1358,11 @@ Revision 3.98
 =============================================================================
 Changes for Solaris to make their silly compiler eat reasonable 
 function prototypes. (yech !!)
+=============================================================================
+Revision 3.99 
+=============================================================================
+Add protocol version checking for distributed messages.
+Add support for AIX 5.2
+
 
 

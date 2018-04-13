@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.57 $
+# Version $Revision: 1.58 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -14,6 +14,7 @@ all:
 	@echo ""
 	@echo "You must specify the target.        "
 	@echo "        ->   AIX                  (32bit)   <-"
+	@echo "        ->   AIX-LF               (32bit)   <-"
 	@echo "        ->   bsdi                 (32bit)   <-" 
 	@echo "        ->   convex               (32bit)   <-" 
 	@echo "        ->   freebsd              (32bit)   <-"
@@ -154,8 +155,18 @@ linux-ia64:	iozone_linux-ia64.o  libbif.o
 # 
 AIX:	iozone_AIX.o  libbif.o  
 	cc  -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C \
-		-DSHARED_MEM  \
-		iozone_AIX.o libbif.o -lpthreads -o iozone
+		-DSHARED_MEM iozone_AIX.o libbif.o -lpthreads -o iozone
+
+# 
+# AIX-LF
+# I would have built with ASYNC_IO but the AIX machine does not have 
+# POSIX 1003.1b compliant async I/O header files.  Has threads, and
+# largefile support.
+# 
+AIX-LF:	iozone_AIX-LF.o  libbif.o  
+	cc  -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C \
+		-DSHARED_MEM  -D_LARGEFILE64_SOURCE -D_LARGE_FILES \
+		iozone_AIX-LF.o libbif.o -lpthreads -o iozone
 
 #
 # IRIX 32 bit build with threads, largefiles, async I/O 
@@ -495,7 +506,18 @@ iozone_AIX.o:	iozone.c libbif.c
 	cc -c -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C  \
 		-DSHARED_MEM  iozone.c -o iozone_AIX.o
 	cc -c -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C  \
-		-DSHARED_MEM  libbif.c -o libbif.o
+		-DSHARED_MEM libbif.c -o libbif.o
+
+iozone_AIX-LF.o:	iozone.c libbif.c 
+	@echo ""
+	@echo "Building iozone for AIX with Large files"
+	@echo ""
+	cc -c -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C  \
+		-DSHARED_MEM  -D_LARGEFILE64_SOURCE -D_LARGE_FILES \
+		iozone.c -o iozone_AIX-LF.o
+	cc -c -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C  \
+		-DSHARED_MEM -D_LARGEFILE64_SOURCE -D_LARGE_FILES \
+		libbif.c -o libbif.o
 
 iozone_solaris.o:	iozone.c libasync.c libbif.c
 	@echo ""

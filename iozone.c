@@ -6,7 +6,7 @@
 /*  									*/
 /************************************************************************/
 /*      Enhancements by:						*/
-/*	 	Don Capps (capps@rsn.hp.com)				*/
+/*	 	Don Capps (capps@iozone.org)				*/
 /* 		7417 Crenshaw						*/
 /* 		Plano, TX 75025						*/
 /*  									*/
@@ -20,9 +20,9 @@
 /* Its purpose is to provide automated filesystem characterization.	*/
 /* Enhancements have been made by:					*/
 /*									*/
-/* Don Capps	   (HP/Convex)	capps@rsn.hp.com			*/ 
-/* Isom Crawford   (HP/Convex)	isom@rsn.hp.com				*/
-/* Kirby Collins   (HP/Convex)	kcollins@rsn.hp.com			*/
+/* Don Capps	   (HP)	         capps@rsn.hp.com			*/ 
+/* Isom Crawford   (HP)	         isom@rsn.hp.com			*/
+/* Kirby Collins   (HP)	         kcollins@rsn.hp.com			*/
 /* Al Slater	   (HP)		aslater@jocko.bri.hp.com		*/
 /* Mark Kelly	   (HP)		mkelly@rsn.hp.com			*/
 /*									*/
@@ -30,21 +30,19 @@
 /* also it now performs read, write, re-read, re-write, 		*/
 /* read backwards, read/write random, re-read record, 			*/
 /* pread, re-pread, re-pwrite, preadv, re-preadv, pwritev,		*/
-/* stride read, and re-pwritev						*/
+/* stride read, and re-pwritev,mmap, POSIX async I/O, NFS               */
+/* cluster testing and much more.					*/
 /*									*/
 /* The frontend now uses getopt() and the user can control many more	*/
 /* of the actions.							*/
 /*									*/
-/* Iozone supports multi process throughput tests.			*/
-/*									*/
-/* Has support for processor cache issues.				*/
 /*									*/
 /************************************************************************/
 
 /************************************************************************/
-/* For the more casual user... 						*/
+/* For the beginner... 						        */
 /* 									*/
-/* 1. make sppux  (linux, hpux, convex, hpux_no_ansi)			*/
+/* 1. make linux  (linux, hpux, convex, hpux_no_ansi)			*/
 /* 2. type ./iozone -Ra							*/
 /* 									*/
 /*  Hint: Type make    (it will give you a list of valid targets)	*/
@@ -53,15 +51,15 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.98 $"
+#define THISVERSION "        Version $Revision: 3.99 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
 #include <Windows.h>
 int errno;
 #else
-extern  int errno;
-extern  int h_errno;
+extern  int errno;   /* imported for errors */
+extern  int h_errno; /* imported for errors */
 #endif
 
 
@@ -182,11 +180,11 @@ THISVERSION,
   "               4 Dunlap Drive",
   "               Nashua, NH 03060",
   " ",
-  "       Enhancements: Don Capps (capps@rsn.hp.com)",
+  "       Enhancements: Don Capps (capps@iozone.org)",
   "        	  7417 Crenshaw",
   "        	  Plano, TX 75025",
   " ",
-  "  Copyright 1991, 1992, 1994, 1998, 1999   William D. Norcott",
+  "  Copyright 1991, 1992, 1994, 1998, 1999, 2002   William D. Norcott",
   " ",
   "  License to freely use and distribute this software is hereby granted ",
   "  by the author, subject to the condition that this copyright notice ",
@@ -196,10 +194,7 @@ THISVERSION,
   " ",
   "  Other contributors:",
   " ",
-  "  Don Capps       (Hewlett Packard)	capps@rsn.hp.com",
-  "  Isom Crawford   (Hewlett Packard)	isom@rsn.hp.com",
-  "  Kirby Collins   (Hewlett Packard)	kcollins@rsn.hp.com",
-  "  Mark Kelly      (Hewlett Packard)	mkelly@rsn.hp.com",
+  "  Don Capps       (Hewlett Packard)	capps@iozone.org",
   " ",
   ""};
 
@@ -351,10 +346,15 @@ long long page_size = 4096; /* Used when all else fails */
 struct piovec piov[PVECMAX];
 #endif
 
+/*
+ * In multi thread/process throughput mode each child keeps track of
+ * statistics and communicates them through various flavors of
+ * shared memory, and via messages.
+ */
 struct child_stats {
 	long long flag;		/* control space */
 	long long flag1;	/* pad */
-	float walltime;	/* child elapsed time */
+	float walltime;	        /* child elapsed time */
 	float cputime;		/* child CPU time */
 	float throughput; 	/* Throughput in either kb/sec or ops/sec */
 	float actual;	   	/* Either actual kb read or # of ops performed */
@@ -363,6 +363,9 @@ struct child_stats {
 	float fini_time;	/* always set, while stop_time is not always set for a child */
 } VOLATILE *child_stat;
 
+/*
+ * Used for cpu time statistics.
+ */
 struct runtime {
 	float	walltime;
 	float	cputime;
@@ -381,6 +384,7 @@ struct runtime {
 /* 
  * Messages the controlling process sends to children.
  * Internal representation that is arch specific.
+ * This is used when using the network distributed mode.
  */
 struct client_command {
 	char c_host_name[128];
@@ -416,6 +420,7 @@ struct client_command {
 	char c_r_traj_flag;
 	char c_MS_flag;
 	char c_mmap_mix;
+	char c_stop_flag;
 	int c_direct_flag;
 	int c_client_number;
 	int c_command;
@@ -423,6 +428,7 @@ struct client_command {
 	int c_no_unlink;
 	int c_file_lock;
 	int c_pattern;
+	int c_version;
 	long long c_stride;
 	long long c_delay;
 	long long c_purge;
@@ -432,7 +438,6 @@ struct client_command {
 	long long c_child_flag;
 	long long c_delay_start;
 	long long c_depth;
-	float c_stop_flag;
 	float c_compute_time;
 };	
 
@@ -443,6 +448,7 @@ struct client_command {
  * Messages that the master will send to the clients
  * over the socket. This provides neutral format
  * so that heterogeneous clusters will work.
+ * This is used when using the network distributed mode.
  */
 struct client_neutral_command {
 	char c_host_name[128];
@@ -473,6 +479,7 @@ struct client_neutral_command {
 	char c_include_flush;
 	char c_disrupt_flag;
 	char c_compute_flag;
+	char c_stop_flag; 		
 	char c_xflag;
 	char c_w_traj_flag;
 	char c_r_traj_flag;
@@ -485,6 +492,7 @@ struct client_neutral_command {
 	char c_no_unlink[20]; 		/* int */
 	char c_file_lock[20]; 		/* int */
 	char c_pattern[20]; 		/* int */
+	char c_version[20]; 		/* int */
 	char c_stride[80]; 		/* long long */
 	char c_delay[80]; 		/* long long */
 	char c_purge[80]; 		/* long long */
@@ -494,27 +502,28 @@ struct client_neutral_command {
 	char c_child_flag[80]; 		/* long long */
 	char c_delay_start[80]; 	/* long long */
 	char c_depth[80]; 		/* long long */
-	char c_stop_flag[80]; 		/* float */
 	char c_compute_time[80]; 	/* float */
 };	
 
 /* 
  * Messages the clients will send to the master.
  * Internal representation on each client and the master.
+ * This is used when using the network distributed mode.
  */
 struct master_command {
 	char m_host_name[128];
 	char m_client_name[128];
+	char m_stop_flag; 
 	int m_client_number;
 	int m_child_port;
 	int m_child_async_port;
 	int m_command;
 	int m_testnum;
+	int m_version;
 	float m_throughput;
 	float m_stop_time;
 	float m_start_time;
 	float m_fini_time;
-	float m_stop_flag;
 	float m_actual;
 	long long m_child_flag;
 };	
@@ -523,20 +532,22 @@ struct master_command {
  * Messages that the clients will send to the master
  * over the socket. This provides neutral format
  * so that heterogeneous clusters will work.
+ * This is used when using the network distributed mode.
  */
 struct master_neutral_command {
 	char m_host_name[128];
 	char m_client_name[128];
 	char m_client_number[20];	/* int */
+	char m_stop_flag[4];		/* char +space */
 	char m_child_port[20];		/* int */
 	char m_child_async_port[20];	/* int */
 	char m_command[20];		/* int */
 	char m_testnum[20];		/* int */
+	char m_version[20];		/* int */
 	char m_throughput[80];		/* float */
 	char m_stop_time[80];		/* float */
 	char m_start_time[80];		/* float */
 	char m_fini_time[80];		/* float */
-	char m_stop_flag[80];		/* float */
 	char m_actual[80];		/* float */
 	char m_child_flag[80];		/* long long */
 };	
@@ -565,9 +576,16 @@ struct master_neutral_command {
  */
 #define CACHE_LINE_SIZE 32
 #define CACHE_SIZE ( 1024 * 1024 )
+
+
 #define MEG (1024 * 1024)
 
+/*
+ * For stride testing use a prime number to avoid stripe
+ * wrap hitting the same spindle.
+ */
 #define STRIDE 17
+
 #ifndef NO_THREADS
 #include <pthread.h>
 #endif
@@ -577,19 +595,36 @@ struct master_neutral_command {
 /*									*/
 /*    DEFINED CONSTANTS							*/
 /*									*/
+/* Never add a comment to the end of a #define. Some compilers will     */
+/* choke and fail the compile.						*/
 /************************************************************************/
 
+/*
+ * Size of buffer for capturing the machine's name.
+ */
 #define IBUFSIZE 100
+/*
+ * How many I/Os before a non-uniform access.
+ */
 #define DISRUPT 100
+
+/*
+ * Set the crossover size. This is where the small transfers
+ * are skipped to save time. There is an option to 
+ * disable the skipping.
+ */
 #define LARGE_REC 65536
 
-/* number of kilobytes in file */
+/* Default number of kilobytes in file */
 #define KILOBYTES 512 			
-/* number of bytes in a record */
+
+/* Default number of bytes in a record */
 #define RECLEN 1024			
-/*size of file in bytes*/
+
+/* Default size of file in bytes*/
 #define FILESIZE (KILOBYTES*1024)	
-/* number of records */
+
+/* Default number of records */
 #define NUMRECS FILESIZE/RECLEN		
 
 #ifdef __bsdi__
@@ -600,26 +635,36 @@ struct master_neutral_command {
 #else
 /* At 16 Meg switch to large records */
 #define CROSSOVER (16*1024)		
-/*maximum buffer size*/
+/* Maximum buffer size*/
 #define MAXBUFFERSIZE (16*1024*1024)		
 #endif
 
-/* maximum number of children */
-#define	MAXSTREAMS	80		
+/* Maximum number of children. Threads/procs/clients */
+#define	MAXSTREAMS	48		
+
+/* Minimum buffer size */
 #define MINBUFFERSIZE 128
+/* If things ran way too fast */
 #define TOOFAST 10
+/* Set the maximum number of types of tests */
 #define MAXTESTS 10
+/* Default fill pattern for verification */
 #define PATTERN 0xA5
 /* Used for Excel internal tables */
 #define MAX_X 100			
 /* Used for Excel internal tables */
 #define MAX_Y 200			
+
 #define USAGE  "\tUsage: For usage information type iozone -h \n\n"
 
 
-/* max # of characters in filename */
+/* Maximum number of characters in filename */
 #define MAXNAMESIZE 1000                
 
+/*
+ * Define the typical output that the user will see on their
+ * screen.
+ */
 #ifdef NO_PRINT_LLD
 #ifdef HAVE_PREAD
 #include <sys/times.h>
@@ -655,12 +700,20 @@ struct master_neutral_command {
     to perform for both the file size and the record length.
 */ 
 
+/* Start with 64 kbyte minimum file size by default */
 #define KILOBYTES_START       64
+/* Default maximum file size. This is 512 Mbytes */
 #define KILOBYTES_END (1024*512)
+/* Default starting record size */
 #define RECLEN_START  4096
+/* Default maximum record size */
 #define RECLEN_END    (MAXBUFFERSIZE)
+/* Multiplier for each itteration on file and record size */
 #define MULTIPLIER    2
 
+/*
+ * Assign numeric values to each of the tests.
+ */
 #define WRITER_TEST		0
 #define READER_TEST		1
 #define RANDOM_RW_TEST		2
@@ -694,15 +747,14 @@ struct master_neutral_command {
 /*
  * child_stat->flag values and transitions
  */
-/* parent initializes children to HOLD */
+/* Parent initializes children to HOLD */
 #define CHILD_STATE_HOLD	0	
-/* child says when it's READY */
+/* Child tells master when it's READY */
 #define CHILD_STATE_READY	1	
-/* parent tells child to BEGIN */
+/* Parent tells child to BEGIN */
 #define CHILD_STATE_BEGIN	2	
-/* child tells parent that it's DONE */
+/* Child tells parent that it's DONE */
 #define CHILD_STATE_DONE	3	
-/* children sometimes use HOLD instead of DONE when finished */
 
 
 /******************************************************************/
@@ -733,7 +785,7 @@ void purgeit();			/* Purge on chip cache		  */
 void throughput_test();		/* Multi process throughput 	  */
 void multi_throughput_test();	/* Multi process throughput 	  */
 void prepage();			/* Pre-fault user buffer	  */
-#if defined(linux) || defined(solaris)
+#if defined(linux) || defined(solaris) || defined(__AIX__)
 float do_compute(float);	/* compute cycle simulation       */
 #else
 float do_compute();		/* compute cycle simulation       */
@@ -868,7 +920,14 @@ long long test_soutput[] = {2,2,2,1,1,1,2,2,2,2,2,2};
 /*								  */
 /*******************************************************************/
 
+/*
+ * Set the size of the shared memory segment for the children
+ * to put their results.
+ */
 #define SHMSIZE  ((( sizeof(struct child_stats) * MAXSTREAMS) )+4096 )
+/*
+ * Pointer to the shared memory segment.
+ */
 VOLATILE struct child_stats *shmaddr;
 double totaltime,total_time, temp_time ,total_kilos;
 off64_t report_array[MAX_X][MAX_Y];
@@ -879,59 +938,44 @@ short current_x, current_y;
 long long max_x, max_y;
 unsigned long long goodkilos;
 off64_t kilobytes64 = (off64_t)KILOBYTES;
-long long reclen = RECLEN, goodrecl;
-off64_t  numrecs64 = (off64_t)NUMRECS;
+long long goodrecl;
 off64_t offset = 0;               /*offset for random I/O */
 off64_t offset64 = 0;               /*offset for random I/O */
 off64_t filebytes64;
 char *barray[MAXSTREAMS];
 char *haveshm;
 extern int optind;
-long long onetime, auto_mode,purge,fetchon, sfd, multi_buffer;
+long long onetime, auto_mode, sfd, multi_buffer;
 int fd;
 int begin_proc,num_processors,ioz_processor_bind;
-long long stride = STRIDE;
 long long res_prob,rec_prob;
-char Q_flag,silent;
+char silent;
 char master_iozone, client_iozone,distributed;
 int bif_fd;
 int bif_row,bif_column;
-char aflag, mflag, pflag, Eflag, hflag, oflag, Rflag, rflag, sflag;
-char no_copy_flag,h_flag,k_flag,include_close,include_flush,bif_flag;
-char stride_flag,gflag,nflag;
+char aflag, Eflag, hflag, Rflag, rflag, sflag;
+char bif_flag;
+char gflag,nflag;
 char yflag,qflag;
-int direct_flag;
-char async_flag;
 char trflag; 
 char cpuutilflag;
-long long mint, maxt,depth; 
+long long mint, maxt; 
 long long w_traj_ops, r_traj_ops, w_traj_fsize,r_traj_fsize;
 long long r_traj_ops_completed,r_traj_bytes_completed;
 long long w_traj_ops_completed,w_traj_bytes_completed;
 int w_traj_items, r_traj_items;
-int current_client_number;
-char fflag, Uflag,uflag,lflag,OPS_flag,include_tflag,jflag; 
-char disrupt_flag,r_traj_flag,w_traj_flag;
-char MS_flag;
-char mmapflag,mmapasflag,mmapssflag,mmapnsflag,mmap_mix;
-char compute_flag;
-float compute_time;
+char fflag, Uflag,uflag,lflag,include_tflag; 
 struct runtime runtimes [MAX_X] [MAX_Y];	/* in parallel with report_array[][] */
 long long include_test[50];
 long long include_mask;
 char RWONLYflag, NOCROSSflag;		/*auto mode 2 - kcollins 8-21-96*/
 char mfflag;
-int file_lock;
-long long status, x, y, childids[MAXSTREAMS+1], myid, num_child,delay_start,delay;
+long long status, x, y, childids[MAXSTREAMS+1], myid, num_child;
 #ifndef NO_THREADS
 pthread_t p_childids[MAXSTREAMS+1];
 #endif
-char sverify = 1;
-char verify = 1;
 off64_t next64;
-unsigned int pattern;
 char wol_opened, rol_opened;
-long long chid;
 FILE *wqfd,*rwqfd,*rqfd,*rrqfd;
 
 extern char *optarg;
@@ -954,24 +998,20 @@ char filename [MAXNAMESIZE];               /* name of temporary file */
 char mountname [MAXNAMESIZE];              /* name of device         */
 char dummyfile [MAXSTREAMS][MAXNAMESIZE];  /* name of dummy file     */
 char dummyfile1 [MAXNAMESIZE];             /* name of dummy file     */
-char write_traj_filename [MAXNAMESIZE];     /* name of write telemetry file */
-char read_traj_filename [MAXNAMESIZE];    /* name of read telemetry file  */
 char *filearray[MAXSTREAMS];		   /* array of file names    */
 char tfile[] = "iozone";
 char *buffer, *mbuffer,*mainbuffer;
 FILE *pi,*r_traj_fd,*w_traj_fd;
 VOLATILE char *pbuffer;
 char *default_filename="iozone.tmp"; /*default name of temporary file*/
-VOLATILE char *stop_flag;		/* Used to stop all children */
 VOLATILE char stoptime;
-char xflag,Cflag;
+char Cflag;
 char use_thread = 0;
 long long debug1=0;		
 long long debug=0;
 unsigned long cache_size=CACHE_SIZE;
 unsigned long cache_line_size=CACHE_LINE_SIZE;
 long long *pstatus;
-int no_unlink = 0;
 off64_t min_file_size = KILOBYTES_START;
 off64_t max_file_size = KILOBYTES_END;
 long long min_rec_size = RECLEN_START;
@@ -1037,6 +1077,45 @@ char client_filename[256];
 #define C_STATE_WAIT_WHO 2
 #define C_STATE_WAIT_BARRIER 3
 
+
+int c_port,a_port; /* port number */
+int child_port; /* Virtualized due to fork */
+int child_async_port; /* Virtualized due to fork */
+int client_listen_pid; /* Virtualized due to fork */
+int master_join_count; /* How many children have joined */
+int l_sock,s_sock,l_async_sock; /* Sockets for listening */
+char master_rcv_buf[4096]; /* Master's receive buffer */
+int master_listen_pid; /* Pid of the master's async listener proc */
+char master_send_buf[4096]; /* Master's send buffer */
+char child_rcv_buf[4096]; /* Child's receive buffer */
+char child_async_rcv_buf[4096]; /* Child's async recieve buffer */
+char child_send_buf[4096]; /* Child's send buffer */
+int child_send_socket; /* Child's send socket */
+int child_listen_socket; /* Child's listener socket */
+int child_listen_socket_async; /* Child's async listener socket */
+int master_send_socket; /* Needs to be an array. One for each child*/
+int master_send_sockets[MAXSTREAMS]; /* Needs to be an array. One for each child*/
+int master_send_async_sockets[MAXSTREAMS]; /* Needs to be an array. One for each child*/
+int master_listen_port; /* Master's listener port number */
+int master_listen_socket; /* Master's listener socket */
+int clients_found; /* Number of clients found in the client file */
+FILE *newstdin, *newstdout, *newerrout; /* used for debug in cluster mode.*/
+char toutput[20][20]; /* Used to help format the output */
+int toutputindex; /* Index to the current output line */
+int cdebug = 0; /* Use to turn on child/client debugging in cluster mode. */
+int mdebug = 0; /* Use to turn on master debug in cluster mode */
+
+/*
+ * Change this whenever you change the message format of master or client.
+ */
+int proto_version = 1;
+
+/******************************************************************************/
+/* Tele-port zone. These variables are updated on the clients when one is     */
+/* using cluster mode. (-+m)                                                  */
+/* Do not touch these unless you have become one with the universe !!         */
+/******************************************************************************/
+char controlling_host_name[256];
 struct child_ident {
 	char child_name[100];
 	char workdir[256];
@@ -1048,37 +1127,38 @@ struct child_ident {
 	int master_socket_num;
 	int master_async_socket_num;
 }child_idents[MAXSTREAMS];
+char write_traj_filename [MAXNAMESIZE];     /* name of write telemetry file */
+char read_traj_filename [MAXNAMESIZE];    /* name of read telemetry file  */
+char oflag,jflag,k_flag,h_flag,mflag,pflag;
+char async_flag,stride_flag,mmapflag,mmapasflag,mmapssflag,mmapnsflag,mmap_mix;
+char verify = 1;
+char sverify = 1;
+char Q_flag,OPS_flag;
+char no_copy_flag,include_close,include_flush;
+char disrupt_flag,compute_flag,xflag;
+int no_unlink = 0;
+char r_traj_flag,w_traj_flag,MS_flag;
+int direct_flag;
+int current_client_number;
+long long chid;
+int file_lock;
+unsigned int pattern;
+long long stride = STRIDE;
+long long delay,purge,fetchon;
+off64_t  numrecs64 = (off64_t)NUMRECS;
+long long reclen = RECLEN;
+long long delay_start,depth;
+VOLATILE char *stop_flag;		/* Used to stop all children */
+float compute_time;
+/******************************************************************************/
+/* End of Tele-port zone.                                                     */
+/******************************************************************************/
 
-int c_port,a_port;
-int child_port; /* Virtualized due to fork */
-int child_async_port; /* Virtualized due to fork */
-int client_listen_pid; /* Virtualized due to fork */
-int master_join_count;
-int l_sock,s_sock,l_async_sock;
-char master_rcv_buf[4096];
-int master_listen_pid;
-char master_send_buf[4096];
-char child_rcv_buf[4096];
-char child_async_rcv_buf[4096];
-char child_send_buf[4096];
-int child_send_socket;
-int child_listen_socket;
-int child_listen_socket_async;
-int master_send_socket; /* Needs to be an array. One for each child*/
-int master_send_sockets[MAXSTREAMS]; /* Needs to be an array. One for each child*/
-int master_send_async_sockets[MAXSTREAMS]; /* Needs to be an array. One for each child*/
-int master_listen_port;
-int master_listen_socket;
-int clients_found;
-char controlling_host_name[256];
-FILE *newstdin, *newstdout, *newerrout;
-char toutput[20][20];
-int toutputindex;
-int cdebug = 0;
-int mdebug = 0;
 
 /* 
  * Prototypes
+ * Sort of... Full prototypes break non-ansi C compilers. No protos is 
+ * a bit sloppy, so the compromise is this.
  */
 void child_send();
 int start_child_send();
@@ -1090,7 +1170,6 @@ void child_listen_async();
 void stop_child_send();
 void stop_child_listen();
 void cleanup_comm();
-
 void master_send();
 int start_master_send();
 int start_master_listen();
@@ -1158,36 +1237,46 @@ char **argv;
 	int test_foo;
 #endif
 
+	/* Used to make fread/fwrite do something better than their defaults */
 	setvbuf( stdout, NULL, _IONBF, (size_t) NULL );
 	setvbuf( stderr, NULL, _IONBF, (size_t) NULL );
 	
+	/* Save the master's name */
 	gethostname(controlling_host_name,256);
+
+	/* Try to find the actual VM page size, if possible */
 #if defined (solaris) || defined (_HPUX_SOURCE) || defined (linux) || defined(IRIX) || defined (IRIX64)
 #ifndef __convex_spp
 	page_size=getpagesize();
 #endif
 #endif
+	/* Try to find the actual number of ticks per second */
 #ifdef unix
 	sc_clk_tck = clk_tck();
 #endif
 	for(ind=0;ind<MAXSTREAMS;ind++)
 		filearray[ind]=(char *)tfile;
 
-	myid=(long long)getpid();
-	get_resolution();
-	time_run = time(0);
+	myid=(long long)getpid(); 	/* save the master's PID */
+	get_resolution(); 		/* Get clock resolution */
+	time_run = time(0);		/* Start a timer */
+
+	/*
+ 	 * Save the splash screen for later display. When in distributed network
+	 * mode this output does not get displayed on the clients.
+	 */
 	sprintf(splash[splash_line++],"\tIozone: Performance Test of File I/O\n");
     	sprintf(splash[splash_line++],"\t%s\n\t%s\n\n", THISVERSION,MODE);
     	sprintf(splash[splash_line++],"\tContributors:William Norcott, Don Capps, Isom Crawford, Kirby Collins\n");
 	sprintf(splash[splash_line++],"\t             Al Slater, Scott Rhine, Mike Wisner, Ken Goss\n");
     	sprintf(splash[splash_line++],"\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR,\n");
-    	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague.\n\n");
+    	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
 	argvsave=argv;
 
-    	signal(SIGINT, signal_handler);	 /* handle user interrupt */
-    	signal(SIGTERM, signal_handler);	 /* handle kill from shell */
+    	signal(SIGINT, signal_handler);	 	/* handle user interrupt */
+    	signal(SIGTERM, signal_handler);	/* handle kill from shell */
 
         /********************************************************/
         /* Allocate and align buffer with beginning of the 	*/
@@ -1208,16 +1297,21 @@ char **argv;
 		~((long)cache_size-1));
 #endif
 	mainbuffer = buffer;
-	fetchon++;
-  	strcpy(filename,default_filename);
+	fetchon++;  /* By default, prefetch the CPU cache lines associated with the buffer */
+  	strcpy(filename,default_filename); 	/* Init default filename */
   	sprintf(dummyfile[0],"%s.DUMMY",default_filename);
 	if(argc <=1){
 		printf(USAGE);
 		exit(0);
 	}
-	auto_mode = 0;
-	inp_pat = PATTERN;
+	auto_mode = 0; 		/* Default is to disable auto mode */
+	inp_pat = PATTERN; 	/* Init default pattern for verification */
+	/* Fill the entire pattern variable with the same character */
 	pattern = ((inp_pat << 24) | (inp_pat << 16) | (inp_pat << 8) | inp_pat);
+
+	/*
+	 * Parse all of the options that the user specified.
+	 */
 	while((cret = getopt(argc,argv,"ZQNIBDGCTOMREWovAxamwphcezKJ:j:k:V:r:t:s:f:F:d:l:u:U:S:L:H:+:P:i:b:X:Y:g:n:y:q: ")) != EOF){
 		switch(cret){
 		case 'k':	/* Async I/O with no bcopys */
@@ -1237,7 +1331,7 @@ char **argv;
 			async_flag++;
 			k_flag++;
 			break;
-		case 'T':	/* switch to thread based */
+		case 'T':	/* Switch to POSIX thread based */
 #ifndef NO_THREADS
 			use_thread++;
 #else
@@ -1245,11 +1339,15 @@ char **argv;
 			exit(2);
 #endif
 			break;
-		case 'H':	/* Use async_io */
+		case 'H':	/* Use POSIX async_io */
 			h_flag++;
 			depth = (long long)(atoi(optarg));
 			if(depth <0)
 				depth=0;
+			/*
+			 * Hmmm. many systems fail is strange ways when the maximum
+			 * number of async I/Os per user or proc is exceeded.
+			 */
 			/*
 			if(depth > 60)
 				depth=60;
@@ -1331,11 +1429,11 @@ char **argv;
 		case 'C':	/* show children xfer counts */
 			Cflag++;
 			break;
-		case 'Q':	/* Output offset/latency files */
+		case 'Q':	/* Enable output offset/latency files */
 	    		sprintf(splash[splash_line++],"\tOffset/latency files enabled.\n");
 			Q_flag++;
 			break;
-		case 'x':	/* disable stone_wall */
+		case 'x':	/* Disable stone_wall */
 	    		sprintf(splash[splash_line++],"\tStonewall disabled\n");
 			xflag++;
 			break;
@@ -1356,7 +1454,7 @@ char **argv;
 			include_flush++;
 	    		sprintf(splash[splash_line++],"\tInclude fsync in write timing\n");
 			break;
-		case 'A':	/* auto2 mode - kcollins 8-21-96*/
+		case 'A':	/* auto2 mode. Soon to go away. Please use -az */
 			fetchon=1;
 			purge=0;
 			multi_buffer=0;
@@ -1369,7 +1467,7 @@ char **argv;
 			include_test[WRITER_TEST]++;
 			include_test[READER_TEST]++;
 			break;
-		case 's': 	/* set file size */
+		case 's': 	/* Set file size */
 #ifdef NO_PRINT_LLD
 			sscanf(optarg,"%ld",&kilobytes64);
 #else
@@ -1398,7 +1496,7 @@ char **argv;
 #endif
 			sflag++;
 			break;
-		case 'l': 	/* set lower thread limit  */
+		case 'l': 	/* Set lower thread/proc limit  */
 			mint = (long long)(atoi(optarg));
 			if(mint <= 0)
 			{
@@ -1419,7 +1517,7 @@ char **argv;
 				exit(5);
 			}
 			break;
-		case 'u': 	/* set upper thread limit  */
+		case 'u': 	/* Set upper thread/proc limit  */
 			maxt = (long long)(atoi(optarg));
 			if(maxt <= 0)
 				maxt=1;
@@ -1436,7 +1534,7 @@ char **argv;
 				exit(7);
 			}
 			break;
-		case 'm':	/* use multiple buffers */
+		case 'm':	/* Use multiple buffers */
 			fetchon=0;
 			multi_buffer=1;
 			mflag++;
@@ -1502,7 +1600,7 @@ char **argv;
 		case 'E':	/* Extended testing for pread/pwrite... */
 			Eflag++;
 			break;
-		case 'R':	/* Generate Report */
+		case 'R':	/* Generate Excel compatible Report */
 			Rflag++;
 	    		sprintf(splash[splash_line++],"\tExcel chart generation enabled\n");
 			break;
@@ -1529,12 +1627,12 @@ char **argv;
 	    		sprintf(splash[splash_line++],"\tVerify Mode. Pattern %x\n",pattern);
     			sprintf(splash[splash_line++],"\tPerformance measurements are invalid in this mode.\n");
 			break;
-		case 'S':	/* Set cache size */
+		case 'S':	/* Set the processor cache size */
 			cache_size = (long)(atoi(optarg)*1024);
 			if(cache_size == 0)
 				cache_size = CACHE_SIZE;
 			break;
-		case 'L':	/* Set cache line size */
+		case 'L':	/* Set processor cache line size */
 			cache_line_size = (long)(atoi(optarg));
 			if(cache_line_size == 0)
 				cache_line_size = CACHE_LINE_SIZE;
@@ -1671,7 +1769,7 @@ char **argv;
     			}
 			exit(0);
 			break;
-		case 'U':	/* Specify the dev name */
+		case 'U':	/* Specify the dev name for umount/mount*/
 			Uflag++;
 			strcpy(mountname,optarg);
 			if(trflag)
@@ -1772,7 +1870,7 @@ char **argv;
 			sprintf(splash[splash_line++],"\tCross over of record size disabled.\n");
 			NOCROSSflag=1;
 			break;
-		case 'y':		/* set min record size for auto mode */
+		case 'y':		/* Set min record size for auto mode */
 			yflag=1;
 			min_rec_size = ((long long)(atoi(optarg))*1024);
 			if(optarg[strlen(optarg)-1]=='k' ||
@@ -1795,7 +1893,7 @@ char **argv;
 	    		sprintf(splash[splash_line++],"\tUsing Minimum Record Size %lld KB\n", min_rec_size/1024);
 #endif
 			break;
-		case 'q':		/* set max record size for auto mode */
+		case 'q':		/* Set max record size for auto mode */
 			qflag=1;
 			max_rec_size = ((long long)(atoi(optarg))*1024);
 			if(optarg[strlen(optarg)-1]=='k' ||
@@ -1828,23 +1926,24 @@ char **argv;
 			sprintf(splash[splash_line++],"\tUsing Maximum Record Size %lld KB\n", max_rec_size/1024);
 #endif
 			break;
-			/* 
-			 * The + operator is for the new extended options mechanism 
-			 * Syntax is -+ followed by option leter, and if the optino
-			 * takes an operand  then it is implemented below. An example
-			 * -+a arg    is shown below. This is a sub option with an argument.
-			 * -+b  is shown below. This is a sub option with no argument.
-			 */
+
+		/* 
+		 * The + operator is for the new extended options mechanism 
+		 * Syntax is -+ followed by option leter, and if the optino
+		 * takes an operand  then it is implemented below. An example
+		 * -+a arg    is shown below. This is a sub option with an argument.
+		 * -+b  is shown below. This is a sub option with no argument.
+		 */
 		case '+':
 			/* printf("Plus option = >%s<\n",optarg);*/
 			switch (*((char *)optarg))
 			{
-				case 'a':  /* Has argument */
+				case 'a':  /* Example: Has argument */
 					subarg=argv[optind++];
 					/* if(subarg!=(char *)0)   Error checking. */
 					/* printf("Plus option argument = >%s<\n",subarg);*/
 					break;
-				case 'b':  /* Does not have an argument */
+				case 'b':  /* Example: Does not have an argument */
 					break;
 				case 'c':  /* Argument is the controlling host name */
 					/* I am a client for distributed Iozone */
@@ -1859,8 +1958,8 @@ char **argv;
 					client_iozone=1;
 					master_iozone=0;
 					break;
-				case 'm':  /* Does not have an argument */
-					/* I am the controlling process for distributed Iozone */
+				case 'm':  /* I am the controlling process for distributed Iozone */
+					   /* Does not have an argument */
 					subarg=argv[optind++];
 					if(subarg==(char *)0)
 					{
@@ -1880,13 +1979,14 @@ char **argv;
 					client_iozone=0;
 					sprintf(splash[splash_line++],"\tNetwork distribution mode enabled.\n");
 					break;
-				case 'u':	/* set CPU utilization output flag */
+				case 'u':	/* Set CPU utilization output flag */
 					cpuutilflag = 1;	/* only used if R(eport) flag is also set */
 					get_rusage_resolution();
     					sprintf(splash[splash_line++],"\tCPU utilization Resolution = %5.3f seconds.\n",cputime_res);
 	    				sprintf(splash[splash_line++],"\tCPU utilization Excel chart enabled\n");
 					break;
-				case 's':  /* Does not have an argument */
+				case 's':  /* Clients operate in silent mode. */
+					   /* Does not have an argument */
 					silent=1;
 					break;
 				default:
@@ -1897,9 +1997,16 @@ char **argv;
 			break;
 		}
 	}
+	/*
+         * If not in silent mode then display the splash screen.
+	 */
 	for(i=0;i<splash_line;i++)
 		if(!silent) printf("%s",splash[i]);
+	/*
+	 * Save the command line for later 
+	 */
 	record_command_line(argcsave, argvsave);
+
 	if(pflag) /* Allocate after cache_size is set */
 	{
      		pbuffer = (char *) alloc_mem((long long)(3 * cache_size));
@@ -14326,11 +14433,12 @@ int send_size;
 	sprintf(outbuf.m_child_async_port,"%d",send_buffer->m_child_async_port);
 	sprintf(outbuf.m_command,"%d",send_buffer->m_command);
 	sprintf(outbuf.m_testnum,"%d",send_buffer->m_testnum);
+	sprintf(outbuf.m_version,"%d",send_buffer->m_version);
 	sprintf(outbuf.m_throughput,"%f",send_buffer->m_throughput);
 	sprintf(outbuf.m_stop_time,"%f",send_buffer->m_stop_time);
 	sprintf(outbuf.m_start_time,"%f",send_buffer->m_start_time);
 	sprintf(outbuf.m_fini_time,"%f",send_buffer->m_fini_time);
-	sprintf(outbuf.m_stop_flag,"%f",send_buffer->m_stop_flag);
+	sprintf(outbuf.m_stop_flag,"%c",send_buffer->m_stop_flag);
 	sprintf(outbuf.m_actual,"%f",send_buffer->m_actual);
 #ifdef NO_PRINT_LLD
 	sprintf(outbuf.m_child_flag,"%ld",send_buffer->m_child_flag);
@@ -14423,6 +14531,7 @@ int send_size;
 	sprintf(outbuf.c_no_unlink,"%d",send_buffer->c_no_unlink);
 	sprintf(outbuf.c_file_lock,"%d",send_buffer->c_file_lock);
 	sprintf(outbuf.c_pattern,"%d",send_buffer->c_pattern);
+	sprintf(outbuf.c_version,"%d",send_buffer->c_version);
 #ifdef NO_PRINT_LLD
 	sprintf(outbuf.c_stride,"%ld",send_buffer->c_stride);
 	sprintf(outbuf.c_delay,"%ld",send_buffer->c_delay);
@@ -14444,7 +14553,7 @@ int send_size;
 	sprintf(outbuf.c_delay_start,"%lld",send_buffer->c_delay_start);
 	sprintf(outbuf.c_depth,"%lld",send_buffer->c_depth);
 #endif
-	sprintf(outbuf.c_stop_flag,"%f",send_buffer->c_stop_flag);
+	sprintf(&outbuf.c_stop_flag,"%c",send_buffer->c_stop_flag);
 	sprintf(outbuf.c_compute_time,"%f",send_buffer->c_compute_time);
 
 	if(mdebug >= 1)
@@ -15084,6 +15193,12 @@ long long numrecs64, reclen;
 	sscanf(mnc->m_child_port,"%d",&mc.m_child_port);	
 	sscanf(mnc->m_child_async_port,"%d",&mc.m_child_async_port);	
 	sscanf(mnc->m_command,"%d",&mc.m_command);	
+	sscanf(mnc->m_version,"%d",&mc.m_version);	
+	if(mc.m_version != proto_version)
+	{
+		printf("Client > %s < is not running the same version of Iozone !!\n",
+			child_idents[x-1].child_name);
+	}
 
 	c_port = mc.m_child_port; 
 	a_port = mc.m_child_async_port; 
@@ -15137,6 +15252,7 @@ long long numrecs64, reclen;
 	cc.c_sverify = sverify;
 	cc.c_file_lock = file_lock;
 	cc.c_pattern = pattern;
+	cc.c_version = proto_version;
 	cc.c_Q_flag = Q_flag;
 	cc.c_xflag = xflag;
 	cc.c_w_traj_flag = w_traj_flag;
@@ -15261,6 +15377,7 @@ become_client()
 	mc.m_child_port = child_port;
 	mc.m_child_async_port = child_async_port;
 	mc.m_command = R_CHILD_JOIN;
+	mc.m_version = proto_version;
 	if(cdebug)
 	{
 		fprintf(newstdout,"Child sends JOIN to master %s My port %d\n",
@@ -15348,6 +15465,7 @@ become_client()
 	sscanf(&cnc->c_sverify,"%c",&cc.c_sverify);
 	sscanf(cnc->c_file_lock,"%d",&cc.c_file_lock);
 	sscanf(cnc->c_pattern,"%d",&cc.c_pattern);
+	sscanf(cnc->c_version,"%d",&cc.c_version);
 	sscanf(&cnc->c_Q_flag,"%c",&cc.c_Q_flag);
 	sscanf(&cnc->c_xflag,"%c",&cc.c_xflag);
 	sscanf(&cnc->c_w_traj_flag,"%c",&cc.c_w_traj_flag);
@@ -15388,6 +15506,7 @@ become_client()
 	sverify = cc.c_sverify;
 	file_lock = cc.c_file_lock;
 	pattern = cc.c_pattern;
+	/* proto_version = cc.c_version; Don't copy it back. */
 	Q_flag = cc.c_Q_flag;
 	xflag = cc.c_xflag;
 	w_traj_flag = cc.c_w_traj_flag;
@@ -15554,6 +15673,7 @@ long long child_flag;
 	mc.m_stop_flag = stop_flag;
 	mc.m_child_flag = child_flag;
 	mc.m_command = R_STAT_DATA;
+	mc.m_version = proto_version;
 	if(cdebug>=1)
 	{
 		fprintf(newstdout, "Child: Tell master stats and terminate\n");
@@ -15601,6 +15721,7 @@ long long chid;
 		fflush(newstdout);
 	}
 	mc.m_command = R_FLAG_DATA;
+	mc.m_version = proto_version;
 	mc.m_child_flag = CHILD_STATE_READY; 
 	mc.m_client_number = (int)chid; 
 	child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
@@ -15676,6 +15797,12 @@ int num;
 		 */
 		sscanf(mnc->m_command,"%d",&mc.m_command);
 		sscanf(mnc->m_client_number,"%d",&mc.m_client_number);
+		sscanf(mnc->m_version,"%d",&mc.m_version);
+		if(mc.m_version != proto_version)
+		{
+			printf("Client # %d is not running the same version of Iozone !\n",
+				mc.m_client_number);
+		}		
 #ifdef NO_PRINT_LLD
 		sscanf(mnc->m_child_flag,"%ld",&mc.m_child_flag);
 #else
@@ -15685,7 +15812,7 @@ int num;
 		sscanf(mnc->m_throughput,"%f",&mc.m_throughput);
 		sscanf(mnc->m_start_time,"%f",&mc.m_start_time);
 		sscanf(mnc->m_stop_time,"%f",&mc.m_stop_time);
-		sscanf(mnc->m_stop_flag,"%f",&mc.m_stop_flag);
+		sscanf(mnc->m_stop_flag,"%c",&mc.m_stop_flag);
 
 		switch(mc.m_command) {
 		case R_STAT_DATA:
@@ -15754,7 +15881,7 @@ start_child_listen_loop()
 	 	 */
 		sscanf(cnc->c_command,"%d",&cc.c_command);
 		sscanf(cnc->c_client_number,"%d",&cc.c_client_number);
-		sscanf(cnc->c_stop_flag,"%f",&cc.c_stop_flag);
+		sscanf(&cnc->c_stop_flag,"%c",&cc.c_stop_flag);
 
 		switch(cc.c_command) {
 		case R_STOP_FLAG:
@@ -15992,7 +16119,8 @@ send_stop()
 {
 	struct master_command mc;
 
-	mc.m_command = R_STOP_FLAG,
+	mc.m_command = R_STOP_FLAG;
+	mc.m_version = proto_version;
 	mc.m_client_number = chid;
 	if(cdebug)
 	{
