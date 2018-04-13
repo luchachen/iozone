@@ -2561,3 +2561,6 @@ Fix typeoh in spelling of DragonFly.
 Revision 3.452
 Make the sighandler_t change effective for all BSD derivatives.
 =============================================================================
+Revision 3.454
+Make the my_sig_t change effective for all BSD derivatives.
+=============================================================================

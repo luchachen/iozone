@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.147 $
+# Version $Revision: 1.148 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -35,6 +35,7 @@ all:
 	@echo "        ->   CrayX1               (32bit)   <-"
 	@echo "        ->   dragonfly            (32bit)   <-"
 	@echo "        ->   freebsd              (32bit)   <-"
+	@echo "        ->   freebsd64            (64bit)   <-"
 	@echo "        ->   generic              (32bit)   <-"
 	@echo "        ->   ghpux                (32bit)   <-"
 	@echo "        ->   hpuxs-11.0 (simple)  (32bit)   <-"
@@ -495,6 +496,12 @@ freebsd:	iozone_freebsd.o libbif.o fileop_freebsd.o libasync.o pit_server.o
 	$(CC)  -O fileop_freebsd.o -o fileop
 	$(CC)  -O pit_server.o -o pit_server
 
+freebsd64:	iozone_freebsd64.o libbif.o fileop_freebsd64.o libasync.o pit_server.o
+	$(CC) $(LDFLAGS) iozone_freebsd64.o libbif.o -lpthread libasync.o \
+		-o iozone
+	$(CC)  -O fileop_freebsd64.o -o fileop
+	$(CC)  -O pit_server.o -o pit_server
+
 #
 # GNU C compiler DragonFly build with no threads, no largefiles
 #
@@ -850,6 +857,12 @@ fileop_freebsd.o:	fileop.c
 	@echo "Building fileop for FreeBSD"
 	@echo ""
 	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_freebsd.o
+
+fileop_freebsd64.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for FreeBSD64"
+	@echo ""
+	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_freebsd64.o
 
 fileop_dragonfly.o:	fileop.c
 	@echo ""
@@ -1360,6 +1373,20 @@ iozone_freebsd.o:	iozone.c libbif.c libasync.c
 	$(CC) -c ${CFLAGS}  -DFreeBSD -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DASYNC_IO \
 		-DHAVE_PREAD -DNAME='"freebsd"' -DSHARED_MEM \
 		$(CFLAGS) iozone.c -o iozone_freebsd.o
+	$(CC) -c ${CFLAGS} -DFreeBSD -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DASYNC_IO \
+		-DSHARED_MEM -DHAVE_PREAD $(CFLAGS) libbif.c \
+		-o libbif.o
+	$(CC) -c ${CFLAGS} -DFreeBSD -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DASYNC_IO \
+		-DSHARED_MEM -DHAVE_PREAD $(CFLAGS) libasync.c \
+		-o libasync.o
+
+iozone_freebsd64.o:	iozone.c libbif.c libasync.c
+	@echo ""
+	@echo "Build iozone for FreeBSD64"
+	@echo ""
+	$(CC) -c ${CFLAGS}  -DFreeBSD -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DASYNC_IO \
+		-DHAVE_PREAD -DNAME='"freebsd"' -DSHARED_MEM \
+		$(CFLAGS) iozone.c -o iozone_freebsd64.o
 	$(CC) -c ${CFLAGS} -DFreeBSD -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DASYNC_IO \
 		-DSHARED_MEM -DHAVE_PREAD $(CFLAGS) libbif.c \
 		-o libbif.o

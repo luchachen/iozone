@@ -91,7 +91,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.28 $";
+char libbif_version[] = "Libbif Version $Revision: 3.29 $";
 #endif
 
 #define BOF 0x9
@@ -167,7 +167,7 @@ void do_eof(int) ;
 int endian(void);
 #else
 void
-close_xls(fd);
+close_xls();
 int create_xls();
 void do_header();
 void do_int();
