@@ -1,7 +1,7 @@
 #
-# Version $Revision: 1.46 $
+# Version $Revision: 1.47 $
 #
-# The makefile for building all versions of Iozone for all supported
+# The makefile for building all versions of iozone for all supported
 # platforms
 #
 # Supports:	hpux, hpux_no_ansi, hpux-10.1, hpux_no_ansi-10.1,
@@ -34,6 +34,7 @@ all:
 	@echo "        ->   linux-ia64           (32bit)   <-"
 	@echo "        ->   netbsd               (32bit)   <-"
 	@echo "        ->   openbsd              (32bit)   <-"
+	@echo "        ->   openbsd-threads      (32bit)   <-"
 	@echo "        ->   OSFV3                (64bit)   <-"
 	@echo "        ->   OSFV4                (64bit)   <-"
 	@echo "        ->   OSFV5                (64bit)   <-"
@@ -228,7 +229,7 @@ Windows: iozone_windows.o libbif.o
 		-DWindows iozone_windows.o libbif.o -o iozone
 
 #
-# GNU C compiler BSDI build with threads, largefiles, no async I/O
+# GNU C compiler BSD/OS build with threads, largefiles, no async I/O
 #
 
 bsdi: iozone_bsdi.o libbif.o
@@ -247,8 +248,16 @@ freebsd: iozone_freebsd.o libbif.o
 #
 
 openbsd: iozone_openbsd.o libbif.o
-	cc -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DSHARED_MEM \
+	cc -O -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DNO_THREADS -DSHARED_MEM \
 		iozone_openbsd.o libbif.o -o iozone
+
+#
+# GNU C compiler OpenBSD build with threads, no largefiles, no async I/O
+#
+
+openbsd-threads: iozone_openbsd-threads.o libbif.o
+	cc -O -pthread -Dunix -Dbsd4_4 -DHAVE_ANSIC_C \
+		iozone_openbsd-threads.o libbif.o -o iozone
 
 #
 # GNU C compiler OSFV3 build 
@@ -292,13 +301,12 @@ SCO: iozone_SCO.o  libbif.o
 		libbif.o -DNO_THREADS -o iozone
 
 #
-# GNU Generic build with no threads, no largefiles, no async I/O
-# for NetBSD
+# GNU C compiler NetBSD build with no threads, no largefiles, no async I/O
 #
 
 netbsd: iozone_netbsd.o  libbif.o
-	gcc -O -Dnetbsd -Dunix -DHAVE_ANSIC_C iozone_netbsd.o \
-		libbif.o -DNO_THREADS -o iozone
+	cc -O -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DNO_THREADS -DSHARED_MEM \
+		iozone_netbsd.o libbif.o -o iozone
 
 #
 #
@@ -542,7 +550,7 @@ iozone_convex.o: iozone.c libbif.c
 
 iozone_bsdi.o: iozone.c libbif.c
 	@echo ""
-	@echo "Build Iozone for BSDI"
+	@echo "Build iozone for BSD/OS"
 	@echo ""
 	cc -c -O -Dunix -Dbsd4_4 -DHAVE_ANSIC_C \
 		iozone.c -o iozone_bsdi.o
@@ -551,7 +559,7 @@ iozone_bsdi.o: iozone.c libbif.c
 
 iozone_freebsd.o: iozone.c libbif.c
 	@echo ""
-	@echo "Build Iozone for FreeBSD"
+	@echo "Build iozone for FreeBSD"
 	@echo ""
 	cc -c -O -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
 		-DSHARED_MEM iozone.c -o iozone_freebsd.o
@@ -560,16 +568,25 @@ iozone_freebsd.o: iozone.c libbif.c
 
 iozone_openbsd.o: iozone.c libbif.c
 	@echo ""
-	@echo "Build Iozone for OpenBSD"
+	@echo "Build iozone for OpenBSD"
 	@echo ""
 	cc -c -O -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DNO_THREADS \
 		-DSHARED_MEM iozone.c -o iozone_openbsd.o
 	cc -c -O -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DNO_THREADS \
 		-DSHARED_MEM libbif.c -o libbif.o
 
+iozone_openbsd-threads.o: iozone.c libbif.c
+	@echo ""
+	@echo "Build iozone for OpenBSD with threads"
+	@echo ""
+	cc -c -O -pthread -Dunix -Dbsd4_4 -DHAVE_ANSIC_C \
+		iozone.c -o iozone_openbsd-threads.o
+	cc -c -O -pthread -Dunix -Dbsd4_4 -DHAVE_ANSIC_C \
+		libbif.c -o libbif.o
+
 iozone_OSFV3.o: iozone.c libbif.c
 	@echo ""
-	@echo "Build Iozone for OSFV3"
+	@echo "Build iozone for OSFV3"
 	@echo ""
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV3 \
 		-DNO_PRINT_LLD -DOSF_64 iozone.c -o iozone_OSFV3.o
@@ -580,7 +597,7 @@ iozone_OSFV3.o: iozone.c libbif.c
 
 iozone_OSFV4.o: iozone.c libbif.c
 	@echo ""
-	@echo "Build Iozone for OSFV4"
+	@echo "Build iozone for OSFV4"
 	@echo ""
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV4 \
 		-DNO_PRINT_LLD -DOSF_64 iozone.c -o iozone_OSFV4.o
@@ -591,7 +608,7 @@ iozone_OSFV4.o: iozone.c libbif.c
 
 iozone_OSFV5.o: iozone.c libbif.c
 	@echo ""
-	@echo "Build Iozone for OSFV5"
+	@echo "Build iozone for OSFV5"
 	@echo ""
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 \
 		-DNO_PRINT_LLD -DOSF_64 iozone.c -o iozone_OSFV5.o
@@ -613,8 +630,7 @@ iozone_netbsd.o: iozone.c libbif.c
 	@echo ""
 	@echo "Building iozone NetBSD "
 	@echo ""
-	gcc -c -O -Dnetbsd -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
-		iozone.c -o iozone_netbsd.o
-	gcc -c -O -Dnetbsd -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
-		libbif.c -o libbif.o
-
+	cc -c -O -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DNO_THREADS \
+		-DSHARED_MEM iozone.c -o iozone_netbsd.o
+	cc -c -O -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DNO_THREADS \
+		-DSHARED_MEM libbif.c -o libbif.o

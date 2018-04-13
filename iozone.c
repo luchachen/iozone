@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.49 $"
+#define THISVERSION "        Version $Revision: 3.51 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -245,9 +245,6 @@ typedef long long off64_t;
 
 #ifdef unix
 #include <sys/times.h>
-#endif
-
-#ifdef unix
 #include <sys/file.h>
 #ifndef NULL
 #define NULL 0
@@ -264,102 +261,40 @@ typedef long long off64_t;
 #define VOLATILE 
 #endif
 
-/* for systems with System V-style time, define SysVtime */
-#ifdef M_SYSV
-#define SysVtime
-#endif
-
-#ifdef SysVtime
-#include <sys/times.h>
-#include <sys/param.h>
-#ifndef CLK_TCK
-#define CLK_TCK HZ
-#endif
-#endif
-/* for systems with BSD style time, define BSDtime */
-#ifdef bsd4_2
-#define BSDtime
-#endif
-#ifdef bsd4_4
-#define BSDtime
-#endif
-#ifdef BSDtime
 #include <sys/time.h>
-#else
-#include <sys/time.h>
-#endif
 
 #ifdef SHARED_MEM
 #include <sys/shm.h>
 #endif
 
-#ifdef Windows
-long long page_size = 4096;
-#define GOT_PAGESIZE 1
-#endif
-
-#ifdef netbsd
-#define MAP_ANONYMOUS MAP_ANON
-long long page_size = 4096;
-#define GOT_PAGESIZE 1
-#endif
-
 #ifdef bsd4_2
-long long page_size = 4096;
-#define GOT_PAGESIZE 1
 #define MS_SYNC 0
 #define MS_ASYNC 0
 #endif
 
-#ifdef __bsdi__
+#ifdef bsd4_4
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
-#ifdef bsd4_4
-#ifndef GOT_PAGESIZE
-long long page_size = 4096;
-#define GOT_PAGESIZE 1
-#endif
-#endif 
-
 #ifdef SCO
-long long page_size = 4096;
-#define GOT_PAGESIZE 1
 #define AMAP_FILE (0)
 #endif
 
 #ifdef solaris
-long long page_size = 4096;
-#define GOT_PAGESIZE 1
 #define MAP_FILE (0)
 #endif
 
-#ifdef linux
-#ifndef GOT_PAGESIZE
+#if defined(IRIX) || defined(IRIX64) || defined(Windows) || defined(bsd4_2) || defined(bsd4_4) || defined(SCO) || defined(Solaris)
+long long page_size = 4096;
+#define GOT_PAGESIZE 1
+#elif defined(NBPG)
+long long page_size = NBPG;
+#define GOT_PAGESIZE 1
+#elif defined(linux)
 #include <asm/page.h>
 long long page_size = PAGE_SIZE;
 #define GOT_PAGESIZE 1
-#endif
-#endif
-
-#ifdef IRIX64
-long long page_size = 4096;
-#define GOT_PAGESIZE 1
-#endif
-
-#ifdef IRIX
-long long page_size = 4096;
-#define GOT_PAGESIZE 1
-#endif
-
-#ifdef NBPG
-#ifndef GOT_PAGESIZE
-long long page_size = NBPG;
-#define GOT_PAGESIZE 1
-#endif
-#endif
-
-#ifndef GOT_PAGESIZE
+#elif !defined(GOT_PAGESIZE)
 long long page_size = 4096; /* Used when all else fails */
 #endif
 
