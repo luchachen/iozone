@@ -1746,4 +1746,7 @@ Addition for make random offsets always based on 48 bit random values.
 Revision 3.194 
 =============================================================================
 Make rands long longs.
-
+=============================================================================
+Revision 3.195 
+=============================================================================
+Bug fix for 48 bit rands in bsd4_2 and Windows.

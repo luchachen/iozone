@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.194 $"
+#define THISVERSION "        Version $Revision: 3.195 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -7320,14 +7320,14 @@ long long *data1, *data2;
 			rand1=(long long)rand();
 			rand2=(long long)rand();
 			rand3=(long long)rand();
-			big_rand=(rand1<<32)||(rand2<<16)||(rand3);
+			big_rand=(rand1<<32)|(rand2<<16)|(rand3);
                         offset64 = reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
 			rand1=(long long)rand();
 			rand2=(long long)rand();
 			rand3=(long long)rand();
-			big_rand=(rand1<<32)||(rand2<<16)||(rand3);
+			big_rand=(rand1<<32)|(rand2<<16)|(rand3);
                         offset64 = reclen * (big_rand%numrecs64);
 #else
 			offset64 = reclen * (lrand48()%numrecs64);
@@ -7411,14 +7411,14 @@ long long *data1, *data2;
 				rand1=(long long)rand();
 				rand2=(long long)rand();
 				rand3=(long long)rand();
-				big_rand=(rand1<<32)||(rand2<<16)||(rand3);
+				big_rand=(rand1<<32)|(rand2<<16)|(rand3);
 				offset64 = reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
 				rand1=(long long)rand();
 				rand2=(long long)rand();
 				rand3=(long long)rand();
-				big_rand=(rand1<<32)||(rand2<<16)||(rand3);
+				big_rand=(rand1<<32)|(rand2<<16)|(rand3);
 				offset64 = reclen * (big_rand%numrecs64);
 #else
 				offset64 = reclen * (lrand48()%numrecs64);
@@ -9077,14 +9077,14 @@ again:
 		rand1=(long long)rand();
 		rand2=(long long)rand();
 		rand3=(long long)rand();
-		big_rand=(rand1<<32)||(rand2<<16)||(rand3);
+		big_rand=(rand1<<32)|(rand2<<16)|(rand3);
 		offset64 = reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
 		rand1=(long long)rand();
 		rand2=(long long)rand();
 		rand3=(long long)rand();
-		big_rand=(rand1<<32)||(rand2<<16)||(rand3);
+		big_rand=(rand1<<32)|(rand2<<16)|(rand3);
 		offset64 = reclen * (big_rand%numrecs64);
 #else
 		offset64 = reclen * (lrand48()%numrecs64);
@@ -13994,14 +13994,14 @@ thread_ranread_test(x)
 		rand1=(long long)rand();
 		rand2=(long long)rand();
 		rand3=(long long)rand();
-		big_rand=(rand1<<32)||(rand2<<16)||(rand3);
+		big_rand=(rand1<<32)|(rand2<<16)|(rand3);
 		current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
 		rand1=(long long)rand();
 		rand2=(long long)rand();
 		rand3=(long long)rand();
-		big_rand=(rand1<<32)||(rand2<<16)||(rand3);
+		big_rand=(rand1<<32)|(rand2<<16)|(rand3);
 		current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
 		current_offset = reclen * (lrand48()%numrecs64);
@@ -14423,14 +14423,14 @@ thread_ranwrite_test( x)
 		rand1=rand();
 		rand2=rand();
 		rand3=rand();
-		big_rand=(rand1<<32)||(rand2<<16)||(rand3);
+		big_rand=(rand1<<32)|(rand2<<16)|(rand3);
 		current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
 		rand1=rand();
 		rand2=rand();
 		rand3=rand();
-		big_rand=(rand1<<32)||(rand2<<16)||(rand3);
+		big_rand=(rand1<<32)|(rand2<<16)|(rand3);
 		current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
 		current_offset = reclen * (lrand48()%numrecs64);
