@@ -1,3 +1,4 @@
+V1.0 (capps):
 Capps:
 	Beginning of the code base.
 Isom:
@@ -344,48 +345,48 @@ total revisions: 94;    selected revisions: 94
 description:
 Initial rcs version of Iozone
 ----------------------------
-revision 1.94        
+Revision 1.94        
 date: 99/01/18 13:02:57;  author: capps;  state: Exp;  lines added/del: 7/2
 Call msync if writer wants sync in timing and terminates early in multi thread test case.
 ----------------------------
-revision 1.93        
+Revision 1.93        
 date: 99/01/18 11:46:11;  author: capps;  state: Exp;  lines added/del: 309/126
 Cleanup for include_flush and include_close for single and multi threaded operations.
 ----------------------------
-revision 1.92        
+Revision 1.92        
 date: 99/01/15 10:53:58;  author: capps;  state: Exp;  lines added/del: 40/11
 Add include_close support for throughput testing
 ----------------------------
-revision 1.91        
+Revision 1.91        
 date: 98/12/07 09:26:22;  author: capps;  state: Exp;  lines added/del: 43/24
 For Windows: Use the high resolution timers instead of timeofday();
 Fix a few casting problems.
 ----------------------------
-revision 1.90        
+Revision 1.90        
 date: 98/11/30 14:49:46;  author: capps;  state: Exp;  lines added/del: 24/17
 Update the copyright and names and places
 ----------------------------
-revision 1.89        
+Revision 1.89        
 date: 98/10/30 09:04:51;  author: capps;  state: Exp;  lines added/del: 1/2
 An extra close(fd) causes HP-UX to fail future unmounts... 
 ----------------------------
-revision 1.88        
+Revision 1.88        
 date: 98/10/29 09:47:25;  author: capps;  state: Exp;  lines added/del: 17/17
 Cleanup the help screen
 ----------------------------
-revision 1.87        
+Revision 1.87        
 date: 98/10/28 23:31:11;  author: capps;  state: Exp;  lines added/del: 7/6
 Spelling error fix.
 ----------------------------
-revision 1.86        
+Revision 1.86        
 date: 98/10/14 11:21:50;  author: capps;  state: Exp;  lines added/del: 23/68
 Unified the time method to only have 2 ways to get time.
 ----------------------------
-revision 1.85        
+Revision 1.85        
 date: 98/10/14 09:22:09;  author: capps;  state: Exp;  lines added/del: 91/91
 Added code to remove the latency of gettimeofday() from the file performance measurements.
 ----------------------------
-revision 1.84        
+Revision 1.84        
 date: 98/10/12 11:44:50;  author: capps;  state: Exp;  lines added/del: 107/8
 Add time resolution output, and fix the divide by zero when the time in
 a system call turns out to be Zero. This will introduce distortion for machines
@@ -394,375 +395,375 @@ has a 50 Milli second resolution on gettimeofday(). So... to fix it
 all calls that take less than 50 Milli seconds will be rounded up to 
 cost 50 milliseconds.
 ----------------------------
-revision 1.83        
+Revision 1.83        
 date: 98/10/06 09:58:16;  author: capps;  state: Exp;  lines added/del: 46/2
 Add support for Windows build
 ----------------------------
-revision 1.82        
+Revision 1.82        
 date: 98/09/23 09:48:02;  author: capps;  state: Exp;  lines added/del: 2/2
 Fix bug where -i # was leaving tmp files after throughput test.
 ----------------------------
-revision 1.81        
+Revision 1.81        
 date: 98/09/23 09:41:12;  author: capps;  state: Exp;  lines added/del: 1/3
 Remove debug printf
 ----------------------------
-revision 1.80        
+Revision 1.80        
 date: 98/09/23 09:29:01;  author: capps;  state: Exp;  lines added/del: 23/1
 Add my_nap(). This allows the threads to switch processors to their
 new bound processor before performing any work.
 ----------------------------
-revision 1.79        
+Revision 1.79        
 date: 98/09/22 11:57:20;  author: capps;  state: Exp;  lines added/del: 8/8
 Change xx back into an int so the modulo will work better.
 ----------------------------
-revision 1.78        
+Revision 1.78        
 date: 98/09/18 16:27:05;  author: capps;  state: Exp;  lines added/del: 18/15
 Remove create in rewrite path.
 ----------------------------
-revision 1.77        
+Revision 1.77        
 date: 98/08/17 16:44:06;  author: capps;  state: Exp;  lines added/del: 23/1
 Fixes for Solaris and the new processor bind feature.
 ----------------------------
-revision 1.76        
+Revision 1.76        
 date: 98/08/17 16:17:45;  author: capps;  state: Exp;  lines added/del: 1/2
 Remove debug code.
 ----------------------------
-revision 1.75        
+Revision 1.75        
 date: 98/08/17 16:16:15;  author: capps;  state: Exp;  lines added/del: 92/5
 Add support for binding procs/threads to cpus.
 ----------------------------
-revision 1.74        
+Revision 1.74        
 date: 98/08/07 16:51:41;  author: capps;  state: Exp;  lines added/del: 4/3
 Add fsync to the fwrite test case when the user specifies -e
 ----------------------------
-revision 1.73        
+Revision 1.73        
 date: 98/08/07 16:47:38;  author: capps;  state: Exp;  lines added/del: 178/208
 Add -c and -e to allow closes and fsyncs to be inside the timing calculations.
 ----------------------------
-revision 1.72        
+Revision 1.72        
 date: 98/08/06 22:40:15;  author: capps;  state: Exp;  lines added/del: 9/1
 Add setvbuf to fwrite and fread tests so that the internal fwrite and fread
 buffer size is the same as the record size. This is what a well tuned application 
 would do.
 ----------------------------
-revision 1.71        
+Revision 1.71        
 date: 98/08/06 09:03:06;  author: capps;  state: Exp;  lines added/del: 2/3
 Fix fsync filename problem in fwrite_perf_test
 ----------------------------
-revision 1.70        
+Revision 1.70        
 date: 98/08/05 18:06:41;  author: capps;  state: Exp;  lines added/del: 6/2
 Add fsync after fwrite test case so the fread will start with a 
 clean buffer cache and no writes in progress.
 ----------------------------
-revision 1.69        
+Revision 1.69        
 date: 98/08/03 10:45:49;  author: capps;  state: Exp;  lines added/del: 3/3
 Bug fix for -V option not filling the entire buffer.
 ----------------------------
-revision 1.68        
+Revision 1.68        
 date: 98/07/30 22:11:11;  author: capps;  state: Exp;  lines added/del: 2/3
 Fix for solaris
 ----------------------------
-revision 1.67        
+Revision 1.67        
 date: 98/07/30 22:08:19;  author: capps;  state: Exp;  lines added/del: 2/2
 Fix for solaris
 ----------------------------
-revision 1.66        
+Revision 1.66        
 date: 98/07/30 22:05:02;  author: capps;  state: Exp;  lines added/del: 43/15
 Add support for Solaris
 ----------------------------
-revision 1.65        
+Revision 1.65        
 date: 98/07/01 14:19:19;  author: capps;  state: Exp;  lines added/del: 80/82
 Move end_async inside the timing loops as in async I/O it counts.
 ----------------------------
-revision 1.64        
+Revision 1.64        
 date: 98/06/16 17:04:36;  author: capps;  state: Exp;  lines added/del: 13/2
 Correct problem where user specifies pread tests on hpux... which does not 
 support these operations. The test now prints an error message and exits.
 ----------------------------
-revision 1.63        
+Revision 1.63        
 date: 98/06/16 16:54:22;  author: capps;  state: Exp;  lines added/del: 1/2
 Remove exit from auto_test. This allows the message "iozone test complete" to 
 be printed when in auto test mode.
 ----------------------------
-revision 1.62        
+Revision 1.62        
 date: 98/06/10 10:54:28;  author: capps;  state: Exp;  lines added/del: 175/173
 All exit()s now have a unique exit value.
 ----------------------------
-revision 1.61        
+Revision 1.61        
 date: 98/05/18 13:34:03;  author: capps;  state: Exp;  lines added/del: 17/18
 Move .dat file descriptors to global data. Needed to prevent re-opens.
 ----------------------------
-revision 1.60        
+Revision 1.60        
 date: 98/05/18 13:24:22;  author: capps;  state: Exp;  lines added/del: 6/3
 Bug fix. Prevents re-opending .dat files when in auto mode.
 ----------------------------
-revision 1.59        
+Revision 1.59        
 date: 98/05/08 13:03:02;  author: capps;  state: Exp;  lines added/del: 21/3
 Enhance throughput tests to follow the -i test number to run options.
 ----------------------------
-revision 1.58        
+Revision 1.58        
 date: 98/05/07 14:15:49;  author: capps;  state: Exp;  lines added/del: 109/39
 Make VXFS a define in the make command. This makes moving to other targets
 easier. It removes the binding of HPUX and VXFS.
 Also, Added -Q to support offset/latency file generation for later use
 as inputs to plot program.
 ----------------------------
-revision 1.57        
+Revision 1.57        
 date: 98/05/06 15:09:43;  author: capps;  state: Exp;  lines added/del: 100/27
 Add -N to provide results in microseconds per operation.
 ----------------------------
-revision 1.56        
+Revision 1.56        
 date: 98/05/05 13:23:29;  author: capps;  state: Exp;  lines added/del: 3/10
 If the user specifies -i 0 then run both write and rewrite tests.
 ----------------------------
-revision 1.55        
+Revision 1.55        
 date: 98/04/30 15:19:02;  author: capps;  state: Exp;  lines added/del: 1/1
 No change
 ----------------------------
-revision 1.54        
+Revision 1.54        
 date: 98/04/30 15:09:58;  author: capps;  state: Exp;  lines added/del: 2/2
 Unlink the vxfstest when the test fails.
 ----------------------------
-revision 1.53        
+Revision 1.53        
 date: 98/04/30 13:07:21;  author: capps;  state: Exp;  lines added/del: 7/5
 Cleanup help output.
 ----------------------------
-revision 1.52        
+Revision 1.52        
 date: 98/04/30 12:58:29;  author: capps;  state: Exp;  lines added/del: 21/4
 Add async I/O with no bcopy to throughput tests.
 ----------------------------
-revision 1.51        
+Revision 1.51        
 date: 98/04/29 15:29:29;  author: capps;  state: Exp;  lines added/del: 5/1
 Fixes so it will compile on the SGI Origin.
 ----------------------------
-revision 1.50        
+Revision 1.50        
 date: 98/04/29 11:57:58;  author: capps;  state: Exp;  lines added/del: 5/1
 Do not need to limit async ops. Fix is in libasync.c
 ----------------------------
-revision 1.49        
+Revision 1.49        
 date: 98/04/29 10:45:19;  author: capps;  state: Exp;  lines added/del: 61/3
 Add async I/O to throughput testing for writes
 ----------------------------
-revision 1.48        
+Revision 1.48        
 date: 98/04/28 11:57:13;  author: capps;  state: Exp;  lines added/del: 5/1
 Limit max async operations to 60. Beyond this there be dragons.
 ----------------------------
-revision 1.47        
+Revision 1.47        
 date: 98/04/28 10:16:09;  author: capps;  state: Exp;  lines added/del: 108/21
 Completed support for no_bcopy POSIX async I/O in the async_write_no_copy path.
 This allows write tests to perform async I/O with buffers released when 
 the write is completed.
 ----------------------------
-revision 1.46        
+Revision 1.46        
 date: 98/04/27 16:58:38;  author: capps;  state: Exp;  lines added/del: 43/10
 Add aio_write() to the write and re-write tests. This provides
 POSIX async I/O for the those tests.
 ----------------------------
-revision 1.45        
+Revision 1.45        
 date: 98/04/25 09:53:39;  author: capps;  state: Exp;  lines added/del: 3/2
 direct_flag is an int. Was a char in one place and
 an int in another.
 ----------------------------
-revision 1.44        
+Revision 1.44        
 date: 98/04/25 09:17:42;  author: capps;  state: Exp;  lines added/del: 27/15
 More support for vx_direct support in the write path
 ----------------------------
-revision 1.43        
+Revision 1.43        
 date: 98/04/24 16:33:44;  author: capps;  state: Exp;  lines added/del: 115/77
 Move VX_DIRECT to libasync. But keep the VX_DIRECT support also
 in iozone. So one can use VX_DIRECT with and without async I/O
 ----------------------------
-revision 1.42        
+Revision 1.42        
 date: 98/04/24 16:20:34;  author: capps;  state: Exp;  lines added/del: 127/60
 Move VX_DIRECT to the libasync module.
 ----------------------------
-revision 1.41        
+Revision 1.41        
 date: 98/04/24 15:50:54;  author: capps;  state: Exp;  lines added/del: 190/7
 Add support for VxFS VX_DIRECT 
 Idea is to use VX_DIRECT and POSIX async I/O together
 ----------------------------
-revision 1.40        
+Revision 1.40        
 date: 98/04/22 16:38:25;  author: capps;  state: Exp;  lines added/del: 5/5
 Sppux wants ail_gettimeofday variables to be unsigned int. 
 ----------------------------
-revision 1.39        
+Revision 1.39        
 date: 98/04/22 16:19:50;  author: capps;  state: Exp;  lines added/del: 7/3
 Fix -M option not printing cleanly
 Fix -R in 32 bit mode printing garbage.
 ----------------------------
-revision 1.38        
+Revision 1.38        
 date: 98/04/22 15:56:02;  author: capps;  state: Exp;  lines added/del: 1/1
 Change to only disply revision not full header.
 ----------------------------
-revision 1.37        
+Revision 1.37        
 date: 98/04/22 15:52:19;  author: capps;  state: Exp;  lines added/del: 1/1
 Add RCS Header to support versioning.
 ----------------------------
-revision 1.36        
+Revision 1.36        
 date: 98/04/22 15:38:26;  author: capps;  state: Exp;  lines added/del: 1/1
 fix to bcopy() third arg needs to be size_t for 32 bit mode.
 ----------------------------
-revision 1.35        
+Revision 1.35        
 date: 98/04/22 09:09:24;  author: capps;  state: Exp;  lines added/del: 17/17
 Bug fixes for 64 bit mode on IRIX, and addition 
 on the internal inuse queue to insure that the
 internal struct_cache_ent structures are not released
 too early when doing direct I/O (async_read_no_copy).
 ----------------------------
-revision 1.34        
+Revision 1.34        
 date: 98/04/21 09:31:02;  author: capps;  state: Exp;  lines added/del: 4/0
 Fix to eliminate hidden (dot) files that iozone was creating
 in throughput mode. All files are now visible with ls.
 ----------------------------
-revision 1.33        
+Revision 1.33        
 date: 98/04/21 08:30:35;  author: capps;  state: Exp;  lines added/del: 7/1
 Have Iozone print the compile model used.
 ----------------------------
-revision 1.32        
+Revision 1.32        
 date: 98/04/20 18:46:02;  author: capps;  state: Exp;  lines added/del: 49/20
 Fixes for 32 bit mode. 
 ----------------------------
-revision 1.31        
+Revision 1.31        
 date: 98/04/20 16:57:29;  author: capps;  state: Exp;  lines added/del: 8/8
 make sure malloc is called with (size_t) parameter.
 ----------------------------
-revision 1.30        
+Revision 1.30        
 date: 98/04/20 16:05:08;  author: capps;  state: Exp;  lines added/del: 933/757
 Iozone now 64 bit application
 ----------------------------
-revision 1.29        
+Revision 1.29        
 date: 98/04/20 12:32:25;  author: capps;  state: Exp;  lines added/del: 4/4
 Move msync to before munmap so file gets written.
 ----------------------------
-revision 1.28        
+Revision 1.28        
 date: 98/04/20 10:21:30;  author: capps;  state: Exp;  lines added/del: 2/2
 Minor fix for -O flag and -B not working smoothly together.
 ----------------------------
-revision 1.27        
+Revision 1.27        
 date: 98/04/20 10:17:19;  author: capps;  state: Exp;  lines added/del: 0/0
 No change
 
 ----------------------------
-revision 1.26        
+Revision 1.26        
 date: 98/04/19 15:11:07;  author: capps;  state: Exp;  lines added/del: 5/5
 Remove prime_zbfill. It causes problems with mmap files.
 ----------------------------
-revision 1.25        
+Revision 1.25        
 date: 98/04/16 15:24:50;  author: capps;  state: Exp;  lines added/del: 228/70
 -H is Nastran async I/O with bcopy
 -k is async I/O without any bcopys
 ----------------------------
-revision 1.24        
+Revision 1.24        
 date: 98/04/15 16:48:30;  author: capps;  state: Exp;  lines added/del: 22/4
 fix to make build on 9.05 and 10.1
 ----------------------------
-revision 1.23        
+Revision 1.23        
 date: 98/04/15 15:36:55;  author: capps;  state: Exp;  lines added/del: 9/9
 Cleanup some compiler warnings about un-initialized variables. They
 are not really un-initialized and used but it does generate 
 compiler warnings on some machines.
 ----------------------------
-revision 1.22        
+Revision 1.22        
 date: 98/04/15 15:32:56;  author: capps;  state: Exp;  lines added/del: 7/7
 Need to free the dummyname space a bit later.
 ----------------------------
-revision 1.21        
+Revision 1.21        
 date: 98/04/15 14:37:05;  author: capps;  state: Exp;  lines added/del: 27/13
 Fix to use smaller stack size in thread_ routines. It was causing
 the SGI to drop core in throughput tests.
 ----------------------------
-revision 1.20        
+Revision 1.20        
 date: 98/04/14 17:01:19;  author: capps;  state: Exp;  lines added/del: 27/16
 Fix a memory leak. In multi_throughput testing shmalloc was getting called
 for each iteration. This is not needed and causes much to much 
 shm to be allocated. Not broken but definately a pig.
 ----------------------------
-revision 1.19        
+Revision 1.19        
 date: 98/04/14 15:19:15;  author: capps;  state: Exp;  lines added/del: 2/0
 When -k is specified alone this will turn on the POSIX async I/O and 
 set depth to 0.
 ----------------------------
-revision 1.18        
+Revision 1.18        
 date: 98/04/14 15:00:18;  author: capps;  state: Exp;  lines added/del: 21/20
 Fixes to make multi-threaded version run on the SGI Origin.
 ----------------------------
-revision 1.17        
+Revision 1.17        
 date: 98/04/14 11:55:44;  author: capps;  state: Exp;  lines added/del: 17/11
 Add support for -k. When using POSIX async I/O use the 
 buffer specified and do not perform any bcopys.
 ----------------------------
-revision 1.16        
+Revision 1.16        
 date: 98/04/13 10:22:18;  author: capps;  state: Exp;  lines added/del: 27/380
 Add libasync library support
 ----------------------------
-revision 1.15        
+Revision 1.15        
 date: 98/04/11 12:09:25;  author: capps;  state: Exp;  lines added/del: 1/0
 Fix memory leak. Now calls del_cache when ever any calls to async_end happen.
 This will ensure that there are no outstanding I/Os on the cache that 
 ha ve not been canceled .
 ----------------------------
-revision 1.14        
+Revision 1.14        
 date: 98/04/11 11:57:10;  author: capps;  state: Exp;  lines added/del: 632/47
 Add support for POSIX async I/O testing
 ----------------------------
-revision 1.13        
+Revision 1.13        
 date: 98/03/31 14:30:15;  author: capps;  state: Exp;  lines added/del: 44/6
 Fix support for bsd4_2 and ConvexOS
 ----------------------------
-revision 1.12        
+Revision 1.12        
 date: 98/03/31 11:26:34;  author: capps;  state: Exp;  lines added/del: 2/2
 Bump version number to 2.32
 ----------------------------
-revision 1.11        
+Revision 1.11        
 date: 98/03/31 11:20:51;  author: capps;  state: Exp;  lines added/del: 70/6
 Add support for SGI IRIX and SGI IRIX64
 ----------------------------
-revision 1.10        
+Revision 1.10        
 date: 98/03/27 14:00:47;  author: capps;  state: Exp;  lines added/del: 15/20
 Put the bcopy back. It is more represenative
 of what the real application will do.
 ----------------------------
-revision 1.9        
+Revision 1.9        
 date: 98/03/27 13:25:02;  author: capps;  state: Exp;  lines added/del: 40/14
 Improved mmap file support. Now only have 1 long word from
 each page touched. This eliminates the overhead of bcopy
 dominating the results. It also is performing the same 
 work that the non-mmap version does with verify().
 ----------------------------
-revision 1.8        
+Revision 1.8        
 date: 98/03/27 10:41:13;  author: capps;  state: Exp;  lines added/del: 10/4
 Bug fix. Frewrite was truncating the file. This fix
 ensures that the Frewrite test opens without trunc.
 ----------------------------
-revision 1.7        
+Revision 1.7        
 date: 98/03/27 10:16:41;  author: capps;  state: Exp;  lines added/del: 3/3
 Fix report to specify stride size as a function of reclen.
 It did not make sense to output kbytes as the value changes
 when in auto mode to match the current record length.
 ----------------------------
-revision 1.6        
+Revision 1.6        
 date: 98/03/26 15:28:15;  author: capps;  state: Exp;  lines added/del: 16/8
 Add support for -j option. This 
 allows the user to specify the stride size for 
 the strided file access benchmark.
 ----------------------------
-revision 1.5        
+Revision 1.5        
 date: 98/03/25 15:27:01;  author: capps;  state: Exp;  lines added/del: 1/1
 Fixup help screen to reflect new options
 ----------------------------
-revision 1.4        
+Revision 1.4        
 date: 98/03/25 15:21:23;  author: capps;  state: Exp;  lines added/del: 1/1
 Change the revision number
 ----------------------------
-revision 1.3        
+Revision 1.3        
 date: 98/03/25 15:20:28;  author: capps;  state: Exp;  lines added/del: 16/1
 Fixup support for Linux
 ----------------------------
-revision 1.2        
+Revision 1.2        
 date: 98/03/25 13:58:05;  author: capps;  state: Exp;  lines added/del: 16/3
 Bug fixes for SPP-UX
 ----------------------------
-revision 1.1        
+Revision 1.1        
 date: 98/03/25 10:43:45;  author: capps;  state: Exp;  
 Initial revision
 =============================================================================
@@ -777,175 +778,175 @@ total revisions: 39;    selected revisions: 39
 description:
 Initial version of POSIX async I/O library interface.
 ----------------------------
-revision 1.39        
+Revision 1.39        
 date: 98/07/30 22:05:21;  author: capps;  state: Exp;  lines added/del: 3/1
 Add support for Solaris
 ----------------------------
-revision 1.38        
+Revision 1.38        
 date: 98/07/07 13:00:39;  author: capps;  state: Exp;  lines added/del: 1/11
 Remove extra bcopy in the async_write_no_bcopy path.
 ----------------------------
-revision 1.37        
+Revision 1.37        
 date: 98/06/11 09:47:58;  author: capps;  state: Exp;  lines added/del: 3/3
 Fix syntax error for IRIX 
 ----------------------------
-revision 1.36        
+Revision 1.36        
 date: 98/06/10 10:56:55;  author: capps;  state: Exp;  lines added/del: 10/10
 All exit()s now have a unique exit value.
 ----------------------------
-revision 1.35        
+Revision 1.35        
 date: 98/05/07 14:17:20;  author: capps;  state: Exp;  lines added/del: 2/2
 Make VXFS a define in the make command. This makes moving to other targets
 easier. It removes the binding of HPUX and VXFS.
 Also, Added -Q to support offset/latency file generation for later use
 as inputs to plot program.
 ----------------------------
-revision 1.34        
+Revision 1.34        
 date: 98/04/30 15:19:54;  author: capps;  state: Exp;  lines added/del: 1/3
 Remove debug code that breaks 64 bit mode compiled code.
 ----------------------------
-revision 1.33        
+Revision 1.33        
 date: 98/04/30 13:09:13;  author: capps;  state: Exp;  lines added/del: 2/2
 Make retval an int so it can be checked for less than zero.
 ----------------------------
-revision 1.32        
+Revision 1.32        
 date: 98/04/29 16:49:34;  author: capps;  state: Exp;  lines added/del: 5/11
 If overshooting on number of asyncs then terminate the loop and
 let the next time through pick up the I/O.
 ----------------------------
-revision 1.31        
+Revision 1.31        
 date: 98/04/29 16:37:49;  author: capps;  state: Exp;  lines added/del: 3/3
-remove debug code
+Remove debug code
 ----------------------------
-revision 1.30        
+Revision 1.30        
 date: 98/04/29 15:29:48;  author: capps;  state: Exp;  lines added/del: 3/1
 Fixes so it will compile on the SGI Origin.
 ----------------------------
-revision 1.29        
+Revision 1.29        
 date: 98/04/29 11:56:27;  author: capps;  state: Exp;  lines added/del: 36/10
 Work around for bug in POSIX async I/O library
 ----------------------------
-revision 1.28        
+Revision 1.28        
 date: 98/04/29 11:04:26;  author: capps;  state: Exp;  lines added/del: 1/2
 Remove debug code
 ----------------------------
-revision 1.27        
+Revision 1.27        
 date: 98/04/29 11:02:54;  author: capps;  state: Exp;  lines added/del: 54/27
 Added resource shortage paths.
 ----------------------------
-revision 1.26        
+Revision 1.26        
 date: 98/04/28 18:12:51;  author: capps;  state: Exp;  lines added/del: 1/3
 Add async I/O to the throughput tests
 ----------------------------
-revision 1.25        
+Revision 1.25        
 date: 98/04/28 17:12:40;  author: capps;  state: Exp;  lines added/del: 3/1
 fix wait_for_ routine to reset w_tail if item being removed is also the tail.
 ----------------------------
-revision 1.24        
+Revision 1.24        
 date: 98/04/28 16:14:06;  author: capps;  state: Exp;  lines added/del: 1/3
 bug fix. 2 calls to malloc for aligned memory.
 ----------------------------
-revision 1.23        
+Revision 1.23        
 date: 98/04/28 11:57:39;  author: capps;  state: Exp;  lines added/del: 37/13
 Limit max async operations to 60. Beyond this there be dragons.
 ----------------------------
-revision 1.22        
+Revision 1.22        
 date: 98/04/28 10:17:22;  author: capps;  state: Exp;  lines added/del: 127/42
 Completed support for no_bcopy POSIX async I/O in the async_write_no_copy path.
 This allows write tests to perform async I/O with buffers released when 
 the write is completed.
 ----------------------------
-revision 1.21        
+Revision 1.21        
 date: 98/04/27 16:59:14;  author: capps;  state: Exp;  lines added/del: 246/9
 Add aio_write() to the write and re-write tests. This provides
 POSIX async I/O for the those tests.
 ----------------------------
-revision 1.20        
+Revision 1.20        
 date: 98/04/24 16:20:55;  author: capps;  state: Exp;  lines added/del: 15/3
 Move VX_DIRECT to the libasync module.
 ----------------------------
-revision 1.19        
+Revision 1.19        
 date: 98/04/24 15:50:13;  author: capps;  state: Exp;  lines added/del: 42/11
 Add support for VxFS VX_DIRECT 
 Idea is to use VX_DIRECT and POSIX async I/O together
 ----------------------------
-revision 1.18        
+Revision 1.18        
 date: 98/04/24 12:36:42;  author: capps;  state: Exp;  lines added/del: 13/5
 Fix some error printfs to match the size of the off_t.
 ----------------------------
-revision 1.17        
+Revision 1.17        
 date: 98/04/24 12:18:11;  author: capps;  state: Exp;  lines added/del: 7/7
 Fixes for LP64 mode. off_t changed to off64_t 
 ----------------------------
-revision 1.16        
+Revision 1.16        
 date: 98/04/24 09:33:32;  author: capps;  state: Exp;  lines added/del: 275/35
 Add comments and fix for LP64 model on hpux.
 ----------------------------
-revision 1.15        
+Revision 1.15        
 date: 98/04/23 16:58:06;  author: capps;  state: Exp;  lines added/del: 167/13
 Make libasync large file aware.
 ----------------------------
-revision 1.14        
+Revision 1.14        
 date: 98/04/22 15:58:45;  author: capps;  state: Exp;  lines added/del: 1/1
 Change version to only display rcs version id.
 ----------------------------
-revision 1.13        
+Revision 1.13        
 date: 98/04/22 15:52:54;  author: capps;  state: Exp;  lines added/del: 1/2
 Add RCS version support
 ----------------------------
-revision 1.12        
+Revision 1.12        
 date: 98/04/22 11:39:35;  author: capps;  state: Exp;  lines added/del: 52/8
 Add firewall to prevent in flight changes to the aiocb structure.
 ----------------------------
-revision 1.11        
+Revision 1.11        
 date: 98/04/22 09:10:36;  author: capps;  state: Exp;  lines added/del: 57/19
 Bug fixes for 64 bit mode on IRIX, and addition 
 on the internal inuse queue to insure that the
 internal struct_cache_ent structures are not released
 too early when doing direct I/O (async_read_no_copy).
 ----------------------------
-revision 1.10        
+Revision 1.10        
 date: 98/04/21 09:34:14;  author: capps;  state: Exp;  lines added/del: 18/10
 Improve error messages.
 ----------------------------
-revision 1.9        
+Revision 1.9        
 date: 98/04/20 16:06:21;  author: capps;  state: Exp;  lines added/del: 53/50
 Iozone now 64 bit application
 ----------------------------
-revision 1.8        
+Revision 1.8        
 date: 98/04/20 10:17:59;  author: capps;  state: Exp;  lines added/del: 0/0
 no change
 ----------------------------
-revision 1.7        
+Revision 1.7        
 date: 98/04/17 08:49:16;  author: capps;  state: Exp;  lines added/del: 15/2
 Optimization on async operations. Just add one to the end
 of the list if the list already has more than one item.
 ----------------------------
-revision 1.6        
+Revision 1.6        
 date: 98/04/17 00:00:30;  author: capps;  state: Exp;  lines added/del: 10/2
 Make cancel keep trying until it succeeds. Otherwise transfers after the buffer
 is freed can occur.
 ----------------------------
-revision 1.5        
+Revision 1.5        
 date: 98/04/16 16:49:28;  author: capps;  state: Exp;  lines added/del: 49/4
 Improve error handling when running machine out of memory.
 ----------------------------
-revision 1.4        
+Revision 1.4        
 date: 98/04/16 15:26:41;  author: capps;  state: Exp;  lines added/del: 118/28
 added async_read_no_copy(). This allows the application to let the 
 library specify the destination buffer and perform the async I/O
 without unwanted bcopys.
 ----------------------------
-revision 1.3        
+Revision 1.3        
 date: 98/04/14 11:56:23;  author: capps;  state: Exp;  lines added/del: 36/10
 Add supporf for -k. When using POSIX async I/O use
 the buffer specified and do not perform any bcopys.
 ----------------------------
-revision 1.2        
+Revision 1.2        
 date: 98/04/13 10:35:20;  author: capps;  state: Exp;  lines added/del: 5/7
 Fixup for error path to propagate any small transfers.
 ----------------------------
-revision 1.1        
+Revision 1.1        
 date: 98/04/13 10:21:23;  author: capps;  state: Exp;  
 Initial revision
 =============================================================================
@@ -960,90 +961,90 @@ total revisions: 20;    selected revisions: 20
 description:
 Initial version of makefile
 ----------------------------
-revision 1.20        
+Revision 1.20        
 date: 98/10/06 10:36:22;  author: capps;  state: Exp;  lines added/del: 87/28
 Add comments to describe each targets capabilities.
 ----------------------------
-revision 1.19        
+Revision 1.19        
 date: 98/10/06 09:59:18;  author: capps;  state: Exp;  lines added/del: 3/3
 Fix spelling error
 ----------------------------
-revision 1.18        
+Revision 1.18        
 date: 98/10/06 09:58:29;  author: capps;  state: Exp;  lines added/del: 18/3
 Add support for Windows build
 ----------------------------
-revision 1.17        
+Revision 1.17        
 date: 98/08/17 16:44:56;  author: capps;  state: Exp;  lines added/del: 2/2
 Fixes for Solaris
 ----------------------------
-revision 1.16        
+Revision 1.16        
 date: 98/07/30 22:05:33;  author: capps;  state: Exp;  lines added/del: 20/1
 Add support for Solaris
 ----------------------------
-revision 1.15        
+Revision 1.15        
 date: 98/05/07 14:17:26;  author: capps;  state: Exp;  lines added/del: 13/13
 Make VXFS a define in the make command. This makes moving to other targets
 easier. It removes the binding of HPUX and VXFS.
 Also, Added -Q to support offset/latency file generation for later use
 as inputs to plot program.
 ----------------------------
-revision 1.14        
+Revision 1.14        
 date: 98/04/22 16:02:42;  author: capps;  state: Exp;  lines added/del: 2/0
 Add RCS version ids.
 ----------------------------
-revision 1.13        
+Revision 1.13        
 date: 98/04/22 13:58:54;  author: capps;  state: Exp;  lines added/del: 6/6
 For now only build the SGI targets in 32 bit mode. 
 There is some problem with POSIX async I/O and 64 bit apps.
 ----------------------------
-revision 1.12        
+Revision 1.12        
 date: 98/04/22 12:08:25;  author: capps;  state: Exp;  lines added/del: 3/3
 Let the IRIX64 target default to its default compile mode.
 ----------------------------
-revision 1.11        
+Revision 1.11        
 date: 98/04/22 09:10:54;  author: capps;  state: Exp;  lines added/del: 3/3
 Bug fixes for 64 bit mode on IRIX, and addition 
 on the internal inuse queue to insure that the
 internal struct_cache_ent structures are not released
 too early when doing direct I/O (async_read_no_copy).
 ----------------------------
-revision 1.10        
+Revision 1.10        
 date: 98/04/21 09:29:57;  author: capps;  state: Exp;  lines added/del: 17/17
 Improve dependencies
 ----------------------------
-revision 1.9        
+Revision 1.9        
 date: 98/04/20 16:05:48;  author: capps;  state: Exp;  lines added/del: 58/29
 Iozone now 64 bit application
 ----------------------------
-revision 1.8        
+Revision 1.8        
 date: 98/04/20 10:17:44;  author: capps;  state: Exp;  lines added/del: 0/0
 *** empty log message ***
 ----------------------------
-revision 1.7        
+Revision 1.7        
 date: 98/04/16 16:50:11;  author: capps;  state: Exp;  lines added/del: 6/6
 Have the SGI build 32 bit app too.
 ----------------------------
-revision 1.6        
+Revision 1.6        
 date: 98/04/15 16:48:09;  author: capps;  state: Exp;  lines added/del: 5/5
 Fix to make build on 9.05 and 10.1
 ----------------------------
-revision 1.5        
+Revision 1.5        
 date: 98/04/13 10:22:34;  author: capps;  state: Exp;  lines added/del: 14/6
 Add support for libasync library.
 ----------------------------
-revision 1.4        
+Revision 1.4        
 date: 98/04/11 11:57:34;  author: capps;  state: Exp;  lines added/del: 10/10
 AAdd support for POSIX async I/O testing
 ----------------------------
-revision 1.3        
+Revision 1.3        
 date: 98/03/31 11:21:34;  author: capps;  state: Exp;  lines added/del: 24/0
 Add support for SGI IRIX and SGI IRIX64
 ----------------------------
-revision 1.2        
+Revision 1.2        
 date: 98/03/25 13:59:18;  author: capps;  state: Exp;  lines added/del: 21/9
 Fixes for SPP-UX
 ----------------------------
-revision 1.1        
+Revision 1.1        
 date: 98/03/25 10:48:21;  author: capps;  state: Exp;  
 Initial revision
 =============================================================================
@@ -1097,24 +1098,30 @@ Version 3.18:
 =============================================================================
 Add support for BSDI. Base, largefiles, pthread. No async I/O
 =============================================================================
-revision 3.19        
+Revision 3.19        
 =============================================================================
 date: 2000/03/08 14:47:21;  author: capps;  state: Exp;  lines added/del: 4/1
 Add support for getpagesize. This is used when available.
 =============================================================================
-revision 3.20        
+Revision 3.20        
 =============================================================================
 date: 00/04/01 11:04:59;  author: capps;  state: Exp;  lines added/del: 2/2
 Fix for multiple filenames and range of threads being used.
 =============================================================================
-revision 3.21        
+Revision 3.21        
 =============================================================================
 date: 00/04/01 11:10:54;  author: capps;  state: Exp;  lines added/del: 3/1
 SPPUX does not have getpagesize... 
 =============================================================================
-revision 3.22        
+Revision 3.22        
 =============================================================================
 Add support for Linux-ia64
 Add support for mmap & normal file I/O mixing.
-
+=============================================================================
+Revision 3.23        
+Fixups for IBM AIX.
+=============================================================================
+Revision 3.24        
+Fixups for BSD 2.7  (New release of BSD that supports O_SYNC)
+=============================================================================
 

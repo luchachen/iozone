@@ -52,7 +52,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.23 $"
+#define THISVERSION "        Version $Revision: 3.24 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -197,7 +197,9 @@ THISVERSION,
 #endif
 
 #if defined (__FreeBSD__) || defined(__OpenBSD__) || defined(__bsdi__)
+#ifndef O_SYNC
 #define O_SYNC O_FSYNC
+#endif
 #endif
 
 #if defined(OSFV5)
