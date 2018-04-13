@@ -58,6 +58,8 @@ Iozone \- Filesystem Benchmark
 [\fB\-+d\fP]
 [\fB\-+u\fP]
 [\fB\-+m\fP \fIclient_filename\fP]
+[\fB\-+n\fP]
+[\fB\-+N\fP]
 [\fB\-+p\fP \fIpercent_read\fP]
 [\fB\-+r\fP]
 [\fB\-+t\fP]
@@ -476,6 +478,12 @@ space delimited. Field 1 is the client name. Field 2
 is the working directory, on the client, where Iozone
 will run. Field 3 is the path to the executable Iozone
 on the client.
+.TP
+.BI \-+n
+No retests selected. Used to prevent retests from running.
+.TP
+.BI \-+N
+No truncating or deleting of previous test file before the sequential write test. Useful only after -w is used in previous command to leave the test file in place for reuse.  This flag is of limited use, when a single retest is not enough, or to easily control when sequential write retests occur without file truncation or deletion.
 .TP
 .BI \-+u
 Used to enable CPU statistics collection.

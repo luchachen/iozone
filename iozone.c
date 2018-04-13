@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.327 $"
+#define THISVERSION "        Version $Revision: 3.331 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -210,6 +210,7 @@ char *help[] = {
 "           -+A #  Enable madvise. 0 = normal, 1=random, 2=sequential",
 "                                  3=dontneed, 4=willneed",
 #endif
+"           -+N Do not truncate existing files on sequential writes.",
 "           -+V Enable shared file. No locking.",
 #if defined(Windows)
 "           -+U Windows Unbufferd I/O API (Very Experimental)",
@@ -479,6 +480,7 @@ struct client_command {
 	int c_mfflag;
 	int c_unbuffered;
 	int c_noretest;
+	int c_notruncate;
 	int c_read_sync;
 	int c_jflag;
 	int c_async_flag;
@@ -571,6 +573,7 @@ struct client_neutral_command {
 	char c_mfflag[2];
 	char c_unbuffered[2];
 	char c_noretest[2];
+	char c_notruncate[2];
 	char c_read_sync[2];
 	char c_jflag[2];
 	char c_async_flag[2];
@@ -1225,6 +1228,8 @@ off64_t offset64 = 0;               /*offset for random I/O */
 off64_t filebytes64;
 off64_t r_range[100];
 off64_t s_range[100];
+int t_range[100];
+int t_count = 0;
 int r_count,s_count;
 char *barray[MAXSTREAMS];
 char *haveshm;
@@ -1413,7 +1418,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 21;
+int proto_version = 22;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1438,6 +1443,7 @@ char write_traj_filename [MAXNAMESIZE];     /* name of write telemetry file */
 char read_traj_filename [MAXNAMESIZE];    /* name of read telemetry file  */
 char oflag,jflag,k_flag,h_flag,mflag,pflag,unbuffered,Kplus_flag;
 char noretest;
+char notruncate;   /* turn off truncation of files */
 char async_flag,stride_flag,mmapflag,mmapasflag,mmapssflag,mmapnsflag,mmap_mix;
 char verify = 1;
 int restf;
@@ -1590,8 +1596,9 @@ char **argv;
 	sprintf(splash[splash_line++],"\t             Al Slater, Scott Rhine, Mike Wisner, Ken Goss\n");
     	sprintf(splash[splash_line++],"\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR,\n");
     	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million, Gavin Brebner,\n");
-    	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg, Benny Halevy,\n");
-    	sprintf(splash[splash_line++],"\t             Erik Habbinga, Kris Strecker, Walter Wong, Joshua Root.\n\n");
+    	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg, Benny Halevy, Dave Boone,\n");
+    	sprintf(splash[splash_line++],"\t             Erik Habbinga, Kris Strecker, Walter Wong, Joshua Root,\n");
+    	sprintf(splash[splash_line++],"\t             Fabrice Bacchella.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
 	argvsave=argv;
@@ -2075,7 +2082,8 @@ char **argv;
 				num_child = 8;
 			if(num_child == 0)
 				num_child=1;
-			mint=maxt=num_child;
+                        t_range[t_count++]=num_child;
+                        maxt = (maxt>num_child?maxt:num_child);
 			trflag++;
 			if(Uflag)
 			{
@@ -2334,6 +2342,9 @@ char **argv;
 					master_iozone=1;
 					client_iozone=0;
 					sprintf(splash[splash_line++],"\tNetwork distribution mode enabled.\n");
+					break;
+				case 'N':  /* turn off truncating the file before write test */
+					notruncate = 1;
 					break;
 				case 'u':	/* Set CPU utilization output flag */
 					cpuutilflag = 1;	/* only used if R(eport) flag is also set */
@@ -6729,18 +6740,22 @@ long long *data2;
                 perror("open");
                 exit(44);
         }
-	if(check_filename(filename))
-        {
-          wval=ftruncate(fd,0);
-          if(wval < 0)
-          {
-                printf("\n\nSanity check failed. Do not deploy this filesystem in a production environment !\n");
-                exit(44);
-          }
-	  close(fd);
-	}
-	if(check_filename(filename))
-           unlink(filename);
+		if(!notruncate)
+		{
+			if(check_filename(filename))
+			{
+				wval=ftruncate(fd,0);
+				if(wval < 0)
+				{
+					printf("\n\nSanity check failed. Do not deploy this filesystem in a production environment !\n");
+					exit(44);
+				}
+			}
+			close(fd);
+
+			if(check_filename(filename))
+				unlink(filename);
+		}
 /* Sanity check */
 
 	if(noretest)
@@ -6774,13 +6789,16 @@ long long *data2;
 		        else
 		        {
 #endif
-	  		   if((fd = I_CREAT(filename, 0640))<0)
-	  		   {
-				printf("\nCan not create temp file: %s\n", 
-					filename);
-				perror("creat");
-				exit(42);
-	  		   }
+				if(!notruncate)
+				{
+	  		   		if((fd = I_CREAT(filename, 0640))<0)
+	  		   		{
+						printf("\nCan not create temp file: %s\n", 
+							filename);
+						perror("creat");
+						exit(42);
+	  		   		}
+				}
 #if defined(Windows)
 			}
 #endif
@@ -7233,9 +7251,14 @@ long long *data2;
 			purge_buffer_cache();
 		}
 		if(j==0)
-			how="w+";
+		{
+			if(check_filename(filename))
+				how="r+"; /* file exists, don't create and zero a new one. */
+			else
+				how="w+"; /* file doesn't exist. create it. */
+		}
 		else
-			how="r+";
+			how="r+"; /* re-tests should error out if file does not exist. */
 #ifdef IRIX64
 		if((stream=(FILE *)fopen(filename,how)) == 0)
 		{
@@ -8225,10 +8248,12 @@ long long *data1, *data2;
 	filebytes64 = numrecs64*reclen;
 	for( j=0; j<2; j++ )
 	{
-	     if (no_write && (j == 1))
-		continue;
-	     if(cpuutilflag)
-	     {
+		if(j==0)
+			flags |=O_CREAT;
+		if (no_write && (j == 1))
+			continue;
+		if(cpuutilflag)
+		{
 		     walltime[j] = time_so_far();
 		     cputime[j]  = cputime_so_far();
 	     }
@@ -9633,14 +9658,14 @@ long long *data1,*data2;
 		flags_here |=O_DIRECTIO;
 #endif
 #endif
-	if(check_filename(filename))
-		unlink(filename);
 	if(noretest)
 		ltest=1;
 	else
 		ltest=2;
 	for( j=0; j<ltest; j++)
 	{
+		if(j==0)
+			flags_here |=O_CREAT;
 		if(cpuutilflag)
 		{
 			walltime[j] = time_so_far();
@@ -9650,84 +9675,38 @@ long long *data1,*data2;
 		{
 			purge_buffer_cache();
 		}
-		if( j==0 )
+		if((fd = I_OPEN(filename, (int)flags_here,0640))<0)
 		{
-		  	if((fd = I_CREAT(filename, 0640))<0)
-		  	{
-				printf("\nCan not create temp file: %s\n", 
-					filename);
-				perror("creat");
-				exit(95);
-		  	}
-			close(fd);
-			if((fd = I_OPEN(filename, (int)flags_here,0))<0)
-			{
-				printf("\nCan not open temp file: %s\n", 
-					filename);
-				perror("open");
-				exit(97);
-			}
+			printf("\nCan not open temp file: %s\n", 
+				filename);
+			perror("open");
+			exit(97);
+		}
 #ifdef VXFS
-			if(direct_flag)
+		if(direct_flag)
+		{
+			ioctl(fd,VX_SETCACHE,VX_DIRECT);
+			ioctl(fd,VX_GETCACHE,&test_foo);
+			if(test_foo == 0)
 			{
-				ioctl(fd,VX_SETCACHE,VX_DIRECT);
-				ioctl(fd,VX_GETCACHE,&test_foo);
-				if(test_foo == 0)
-				{
-					if(!client_iozone)
-					  printf("\nVxFS advanced setcache feature not available.\n");
-					exit(3);
-				}
+				if(!client_iozone)
+				  printf("\nVxFS advanced setcache feature not available.\n");
+				exit(3);
 			}
+		}
 #endif
 #if defined(solaris)
-               		if(direct_flag)
-               		{
-                       		test_foo = directio(fd, DIRECTIO_ON);
-                       		if(test_foo != 0)
-                       		{
-                               	   if(!client_iozone)
-                                      printf("\ndirectio not available.\n");
-                               	      exit(3);
-                       		}
-               		}
-#endif
-		}
-		else
+		if(direct_flag)
 		{
-			if((fd = I_OPEN(filename, (int)flags_here,0))<0)
+			test_foo = directio(fd, DIRECTIO_ON);
+			if(test_foo != 0)
 			{
-				printf("\nCan not open temp file: %s\n", 
-					filename);
-				perror("open");
-				exit(99);
+				if(!client_iozone)
+					printf("\ndirectio not available.\n");
+				exit(3);
 			}
-#ifdef VXFS
-			if(direct_flag)
-			{
-				ioctl(fd,VX_SETCACHE,VX_DIRECT);
-				ioctl(fd,VX_GETCACHE,&test_foo);
-				if(test_foo == 0)
-				{
-					if(!client_iozone)
-					  printf("\nVxFS advanced setcache feature not available.\n");
-					exit(3);
-				}
-			}
-#endif
-#if defined(solaris)
-               		if(direct_flag)
-               		{
-                       		test_foo = directio(fd, DIRECTIO_ON);
-                       		if(test_foo != 0)
-                       		{
-                               	   if(!client_iozone)
-                                 	printf("\ndirectio not available.\n");
-                               		exit(3);
-                       		}
-               		}
-#endif
 		}
+#endif
 		fsync(fd);
 		nbuff=mainbuffer;
 		mbuffer=mainbuffer;
@@ -10197,6 +10176,8 @@ long long *data1,*data2;
 
 	for( j=0; j<ltest; j++)
 	{
+		if(j==0)
+			flags_here |=O_CREAT;
 		if(cpuutilflag)
 		{
 			walltime[j] = time_so_far();
@@ -10206,83 +10187,38 @@ long long *data1,*data2;
 		{
 			purge_buffer_cache();
 		}
-		if( j==0 )
+		if((fd = I_OPEN(filename, (int)flags_here,0640))<0)
 		{
-		  	if((fd = I_CREAT(filename, 0640))<0)
-		  	{
-				printf("\nCan not create temp file: %s\n", 
-					filename);
-				perror("creat");
-				exit(107);
-		  	}
-			if((fd = I_OPEN(filename, (int)flags_here,0))<0)
-			{
-				printf("\nCan not open temp file: %s\n", 
-					filename);
-				perror("open");
-				exit(109);
-			}
+			printf("\nCan not open temp file: %s\n", 
+				filename);
+			perror("open");
+			exit(109);
+		}
 #ifdef VXFS
-			if(direct_flag)
+		if(direct_flag)
+		{
+			ioctl(fd,VX_SETCACHE,VX_DIRECT);
+			ioctl(fd,VX_GETCACHE,&test_foo);
+			if(test_foo == 0)
 			{
-				ioctl(fd,VX_SETCACHE,VX_DIRECT);
-				ioctl(fd,VX_GETCACHE,&test_foo);
-				if(test_foo == 0)
-				{
-					if(!client_iozone)
-					  printf("\nVxFS advanced setcache feature not available.\n");
-					exit(3);
-				}
+				if(!client_iozone)
+					printf("\nVxFS advanced setcache feature not available.\n");
+				exit(3);
 			}
+		}
 #endif
 #if defined(solaris)
-               		if(direct_flag)
-               		{
-                       		test_foo = directio(fd, DIRECTIO_ON);
-                       		if(test_foo != 0)
-                       		{
-                                   if(!client_iozone)
-                                     printf("\ndirectio not available.\n");
-                               	   exit(3);
-                       		}
-               		}
-#endif
-		}
-		else
+		if(direct_flag)
 		{
-			if((fd = I_OPEN(filename, (int)flags_here,0))<0)
+			test_foo = directio(fd, DIRECTIO_ON);
+			if(test_foo != 0)
 			{
-				printf("\nCan not open temp file: %s\n", 
-					filename);
-				perror("open");
-				exit(111);
+				if(!client_iozone)
+					printf("\ndirectio not available.\n");
+				exit(3);
 			}
-#ifdef VXFS
-			if(direct_flag)
-			{
-				ioctl(fd,VX_SETCACHE,VX_DIRECT);
-				ioctl(fd,VX_GETCACHE,&test_foo);
-				if(test_foo == 0)
-				{
-					if(!client_iozone)
-					  printf("\nVxFS advanced setcache feature not available.\n");
-					exit(3);
-				}
-			}
-#endif
-#if defined(solaris)
-               		if(direct_flag)
-               		{
-                       		test_foo = directio(fd, DIRECTIO_ON);
-                       		if(test_foo != 0)
-                       		{
-                               	   if(!client_iozone)
-                                 	printf("\ndirectio not available.\n");
-                               	   exit(3);
-                       		}
-               		}
-#endif
 		}
+#endif
 		nbuff=mainbuffer;
 		mbuffer=mainbuffer;
 		if(fetchon)
@@ -11637,9 +11573,23 @@ void multi_throughput_test(mint, maxt)
 long long mint, maxt;
 #endif
 {
+        int *t_rangeptr, *t_rangecurs;
+        int tofree = 0;
 	long long i;
-	for(i=mint;i<=maxt;i++){
-		num_child =i;
+        if(t_count == 0){
+            t_count = (int) maxt - mint + 1;
+            t_rangeptr = (int *) malloc((size_t)sizeof(int)*t_count);
+            tofree = 1;
+            t_rangecurs = t_rangeptr;
+            for(i=mint; i<= maxt; i++) {
+                *(t_rangecurs++) = i;
+            }
+        }
+        else {
+            t_rangeptr = &t_range[0];
+        }
+	for(i=0; i < t_count; i++){
+		num_child = *(t_rangeptr++);
 		current_client_number=0; /* Need to start with 1 */
 		throughput_test();
 		current_x=0;
@@ -11647,6 +11597,8 @@ long long mint, maxt;
 	}
 	if(Rflag)
 		dump_throughput();
+        if(tofree)
+            free(t_rangeptr);
 
 }
 
@@ -11821,43 +11773,21 @@ thread_write_test( x)
 	/* Initial write throughput performance test. **********************/
 	/*******************************************************************/
 #if defined(Windows)
-       	if(unbuffered)
-        {
-        	hand=CreateFile(dummyfile[xx],
-		  GENERIC_READ|GENERIC_WRITE,
-	          FILE_SHARE_WRITE|FILE_SHARE_READ,
-		  NULL,OPEN_ALWAYS,FILE_FLAG_NO_BUFFERING|
-		  FILE_FLAG_WRITE_THROUGH|FILE_FLAG_POSIX_SEMANTICS,
-		  NULL);
-       	}
-        else
-        {
-#endif
-	  if((fd = I_CREAT(dummyfile[xx], 0640))<0)
-	  {
-		client_error=errno;
-		if(distributed && client_iozone)
-			send_stop();
-		perror(dummyfile[xx]);
-		exit(123);
-	  }
-#if defined(Windows)
-	}
-#endif
-#if defined(Windows)
 	if(unbuffered)
-		CloseHandle(hand);
-	else
 	{
-#endif
-	  close(fd);
-#if defined(Windows)
+		hand=CreateFile(dummyfile[xx],
+			GENERIC_READ|GENERIC_WRITE,
+			FILE_SHARE_WRITE|FILE_SHARE_READ,
+			NULL,OPEN_ALWAYS,FILE_FLAG_NO_BUFFERING|
+			FILE_FLAG_WRITE_THROUGH|FILE_FLAG_POSIX_SEMANTICS,
+			NULL);
+		CloseHandle(hand);
 	}
 #endif
 	if(oflag)
-		flags=O_RDWR|O_SYNC;
+		flags=O_RDWR|O_SYNC|O_CREAT;
 	else
-		flags=O_RDWR;
+		flags=O_RDWR|O_CREAT;
 #if defined(O_DSYNC)
 	if(odsync)
 		flags |= O_DSYNC;
@@ -11890,7 +11820,7 @@ thread_write_test( x)
         else
         {
 #endif
-	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
+	if((fd = I_OPEN(dummyfile[xx], (int)flags,0640))<0)
 	{
 		client_error=errno;
 		if(distributed && client_iozone)
@@ -12510,19 +12440,22 @@ thread_pwrite_test( x)
 	/*******************************************************************/
 	/* Initial write throughput performance test. **********************/
 	/*******************************************************************/
-	if((fd = I_CREAT(dummyfile[xx], 0640))<0)
+	if(!notruncate)
 	{
-		client_error=errno;
-		if(distributed && client_iozone)
-			send_stop();
-		perror(dummyfile[xx]);
-		exit(123);
+		if((fd = I_CREAT(dummyfile[xx], 0640))<0)
+		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
+			perror(dummyfile[xx]);
+			exit(123);
+		}
+		close(fd);
 	}
-	close(fd);
 	if(oflag)
-		flags=O_RDWR|O_SYNC;
+		flags=O_RDWR|O_SYNC|O_CREAT;
 	else
-		flags=O_RDWR;
+		flags=O_RDWR|O_CREAT;
 #if defined(O_DSYNC)
 	if(odsync)
 		flags |= O_DSYNC;
@@ -12542,7 +12475,7 @@ thread_pwrite_test( x)
 		flags |=O_DIRECTIO;
 #endif
 #endif
-	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
+	if((fd = I_OPEN(dummyfile[xx], (int)flags,0640))<0)
 	{
 		client_error=errno;
 		if(distributed && client_iozone)
@@ -16958,21 +16891,10 @@ thread_ranwrite_test( x)
 	/*******************************************************************/
 	/* Random write throughput performance test. **********************/
 	/*******************************************************************/
-#ifdef foobar
-	if((fd = I_CREAT(dummyfile[xx], 0640))<0)
-	{
-		client_error=errno;
-		if(distributed && client_iozone)
-			send_stop();
-		perror(dummyfile[xx]);
-		exit(123);
-	}
-	close(fd);
-#endif
 	if(oflag)
-		flags=O_RDWR|O_SYNC;
+		flags=O_RDWR|O_SYNC|O_CREAT;
 	else
-		flags=O_RDWR;
+		flags=O_RDWR|O_CREAT;
 #if defined(O_DSYNC)
 	if(odsync)
 		flags |= O_DSYNC;
@@ -17003,7 +16925,7 @@ thread_ranwrite_test( x)
 		  NULL);
        	}
 #endif
-	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
+	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0640))<0)
 	{
 		client_error=errno;
 		if(distributed && client_iozone)
@@ -19495,6 +19417,7 @@ int send_size;
 	sprintf(outbuf.c_mfflag,"%d",send_buffer->c_mfflag);
 	sprintf(outbuf.c_unbuffered,"%d",send_buffer->c_unbuffered);
 	sprintf(outbuf.c_noretest,"%d",send_buffer->c_noretest);
+	sprintf(outbuf.c_notruncate,"%d",send_buffer->c_notruncate);
 	sprintf(outbuf.c_read_sync,"%d",send_buffer->c_read_sync);
 	sprintf(outbuf.c_jflag,"%d",send_buffer->c_jflag);
 	sprintf(outbuf.c_async_flag,"%d",send_buffer->c_async_flag);
@@ -19603,6 +19526,14 @@ char *controlling_host_name;
 	struct hostent *he;
 	int tmp_port;
 	struct in_addr *ip;
+        int host_port = HOST_LIST_PORT;
+        char *port_ptr;
+
+        /* detect host:port combination, strip off the port */
+       if ((port_ptr = strchr(controlling_host_name, ':')) != NULL) {
+               host_port = atoi(port_ptr+1);
+               port_ptr[0] = '\0';
+       }
 
         he = gethostbyname(controlling_host_name);
         if (he == NULL)
@@ -19628,9 +19559,9 @@ char *controlling_host_name;
 	}
 #endif
 
-
         raddr.sin_family = AF_INET;
-        raddr.sin_port = htons(HOST_LIST_PORT);
+	/*raddr.sin_port = htons(HOST_LIST_PORT);*/
+        raddr.sin_port = htons(host_port);
         raddr.sin_addr.s_addr = ip->s_addr;
         child_socket_val = socket(AF_INET, SOCK_DGRAM, 0);
         if (child_socket_val < 0)
@@ -20271,6 +20202,8 @@ long long numrecs64, reclen;
 	struct master_neutral_command *mnc;
 	char command[512];
 	struct in_addr my_s_addr;
+	char my_port_num[10];
+
 
 	bzero(&cc,sizeof(struct client_command));
 	for(x=0;x<512;x++)
@@ -20289,6 +20222,11 @@ long long numrecs64, reclen;
 	strcat(command,child_idents[x-1].execute_path);
 	strcat(command," -+s -t 1 -r 4 -s 4 -+c ");
 	strcat(command,controlling_host_name);
+        if (master_listen_port != HOST_LIST_PORT)
+        {
+          sprintf(my_port_num,":%01u",master_listen_port);
+          strcat(command,my_port_num);
+        }
 	strcat(command," '");
 	system(command);
 /*
@@ -20368,6 +20306,7 @@ long long numrecs64, reclen;
 	cc.c_mfflag = mfflag;
 	cc.c_unbuffered = unbuffered;
 	cc.c_noretest = noretest;
+	cc.c_notruncate = notruncate;
 	cc.c_read_sync = read_sync;
 	cc.c_jflag = jflag;
 	cc.c_direct_flag = direct_flag;
@@ -20616,6 +20555,7 @@ become_client()
 	sscanf(cnc->c_write_traj_filename,"%s",cc.c_write_traj_filename);
 	sscanf(cnc->c_read_traj_filename,"%s",cc.c_read_traj_filename);
 	sscanf(cnc->c_noretest,"%d",&cc.c_noretest);
+	sscanf(cnc->c_notruncate,"%d",&cc.c_notruncate);
 	sscanf(cnc->c_read_sync,"%d",&cc.c_read_sync);
 	sscanf(cnc->c_jflag,"%d",&cc.c_jflag);
 	sscanf(cnc->c_direct_flag,"%d",&cc.c_direct_flag);
@@ -20687,6 +20627,7 @@ become_client()
 		printf("File name given %s\n",cc.c_file_name);
 	unbuffered = cc.c_unbuffered;
 	noretest = cc.c_noretest;
+	notruncate = cc.c_notruncate;
 	read_sync = cc.c_read_sync;
 	jflag = cc.c_jflag;
 	direct_flag = cc.c_direct_flag;

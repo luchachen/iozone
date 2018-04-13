@@ -2218,4 +2218,18 @@ Permit -+E on dedup files.
 Revision 3.327
 Permit -+E on random read only testing, on existing file.
 =============================================================================
+Revision 3.328
+Add passing master listener's port to remote children if it is not
+HOST_LIST_PORT
+=============================================================================
+Revision 3.329
+Adding Dave Boone's notruncate option -+N
+=============================================================================
+Revision 3.330
+Bug fix for Dave's code.
+=============================================================================
+Revision 3.331
+Add multi -t ops. Fabrice 
+=============================================================================
+
 
