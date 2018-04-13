@@ -1459,5 +1459,8 @@ Bug fix for cluster mode. Need to bzero buffers before sprintf or sscanf
 Revision 3.123 
 =============================================================================
 Bug fix for handling all chars that are transported over messaging.
-
+=============================================================================
+Revision 3.124 
+=============================================================================
+Simplify the child's debug output mechanism.
 
