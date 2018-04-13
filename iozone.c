@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.136 $"
+#define THISVERSION "        Version $Revision: 3.137 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -2300,7 +2300,7 @@ char **argv;
 	{
 		for(i=0;i<sizeof(func)/sizeof(char *);i++)
 			if(include_test[i])
-				include_mask|=(1<<i);
+				include_mask|=(long long)(1<<i);
 			/*printf("%x",include_mask); */
 	}
 
@@ -2562,7 +2562,7 @@ long long reclength;
 	{
 		for(i=0;i<num_tests;i++)
 		{
-			if(include_mask & (1<<i))
+			if(include_mask & (long long)(1<<i))
 			   func[i](kilobytes64,reclen,&data1[i],&data2[i]);
 			else
 			{
@@ -2922,7 +2922,7 @@ throughput_test()
 
 	/* rags: skip writer test */
 	if(include_tflag)
-		if(!(include_mask & WRITER_MASK))
+		if(!(include_mask & (long long)WRITER_MASK))
 			goto next0;
 
 	/* Hooks to start the distributed Iozone client/server code */
@@ -3410,7 +3410,7 @@ jump3:
 	sleep(2);
 next0:
 	if(include_tflag)
-		if(!(include_mask & READER_MASK))
+		if(!(include_mask & (long long)READER_MASK))
 			goto next1;
 	/**************************************************************/
 	/*** Reader throughput tests **********************************/
@@ -3851,7 +3851,7 @@ jumpend2:
 
 next1:
 	if(include_tflag)
-		if(!(include_mask & REVERSE_MASK))
+		if(!(include_mask & (long long)REVERSE_MASK))
 			goto next2;
 	sync();
 	sleep(2);
@@ -4070,7 +4070,7 @@ next1:
 	}
 next2:
 	if(include_tflag)
-		if(!(include_mask & STRIDE_READ_MASK))
+		if(!(include_mask & (long long)STRIDE_READ_MASK))
 			goto next3;
 	/**************************************************************/
 	/*** stride reader throughput tests **************************/
@@ -4291,7 +4291,7 @@ next2:
 	/**************************************************************/
 next3:
 	if(include_tflag)
-		if(!(include_mask & RANDOM_RW_MASK))
+		if(!(include_mask & (long long)RANDOM_RW_MASK))
 			goto next4;
 	
 	toutputindex++;
@@ -4509,7 +4509,7 @@ next3:
 	/**************************************************************/
 next4:
 	if(include_tflag)
-		if(!(include_mask & RANDOM_MIX_MASK))
+		if(!(include_mask & (long long)RANDOM_MIX_MASK))
 			goto next5;
 	
 	toutputindex++;
@@ -4727,7 +4727,7 @@ next5:
 	/*** random writer throughput tests  **************************/
 	/**************************************************************/
 	if(include_tflag)
-		if(!(include_mask & RANDOM_RW_MASK))
+		if(!(include_mask & (long long)RANDOM_RW_MASK))
 			goto next6;
 	
 	toutputindex++;
@@ -8872,7 +8872,7 @@ void dump_excel()
 	}
 	if(!silent) printf("Excel output is below:\n");
 
-    if ((!include_tflag) || (include_mask & WRITER_MASK)) {
+    if ((!include_tflag) || (include_mask & (long long)WRITER_MASK)) {
 	if(bif_flag)
 		do_label(bif_fd,"Writer Report",bif_row++,bif_column);
 	if(!silent) printf("\n%cWriter report%c\n",042,042);
@@ -8883,7 +8883,7 @@ void dump_excel()
 	dump_report(3); 
     }
 
-    if ((!include_tflag) || (include_mask & READER_MASK)) {
+    if ((!include_tflag) || (include_mask & (long long)READER_MASK)) {
 	if(bif_flag)
 		do_label(bif_fd,"Reader Report",bif_row++,bif_column);
 	if(!silent) printf("\n%cReader report%c\n",042,042);
@@ -8894,7 +8894,7 @@ void dump_excel()
 	dump_report(5); 
     }
 
-	if ((!include_tflag) || (include_mask & RANDOM_RW_MASK)) {
+	if ((!include_tflag) || (include_mask & (long long)RANDOM_RW_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Random Read Report",bif_row++,bif_column);
 		if(!silent) printf("\n%cRandom read report%c\n",042,042);
@@ -8905,28 +8905,28 @@ void dump_excel()
 		dump_report(7); 
 	}
 
-	if ((!include_tflag) || (include_mask & REVERSE_MASK)) {
+	if ((!include_tflag) || (include_mask & (long long)REVERSE_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Backward Read Report",bif_row++,bif_column);
 		if(!silent) printf("\n%cBackward read report%c\n",042,042);
 		dump_report(8); 
 	}
 
-	if ((!include_tflag) || (include_mask & REWRITE_REC_MASK)) {
+	if ((!include_tflag) || (include_mask & (long long)REWRITE_REC_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Record Rewrite Report",bif_row++,bif_column);
 		if(!silent) printf("\n%cRecord rewrite report%c\n",042,042);
 		dump_report(9); 
 	}
 
-	if ((!include_tflag) || (include_mask & STRIDE_READ_MASK)) {
+	if ((!include_tflag) || (include_mask & (long long)STRIDE_READ_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Stride Read Report",bif_row++,bif_column);
 		if(!silent) printf("\n%cStride read report%c\n",042,042);
 		dump_report(10); 
 	}
 
-	if ((!include_tflag) || (include_mask & FWRITER_MASK)) {
+	if ((!include_tflag) || (include_mask & (long long)FWRITER_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Fwrite Report",bif_row++,bif_column);
 		if(!silent) printf("\n%cFwrite report%c\n",042,042);
@@ -8937,7 +8937,7 @@ void dump_excel()
 		dump_report(12); 
 	}
 
-	if ((!include_tflag) || (include_mask & FREADER_MASK)) {
+	if ((!include_tflag) || (include_mask & (long long)FREADER_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Fread Report",bif_row++,bif_column);
 		if(!silent) printf("\n%cFread report%c\n",042,042);
@@ -8951,7 +8951,7 @@ void dump_excel()
 #ifdef HAVE_PREAD
 	if(Eflag)
 	{
-		if ((!include_tflag) || (include_mask & PWRITER_MASK)) {
+		if ((!include_tflag) || (include_mask & (long long)PWRITER_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd,"Pwrite Report",bif_row++,bif_column);
 			if(!silent) printf("\n%cPwrite report%c\n",042,042);
@@ -8962,7 +8962,7 @@ void dump_excel()
 		 	dump_report(16); 
 		}
 
-		if ((!include_tflag) || (include_mask & PREADER_MASK)) {
+		if ((!include_tflag) || (include_mask & (long long)PREADER_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd,"Pread Report",bif_row++,bif_column);
 		 	if(!silent) printf("\n%cPread report%c\n",042,042);
@@ -8973,7 +8973,7 @@ void dump_excel()
 		 	dump_report(18); 
 		}
 
-		if ((!include_tflag) || (include_mask & PWRITEV_MASK)) {
+		if ((!include_tflag) || (include_mask & (long long)PWRITEV_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd,"Pwritev Report",bif_row++,bif_column);
  			if(!silent) printf("\n%cPwritev report%c\n",042,042);
@@ -8984,7 +8984,7 @@ void dump_excel()
  			dump_report(20); 
 		}
 
-		if ((!include_tflag) || (include_mask & PREADV_MASK)) {
+		if ((!include_tflag) || (include_mask & (long long)PREADV_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd,"Preadv Report",bif_row++,bif_column);
  			if(!silent) printf("\n%cPreadv report%c\n",042,042);
@@ -9091,7 +9091,7 @@ void dump_cputimes()
 	bif_row++;
 	bif_column = 0;
 
-    if ((!include_tflag) || (include_mask & WRITER_MASK)) {
+    if ((!include_tflag) || (include_mask & (long long)WRITER_MASK)) {
 	if(bif_flag)
 		do_label(bif_fd, "Writer CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
 	if(!silent) printf("\n%cWriter CPU utilization report (Zero values should be ignored)%c\n",042,042);
@@ -9102,7 +9102,7 @@ void dump_cputimes()
 	dump_times(3); 
     }
 
-    if ((!include_tflag) || (include_mask & READER_MASK)) {
+    if ((!include_tflag) || (include_mask & (long long)READER_MASK)) {
 	if(bif_flag)
 		do_label(bif_fd, "Reader CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
 	if(!silent) printf("\n%cReader CPU utilization report (Zero values should be ignored)%c\n",042,042);
@@ -9113,7 +9113,7 @@ void dump_cputimes()
 	dump_times(5); 
     }
 
-	if ((!include_tflag) || (include_mask & RANDOM_RW_MASK)) {
+	if ((!include_tflag) || (include_mask & (long long)RANDOM_RW_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd, "Random Read CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
 		if(!silent) printf("\n%cRandom read CPU utilization report (Zero values should be ignored)%c\n",042,042);
@@ -9124,28 +9124,28 @@ void dump_cputimes()
 		dump_times(7); 
 	}
 
-	if ((!include_tflag) || (include_mask & REVERSE_MASK)) {
+	if ((!include_tflag) || (include_mask & (long long)REVERSE_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd, "Backward Read CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
 		if(!silent) printf("\n%cBackward read CPU utilization report (Zero values should be ignored)%c\n",042,042);
 		dump_times(8); 
 	}
 
-	if ((!include_tflag) || (include_mask & REWRITE_REC_MASK)) {
+	if ((!include_tflag) || (include_mask & (long long)REWRITE_REC_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd, "Record Rewrite CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
 		if(!silent) printf("\n%cRecord rewrite CPU utilization report (Zero values should be ignored)%c\n",042,042);
 		dump_times(9); 
 	}
 
-	if ((!include_tflag) || (include_mask & STRIDE_READ_MASK)) {
+	if ((!include_tflag) || (include_mask & (long long)STRIDE_READ_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd, "Stride Read CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
 		if(!silent) printf("\n%cStride read CPU utilization report (Zero values should be ignored)%c\n",042,042);
 		dump_times(10); 
 	}
 
-	if ((!include_tflag) || (include_mask & FWRITER_MASK)) {
+	if ((!include_tflag) || (include_mask & (long long)FWRITER_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd, "Fwrite CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
 		if(!silent) printf("\n%cFwrite CPU utilization report (Zero values should be ignored)%c\n",042,042);
@@ -9156,7 +9156,7 @@ void dump_cputimes()
 		dump_times(12); 
 	}
 
-	if ((!include_tflag) || (include_mask & FREADER_MASK)) {
+	if ((!include_tflag) || (include_mask & (long long)FREADER_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd, "Fread CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
 		if(!silent) printf("\n%cFread CPU utilization report (Zero values should be ignored)%c\n",042,042);
@@ -9170,7 +9170,7 @@ void dump_cputimes()
 #ifdef HAVE_PREAD
 	if(Eflag)
 	{
-		if ((!include_tflag) || (include_mask & PWRITER_MASK)) {
+		if ((!include_tflag) || (include_mask & (long long)PWRITER_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd, "Pwrite CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
 			if(!silent) printf("\n%cPwrite CPU utilization report (Zero values should be ignored)%c\n",042,042);
@@ -9181,7 +9181,7 @@ void dump_cputimes()
 		 	dump_times(16); 
 		}
 
-		if ((!include_tflag) || (include_mask & PREADER_MASK)) {
+		if ((!include_tflag) || (include_mask & (long long)PREADER_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd, "Pread CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
 		 	if(!silent) printf("\n%cPread CPU utilization report (Zero values should be ignored)%c\n",042,042);
@@ -9192,7 +9192,7 @@ void dump_cputimes()
 		 	dump_times(18); 
 		}
 
-		if ((!include_tflag) || (include_mask & PWRITEV_MASK)) {
+		if ((!include_tflag) || (include_mask & (long long)PWRITEV_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd, "Pwritev CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
  			if(!silent) printf("\n%cPwritev CPU utilization report (Zero values should be ignored)%c\n",042,042);
@@ -9203,7 +9203,7 @@ void dump_cputimes()
  			dump_times(20); 
 		}
 
-		if ((!include_tflag) || (include_mask & PREADV_MASK)) {
+		if ((!include_tflag) || (include_mask & (long long)PREADV_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd, "Preadv CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
 			if(!silent) printf("\n%cPreadv CPU utilization report (Zero values should be ignored)%c\n",042,042);
@@ -12081,6 +12081,7 @@ thread_mix_test(x)
 		if(cdebug || mdebug) printf("Mix write %d\n",selector);
 		thread_ranwrite_test(x);
 	}
+	return(0);
 }
 /************************************************************************/
 /* Thread random read test				        	*/
