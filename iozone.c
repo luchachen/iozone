@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.464 $"
+#define THISVERSION "        Version $Revision: 3.465 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -18986,7 +18986,9 @@ thread_exit()
 #endif
 {
 	pthread_exit((void *)NULL);
+#if !defined(solaris)
 return(0);
+#endif
 }
 #else
 #ifdef HAVE_ANSIC_C

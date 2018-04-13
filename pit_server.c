@@ -170,7 +170,6 @@ int main( int   argc,
    if(need < 1)
    {
 	USAGE;
-	exit(0);
    }
    /*
    ** Open both a TCP and UDP socket, for both IPv4 & IPv6, on which to receive
