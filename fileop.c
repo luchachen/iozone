@@ -1,13 +1,19 @@
 /*
  * Author: Don Capps
  * 3/13/2006
- * Copyright:  (2006)
- *   You are free to distribute and use this benchmark, for free.
- * You are not permitted to distribute modified versions, or
- * borrow code from this project to create proprietary products
- * or competitive benchmarks. Any product that contains any
- * of this code will be considered a derivative work and will
- * be the sole property of me.
+ *
+ *       Author: Don Capps (capps@iozone.org)
+ *               7417 Crenshaw
+ *               Plano, TX 75025
+ *
+ *  Copyright 2006, 2007, 2008, 2009   Don Capps.
+ *
+ *  License to freely use and distribute this software is hereby granted 
+ *  by the author, subject to the condition that this copyright notice 
+ *  remains intact.  The author retains the exclusive right to publish 
+ *  derivative works based on this work, including, but not limited to,
+ *  revised versions of this work",
+ *
  *
   fileop [-f X ]|[-l # -u #] [-s Y] [-e] [-b] [-w] [-d <dir>] [-t] [-v] [-h]
        -f #      Force factor. X^3 files will be created and removed.
@@ -114,7 +120,7 @@ void bzero();
 void clear_stats();
 int validate(char *, int , char );
 
-#define THISVERSION "        $Revision: 1.51 $"
+#define THISVERSION "        $Revision: 1.53 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;
@@ -282,13 +288,13 @@ int main(int argc, char **argv)
 
 	   if(verbose)
 	   {
-	      printf("mkdir:   Dirs = %9lld ",stats[_STAT_DIR_TRAVERSE].counter);
+	      printf("chdir:   Dirs = %9lld ",stats[_STAT_DIR_TRAVERSE].counter);
 	      printf("Total Time = %12.9f seconds\n", stats[_STAT_DIR_TRAVERSE].total_time);
-	      printf("         Avg mkdir(s)/sec     = %12.2f (%12.9f seconds/op)\n",
+	      printf("         Avg chdir(s)/sec     = %12.2f (%12.9f seconds/op)\n",
 			stats[_STAT_DIR_TRAVERSE].counter/stats[_STAT_DIR_TRAVERSE].total_time,
 			stats[_STAT_DIR_TRAVERSE].total_time/stats[_STAT_DIR_TRAVERSE].counter);
-	      printf("         Best mkdir(s)/sec    = %12.2f (%12.9f seconds/op)\n",1/stats[_STAT_DIR_TRAVERSE].best,stats[_STAT_DIR_TRAVERSE].best);
-	      printf("         Worst mkdir(s)/sec   = %12.2f (%12.9f seconds/op)\n\n",1/stats[_STAT_DIR_TRAVERSE].worst,stats[_STAT_DIR_TRAVERSE].worst);
+	      printf("         Best chdir(s)/sec    = %12.2f (%12.9f seconds/op)\n",1/stats[_STAT_DIR_TRAVERSE].best,stats[_STAT_DIR_TRAVERSE].best);
+	      printf("         Worst chdir(s)/sec   = %12.2f (%12.9f seconds/op)\n\n",1/stats[_STAT_DIR_TRAVERSE].worst,stats[_STAT_DIR_TRAVERSE].worst);
 	   }
 
 	   /*

@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.321 $"
+#define THISVERSION "        Version $Revision: 3.323 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1114,6 +1114,7 @@ void del_record_sizes();
 #define I_OPEN(x,y,z) 	open64(x,(int)(y),(int)(z))
 #define I_CREAT(x,y) 	creat64(x,(int)(y))
 #define I_FOPEN(x,y) 	fopen64(x,y)
+#define I_STAT(x,y) 	stat64(x,y)
 #ifdef HAVE_PREAD
 #define I_PREAD(a,b,c,d)	pread64(a,b,(size_t)(c),(off64_t)(d))
 #define I_PWRITE(a,b,c,d)	pwrite64(a,b,(size_t)(c),(off64_t)(d))
@@ -1124,6 +1125,7 @@ void del_record_sizes();
 #define I_OPEN(x,y,z) 	open(x,(int)(y),(int)(z))
 #define I_CREAT(x,y) 	creat(x,(int)(y))
 #define I_FOPEN(x,y) 	fopen(x,y)
+#define I_STAT(x,y) 	stat(x,y)
 #ifdef HAVE_PREAD
 #define I_PREAD(a,b,c,d)	pread(a,b,(size_t)(c),(off_t)(d))
 #define I_PWRITE(a,b,c,d)	pwrite(a,b,(size_t)(c),(off_t)(d))
@@ -11581,7 +11583,7 @@ purge_buffer_cache()
                ret = system(command);
                if (ret == 0)
                        break;
-               sleep(i); // seconds
+               sleep(i); /* seconds */
         }
 	strcpy(command,"mount ");
 	strcat(command, mountname);
@@ -22297,13 +22299,21 @@ check_filename(name)
 char *name;
 #endif
 {
+#ifdef _LARGEFILE64_SOURCE
+	struct stat64 mystat;
+#else
 	struct stat mystat;
+#endif
 	int x;
 	if(strlen(name)==0)
 		return(0);
-	x=stat(name,&mystat);
+	/* Lets try stat first.. may get an error if file is too big */
+	x=I_STAT(name,&mystat);
 	if(x<0)
+	{
 		return(0);
+		/* printf("Stat failed %d\n",x); */
+	}
 	if(mystat.st_mode & S_IFREG)
 	{
 		/*printf("Is a regular file\n");*/
@@ -22311,6 +22321,7 @@ char *name;
 	}
 	return(0);
 }
+
 #ifdef HAVE_ANSIC_C
 void
 start_monitor(char *test)
