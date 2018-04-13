@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.68 $"
+#define THISVERSION "        Version $Revision: 3.69 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -741,7 +741,7 @@ char **argv;
 	char reply[IBUFSIZE];
 	unsigned char inp_pat;
 	time_t time_run;
-	char *port,*pl,*m;
+	char *port,*pl,*m,*subarg;
 	int num_child1;
 	int cret,test_foo,test_fd;
 	int anwser,bind_cpu;
@@ -801,7 +801,7 @@ char **argv;
 	auto_mode = 0;
 	inp_pat = PATTERN;
 	pattern = ((inp_pat << 24) | (inp_pat << 16) | (inp_pat << 8) | inp_pat);
-	while((cret = getopt(argc,argv,"ZQNIBDGCTOMREWovAxamwphcezKJ:j:k:V:r:t:s:f:F:d:l:u:U:S:L:H:P:i:b:X:Y:g:n:y:q: ")) != EOF){
+	while((cret = getopt(argc,argv,"ZQNIBDGCTOMREWovAxamwphcezKJ:j:k:V:r:t:s:f:F:d:l:u:U:S:L:H:+:P:i:b:X:Y:g:n:y:q: ")) != EOF){
 		switch(cret){
 		case 'k':	/* Async I/O with no bcopys */
 			depth = (long long)(atoi(optarg));
@@ -1391,6 +1391,29 @@ char **argv;
 			printf("\tUsing Maximum Record Size %lld KB\n", max_rec_size/1024);
 #endif
 			break;
+			/* 
+			 * The + operator is for the new extended options mechanism 
+			 * Syntax is -+ followed by option leter, and if the optino
+			 * takes an operand  then it is implemented below. An example
+			 * -+a arg    is shown below. This is a sub option with an argument.
+			 * -+b  is shown below. This is a sub option with no argument.
+			 */
+		case '+':
+			/* printf("Plus option = >%s<\n",optarg);*/
+			switch (*((char *)optarg))
+			{
+				case 'a':  /* Has argument */
+					subarg=argv[optind++];
+					/* printf("Plus option argument = >%s<\n",subarg);*/
+					break;
+				case 'b':  /* Does not have an argument */
+					break;
+				default:
+					printf("Unsupported Plus option -> %s <-\n",optarg);
+					exit(0);
+					break;
+			}	
+			break;
 		}
 	}
 
@@ -1534,6 +1557,12 @@ char **argv;
 	if(trflag && MS_flag)
 	{
 		printf("\n\tMicrosecond mode not supported in throughput mode.\n\n");
+		exit(17);
+	}
+	if (trflag	// throughput mode, don't allow auto-mode options:
+		&& (auto_mode || aflag || yflag || qflag || nflag || gflag))
+	{
+		printf("\n\tCan not mix throughput mode and auto-mode flags.\n\n");
 		exit(17);
 	}
 	if(async_flag && mmapflag)
@@ -3692,7 +3721,7 @@ long long *data2;
 #ifdef _LARGEFILE64_SOURCE 
 	  		if((fd = creat64(filename, 0640))<0)
 	  		{
-				printf("\nCannot create temp file: %s\n", 
+				printf("\nCan not create temp file: %s\n", 
 					filename);
 				perror("creat");
 				exit(42);
@@ -3700,7 +3729,7 @@ long long *data2;
 #else
 		  	if((fd = creat(filename, 0640))<0)
 		  	{
-				printf("\nCannot create temp file: %s\n", 
+				printf("\nCan not create temp file: %s\n", 
 					filename);
 				perror("creat");
 				exit(43);
@@ -3713,7 +3742,7 @@ long long *data2;
 #ifdef _LARGEFILE64_SOURCE 
 	  	if((fd = open64(filename, (int)file_flags))<0)
 	  	{
-			printf("\nCannot open temp file: %s\n", 
+			printf("\nCan not open temp file: %s\n", 
 				filename);
 			perror("open");
 			exit(44);
@@ -3721,7 +3750,7 @@ long long *data2;
 #else
 	  	if((fd = open(filename, (int)file_flags))<0)
 	  	{
-			printf("\nCannot open temp file: %s\n", 
+			printf("\nCan not open temp file: %s\n", 
 				filename);
 			perror("open");
 			exit(45);
@@ -4019,7 +4048,7 @@ long long *data2;
 #ifdef IRIX64
 		if((stream=(FILE *)fopen(filename,how)) == 0)
 		{
-			printf("\nCannot fdopen temp file: %s %lld\n", 
+			printf("\nCan not fdopen temp file: %s %lld\n", 
 				filename,errno);
 			perror("fdopen");
 			exit(48);
@@ -4029,10 +4058,10 @@ long long *data2;
 		if((stream=(FILE *)fopen64(filename,how)) == 0)
 		{
 #ifdef NO_PRINT_LLD
-			printf("\nCannot fdopen temp file: %s %ld\n", 
+			printf("\nCan not fdopen temp file: %s %ld\n", 
 				filename,errno);
 #else
-			printf("\nCannot fdopen temp file: %s %lld\n", 
+			printf("\nCan not fdopen temp file: %s %lld\n", 
 				filename,errno);
 #endif
 			perror("fdopen");
@@ -4042,10 +4071,10 @@ long long *data2;
 		if((stream=(FILE *)fopen(filename,how)) == 0)
 		{
 #ifdef NO_PRINT_LLD
-			printf("\nCannot fdopen temp file: %s %ld\n", 
+			printf("\nCan not fdopen temp file: %s %ld\n", 
 				filename,errno);
 #else
-			printf("\nCannot fdopen temp file: %s %lld\n", 
+			printf("\nCan not fdopen temp file: %s %lld\n", 
 				filename,errno);
 #endif
 			perror("fdopen");
@@ -4184,7 +4213,7 @@ long long *data1,*data2;
 #ifdef IRIX64
 		if((stream=(FILE *)fopen(filename,"r")) == 0)
 		{
-			printf("\nCannot fdopen temp file: %s\n", 
+			printf("\nCan not fdopen temp file: %s\n", 
 				filename);
 			perror("fdopen");
 			exit(51);
@@ -4193,7 +4222,7 @@ long long *data1,*data2;
 #ifdef _LARGEFILE64_SOURCE
 		if((stream=(FILE *)fopen64(filename,"r")) == 0)
 		{
-			printf("\nCannot fdopen temp file: %s\n", 
+			printf("\nCan not fdopen temp file: %s\n", 
 				filename);
 			perror("fdopen");
 			exit(52);
@@ -4201,7 +4230,7 @@ long long *data1,*data2;
 #else
 		if((stream=(FILE *)fopen(filename,"r")) == 0)
 		{
-			printf("\nCannot fdopen temp file: %s\n", 
+			printf("\nCan not fdopen temp file: %s\n", 
 				filename);
 			perror("fdopen");
 			exit(53);
@@ -4391,7 +4420,7 @@ long long *data1,*data2;
 #ifdef _LARGEFILE64_SOURCE
 		if((fd = open64(filename, O_RDONLY))<0)
 		{
-			printf("\nCannot open temporary file for read\n");
+			printf("\nCan not open temporary file for read\n");
 			perror("open");
 			exit(58);
 		}
@@ -4411,7 +4440,7 @@ long long *data1,*data2;
 #else
 		if((fd = open(filename, O_RDONLY))<0)
 		{
-			printf("\nCannot open temporary file for read\n");
+			printf("\nCan not open temporary file for read\n");
 			perror("open");
 			exit(59);
 		}
@@ -4738,7 +4767,7 @@ long long *data1, *data2;
 	     }
 #ifdef _LARGEFILE64_SOURCE
 	     if((fd = open64(filename, (int)flags,0640))<0){
-			printf("\nCannot open temporary file for read/write\n");
+			printf("\nCan not open temporary file for read/write\n");
 			perror("open");
 			exit(66);
 	     }
@@ -4758,7 +4787,7 @@ long long *data1, *data2;
 
 #else
 	     if((fd = open(filename, (int)flags,0640))<0){
-			printf("\nCannot open temporary file for read/write\n");
+			printf("\nCan not open temporary file for read/write\n");
 			perror("open");
 			exit(67);
 	     }
@@ -5082,7 +5111,7 @@ long long *data1,*data2;
 		}
 #ifdef _LARGEFILE64_SOURCE
 	 	if((fd = open64(filename, (int)O_RDONLY))<0){
-	 		printf("\nCannot open temporary file for read\n");
+	 		printf("\nCan not open temporary file for read\n");
 	 		perror("open");
 	 		exit(75);
 	 	}
@@ -5102,7 +5131,7 @@ long long *data1,*data2;
 
 #else
 	 	if((fd = open(filename, O_RDONLY))<0){
-	 		printf("\nCannot open temporary file for read\n");
+	 		printf("\nCan not open temporary file for read\n");
 	 		perror("open");
 	 		exit(76);
 	 	}
@@ -5329,14 +5358,14 @@ long long *data1,*data2;
 #ifdef _LARGEFILE64_SOURCE
         if((fd = open64(dummyfile[0], (int)flags,0640))<0)
         {
-                    printf("\nCannot open temporary file %s for write.\n",dummyfile[0]);
+                    printf("\nCan not open temporary file %s for write.\n",dummyfile[0]);
 		    perror("open");
                     exit(84);
         }
 #else
         if((fd = open(dummyfile[0], (int)flags, 0640))<0)
         {
-                    printf("\nCannot open temporary file %s for write.\n",dummyfile[0]);
+                    printf("\nCan not open temporary file %s for write.\n",dummyfile[0]);
 		    perror("open");
                     exit(85);
         }
@@ -5549,7 +5578,7 @@ long long *data1, *data2;
 #ifdef _LARGEFILE64_SOURCE
         if((fd = open64(filename, (int)O_RDONLY, 0640))<0)
         {
-                    printf("\nCannot open temporary file for read\n");
+                    printf("\nCan not open temporary file for read\n");
 		    perror("open");
                     exit(86);
         }
@@ -5569,7 +5598,7 @@ long long *data1, *data2;
 #else
         if((fd = open(filename, O_RDONLY, 0640))<0)
         {
-                    printf("\nCannot open temporary file for read\n");
+                    printf("\nCan not open temporary file for read\n");
 		    perror("open");
                     exit(87);
         }
@@ -5841,7 +5870,7 @@ long long *data1,*data2;
 #ifdef _LARGEFILE64_SOURCE
 		  	if((fd = creat64(filename, 0640))<0)
 		  	{
-				printf("\nCannot create temp file: %s\n", 
+				printf("\nCan not create temp file: %s\n", 
 					filename);
 				perror("creat");
 				exit(95);
@@ -5849,7 +5878,7 @@ long long *data1,*data2;
 #else
 		  	if((fd = creat(filename, 0640))<0)
 		  	{
-				printf("\nCannot create temp file: %s\n", 
+				printf("\nCan not create temp file: %s\n", 
 					filename);
 				perror("creat");
 				exit(96);
@@ -5858,7 +5887,7 @@ long long *data1,*data2;
 #ifdef _LARGEFILE64_SOURCE
 			if((fd = open64(filename, (int)flags_here))<0)
 			{
-				printf("\nCannot open temp file: %s\n", 
+				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
 				exit(97);
@@ -5870,7 +5899,7 @@ long long *data1,*data2;
 #else
 			if((fd = open(filename, (int)flags_here))<0)
 			{
-				printf("\nCannot open temp file: %s\n", 
+				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
 				exit(98);
@@ -5886,7 +5915,7 @@ long long *data1,*data2;
 #ifdef _LARGEFILE64_SOURCE
 			  if((fd = open64(filename, (int)flags_here))<0)
 			  {
-				printf("\nCannot open temp file: %s\n", 
+				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
 				exit(99);
@@ -5898,7 +5927,7 @@ long long *data1,*data2;
 #else
 			  if((fd = open(filename, (int)flags_here))<0)
 			  {
-				printf("\nCannot open temp file: %s\n", 
+				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
 				exit(100);
@@ -6029,7 +6058,7 @@ long long *data1, *data2;
 #ifdef _LARGEFILE64_SOURCE
 		if((fd = open64(filename, (int)O_RDONLY))<0)
 		{
-			printf("\nCannot open temporary file for read\n");
+			printf("\nCan not open temporary file for read\n");
 			perror("open");
 			exit(101);
 		}
@@ -6040,7 +6069,7 @@ long long *data1, *data2;
 #else
 		if((fd = open(filename, O_RDONLY))<0)
 		{
-			printf("\nCannot open temporary file for read\n");
+			printf("\nCan not open temporary file for read\n");
 			perror("open");
 			exit(102);
 		}
@@ -6177,7 +6206,7 @@ long long *data1,*data2;
 #ifdef _LARGEFILE64_SOURCE
 		  	if((fd = creat64(filename, 0640))<0)
 		  	{
-				printf("\nCannot create temp file: %s\n", 
+				printf("\nCan not create temp file: %s\n", 
 					filename);
 				perror("creat");
 				exit(107);
@@ -6185,7 +6214,7 @@ long long *data1,*data2;
 #else
 		  	if((fd = creat(filename, 0640))<0)
 		  	{
-				printf("\nCannot create temp file: %s\n", 
+				printf("\nCan not create temp file: %s\n", 
 					filename);
 				perror("creat");
 				exit(108);
@@ -6194,7 +6223,7 @@ long long *data1,*data2;
 #ifdef _LARGEFILE64_SOURCE
 			if((fd = open64(filename, (int)flags_here))<0)
 			{
-				printf("\nCannot open temp file: %s\n", 
+				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
 				exit(109);
@@ -6206,7 +6235,7 @@ long long *data1,*data2;
 #else
 			if((fd = open(filename, (int)flags_here))<0)
 			{
-				printf("\nCannot open temp file: %s\n", 
+				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
 				exit(110);
@@ -6222,7 +6251,7 @@ long long *data1,*data2;
 #ifdef _LARGEFILE64_SOURCE
 			if((fd = open64(filename, (int)flags_here))<0)
 			{
-				printf("\nCannot open temp file: %s\n", 
+				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
 				exit(111);
@@ -6234,7 +6263,7 @@ long long *data1,*data2;
 #else
 			if((fd = open(filename, (int)flags_here))<0)
 			{
-				printf("\nCannot open temp file: %s\n", 
+				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
 				exit(112);
@@ -6431,7 +6460,7 @@ long long *data1,*data2;
 #ifdef _LARGEFILE64_SOURCE
 		if((fd = open64(filename, (int)O_RDONLY))<0)
 		{
-			printf("\nCannot open temporary file for preadv\n");
+			printf("\nCan not open temporary file for preadv\n");
 			perror("open");
 			exit(114);
 		}
@@ -6442,7 +6471,7 @@ long long *data1,*data2;
 #else
 		if((fd = open(filename, O_RDONLY))<0)
 		{
-			printf("\nCannot open temporary file for preadv\n");
+			printf("\nCan not open temporary file for preadv\n");
 			perror("open");
 			exit(115);
 		}
@@ -7319,7 +7348,7 @@ thread_write_test( x)
 #ifdef _LARGEFILE64_SOURCE
 	if((fd = open64(dummyfile[xx], (int)flags))<0)
 	{
-		printf("\nCannot open temp file: %s\n", 
+		printf("\nCan not open temp file: %s\n", 
 			filename);
 		perror("open");
 		exit(125);
@@ -7327,7 +7356,7 @@ thread_write_test( x)
 #else
 	if((fd = open(dummyfile[xx], (int)flags))<0)
 	{
-		printf("\nCannot open temp file: %s\n", 
+		printf("\nCan not open temp file: %s\n", 
 			filename);
 		perror("open");
 		exit(126);
@@ -10065,7 +10094,7 @@ thread_ranwrite_test( x)
 #ifdef _LARGEFILE64_SOURCE
 	if((fd = open64(dummyfile[xx], (int)flags))<0)
 	{
-		printf("\nCannot open temp file: %s\n", 
+		printf("\nCan not open temp file: %s\n", 
 			filename);
 		perror("open");
 		exit(125);
@@ -10073,7 +10102,7 @@ thread_ranwrite_test( x)
 #else
 	if((fd = open(dummyfile[xx], (int)flags))<0)
 	{
-		printf("\nCannot open temp file: %s\n", 
+		printf("\nCan not open temp file: %s\n", 
 			filename);
 		perror("open");
 		exit(126);

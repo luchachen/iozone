@@ -1256,3 +1256,15 @@ Added Randy Dunlap to the list of contributors. Thanks Randy !!
 Revision 3.67
 =============================================================================
 Fix labels when using -R and -i options together.
+=============================================================================
+Revision 3.68
+=============================================================================
+Code cleanup. No functionality changes.
+=============================================================================
+Revision 3.69
+=============================================================================
+Prevent mixed modes. Auto and throughput.
+Added support for the Plus extended options.
+
+
+
