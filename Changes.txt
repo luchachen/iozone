@@ -1922,4 +1922,13 @@ add a close(fd) to the sanity test.
 Revision 3.237
 =============================================================================
 Transport the -o flag to remote clients.
+=============================================================================
+Revision 3.238
+=============================================================================
+Fix hang when using HP-UX master, Linux client, ssh buildup.
+=============================================================================
+Revision 3.239
+=============================================================================
+Add -+h hostname. Permits one to manually set the hostname. For systems
+with multiple names/NICs.
 

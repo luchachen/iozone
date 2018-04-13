@@ -1,6 +1,6 @@
 /*
  * Maintainer: Don Capps
- * 10/20/2004
+ * 5/22/2005
  *
  * A long time ago I ran across this simple benchmark.
  * It simply tests how fast can a system create and
@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
+#include <dirent.h>
 
 
 int x;
@@ -42,11 +43,16 @@ double starttime,endtime,speed;
 
 static double time_so_far(void);
 void file_create(int);
+void file_stat(int);
+void file_access(int);
+void file_readdir(int);
 void file_delete(int);
+void file_link(int);
+void file_unlink(int);
 void splash(void);
 void usage(void);
 
-#define THISVERSION "        Version $Revision: 1.4 $"
+#define THISVERSION "        $Revision: 1.7 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;
@@ -63,19 +69,71 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	splash();
+	/*
+	 * Create test 
+	 */
 	starttime=time_so_far();
 	file_create(x);
 	endtime=time_so_far();
 	speed=endtime-starttime;
-	printf("File create: Files = %d Total Time = %.3f seconds\n",(x*x*x),speed);
-	printf("             Creates/sec = %.3f\n\n",(x*x*x)/speed);
+	printf("create:  Files = %9d Total Time = %7.3f seconds\n",(x*x*x),speed);
+	printf("         Creates/sec = %12.2f\n\n",(x*x*x)/speed);
 
+	/*
+	 * Stat test 
+	 */
+	starttime=time_so_far();
+	file_stat(x);
+	endtime=time_so_far();
+	speed=endtime-starttime;
+	printf("stat:    Files = %9d Total Time = %7.3f seconds\n",(x*x*x),speed);
+	printf("         Stats/sec   = %12.2f\n\n",(x*x*x)/speed);
+
+	/*
+	 * Access test 
+	 */
+	starttime=time_so_far();
+	file_access(x);
+	endtime=time_so_far();
+	speed=endtime-starttime;
+	printf("access:  Files = %9d Total Time = %7.3f seconds\n",(x*x*x),speed);
+	printf("         Access/sec  = %12.2f\n\n",(x*x*x)/speed);
+	/*
+	 * readdir test 
+	 */
+	starttime=time_so_far();
+	file_readdir(x);
+	endtime=time_so_far();
+	speed=endtime-starttime;
+	printf("readdir: Dirs  = %9d Total Time = %7.3f seconds\n",(x*x),speed);
+	printf("         Readdir/sec = %12.2f\n\n",(x*x)/speed);
+	/*
+	 * link test 
+	 */
+	starttime=time_so_far();
+	file_link(x);
+	endtime=time_so_far();
+	speed=endtime-starttime;
+	printf("link:    Link  = %9d Total Time = %7.3f seconds\n",(x*x*x),speed);
+	printf("         Links/sec   = %12.2f\n\n",(x*x*x)/speed);
+	/*
+	 * unlink test 
+	 */
+	starttime=time_so_far();
+	file_unlink(x);
+	endtime=time_so_far();
+	speed=endtime-starttime;
+	printf("unlink: Unlink = %9d Total Time = %7.3f seconds\n",(x*x*x),speed);
+	printf("         Unlinks/sec = %12.2f\n\n",(x*x*x)/speed);
+	/*
+	 * Delete test 
+	 */
 	starttime=time_so_far();
 	file_delete(x);
 	endtime=time_so_far();
 	speed=endtime-starttime;
-	printf("File delete: Files = %d Total time = %.3f seconds\n",(x*x*x),speed);
-	printf("             Deletes/sec = %.3f\n\n",(x*x*x)/speed);
+	printf("delete:  Files = %9d Total time = %7.3f seconds\n",(x*x*x),speed);
+	printf("         Deletes/sec = %12.2f\n\n",(x*x*x)/speed);
 	return(0);
 }
 void 
@@ -108,7 +166,7 @@ file_create(int x)
 	    for(k=0;k<x;k++)
 	    {
 	      sprintf(buf,"iozone_file%d",k);
-	      fd=creat(buf,O_RDWR);
+	      fd=creat(buf,O_RDWR|0600);
 	      if(fd < 0)
 	      {
 	        printf("Create failed\n");
@@ -122,7 +180,178 @@ file_create(int x)
 	  chdir("..");
 	}
 }
+void 
+file_stat(int x)
+{
+	int i,j,k,y;
+	int fd;
+	int ret;
+	char buf[100];
+	struct stat mystat;
+	for(i=0;i<x;i++)
+	{
+	  sprintf(buf,"iozone_L1_%d",i);
+	  chdir(buf);
+	  for(j=0;j<x;j++)
+	  {
+	    sprintf(buf,"iozone_L2_%d",j);
+	    chdir(buf);
+	    for(k=0;k<x;k++)
+	    {
+	      sprintf(buf,"iozone_file%d",k);
+	      y=stat(buf,&mystat);
+	      if(y < 0)
+	      {
+	        printf("Stat failed\n");
+	        exit(1);
+	      }
+	    }
+	    chdir("..");
+	  }
+	  chdir("..");
+	}
+}
 
+void 
+file_access(int x)
+{
+	int i,j,k,y;
+	int fd;
+	int ret;
+	char buf[100];
+	struct stat mystat;
+	for(i=0;i<x;i++)
+	{
+	  sprintf(buf,"iozone_L1_%d",i);
+	  chdir(buf);
+	  for(j=0;j<x;j++)
+	  {
+	    sprintf(buf,"iozone_L2_%d",j);
+	    chdir(buf);
+	    for(k=0;k<x;k++)
+	    {
+	      sprintf(buf,"iozone_file%d",k);
+	      y=access(buf,W_OK|F_OK);
+	      if(y < 0)
+	      {
+	        printf("access failed\n");
+		perror("what");
+	        exit(1);
+	      }
+	    }
+	    chdir("..");
+	  }
+	  chdir("..");
+	}
+}
+void 
+file_readdir(int x)
+{
+	int i,j,k,ret1;
+	int fd;
+	int ret;
+	char buf[100];
+	char buf1[100];
+	struct stat mystat;
+	DIR *dirbuf;
+	struct dirent *y;
+	for(i=0;i<x;i++)
+	{
+	  sprintf(buf,"iozone_L1_%d",i);
+	  chdir(buf);
+	  for(j=0;j<x;j++)
+	  {
+	    sprintf(buf,"iozone_L2_%d",j);
+	    chdir(buf);
+	    dirbuf=opendir(".");
+	    if(dirbuf==0)
+	    {
+		printf("opendir failed\n");
+		exit(1);
+	    }
+	    y=readdir(dirbuf);
+	    if(y == 0)
+	    {
+	      printf("readdir failed\n");
+	      exit(1);
+	    }
+	    ret1=closedir(dirbuf);
+	    if(ret1 < 0)
+	    {
+	      printf("closedir failed\n");
+	      exit(1);
+	    }
+	    chdir("..");
+	  }
+	  chdir("..");
+	}
+}
+void 
+file_link(int x)
+{
+	int i,j,k,y;
+	int fd;
+	int ret;
+	char buf[100];
+	char bufn[100];
+	struct stat mystat;
+	for(i=0;i<x;i++)
+	{
+	  sprintf(buf,"iozone_L1_%d",i);
+	  chdir(buf);
+	  for(j=0;j<x;j++)
+	  {
+	    sprintf(buf,"iozone_L2_%d",j);
+	    chdir(buf);
+	    for(k=0;k<x;k++)
+	    {
+	      sprintf(buf,"iozone_file%d",k);
+	      sprintf(bufn,"iozone_file%dL",k);
+	      y=link(buf,bufn);
+	      if(y < 0)
+	      {
+	        printf("Link failed\n");
+	        exit(1);
+	      }
+	    }
+	    chdir("..");
+	  }
+	  chdir("..");
+	}
+}
+void 
+file_unlink(int x)
+{
+	int i,j,k,y;
+	int fd;
+	int ret;
+	char buf[100];
+	char bufn[100];
+	struct stat mystat;
+	for(i=0;i<x;i++)
+	{
+	  sprintf(buf,"iozone_L1_%d",i);
+	  chdir(buf);
+	  for(j=0;j<x;j++)
+	  {
+	    sprintf(buf,"iozone_L2_%d",j);
+	    chdir(buf);
+	    for(k=0;k<x;k++)
+	    {
+	      sprintf(buf,"iozone_file%d",k);
+	      sprintf(bufn,"iozone_file%dL",k);
+	      y=unlink(bufn);
+	      if(y < 0)
+	      {
+	        printf("Unlink failed\n");
+	        exit(1);
+	      }
+	    }
+	    chdir("..");
+	  }
+	  chdir("..");
+	}
+}
 void
 file_delete(int x)
 {
@@ -201,6 +430,7 @@ splash(void)
 	printf("\n");
 	printf("     --------------------------------------\n");
 	printf("     |              Fileop                | \n");
+	printf("     | %s           | \n",version);
 	printf("     |                                    | \n");
 	printf("     |                by                  |\n");
 	printf("     |                                    | \n");

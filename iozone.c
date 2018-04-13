@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.237 $"
+#define THISVERSION "        Version $Revision: 3.239 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -2156,6 +2156,16 @@ char **argv;
 					client_iozone=1;
 					master_iozone=0;
 					break;
+                                case 'h':  /* Argument is the controlling host name */
+                                        subarg=argv[optind++];
+                                        if(subarg==(char *)0)
+                                        {
+                                             printf("-+h takes an operand !!\n");
+                                             exit(200);
+                                        }
+                                        strcpy(controlling_host_name,subarg);
+                                        sprintf(splash[splash_line++],"\tHostname = %s\n",controlling_host_name);
+                                        break;
 				case 'm':  /* I am the controlling process for distributed Iozone */
 					   /* Does not have an argument */
 					subarg=argv[optind++];
@@ -18131,6 +18141,11 @@ struct in_addr my_s_addr;
 	int ecount = 0;
 
 	port=child_port;
+	/* Silly, fragile socket code... Sleep 1 sec here
+ 	 * or some accept()/connect() pairs will hang 
+	 * and fail. gosh, ain't a standard API fun !!
+	 */
+	sleep(1);
 
         raddr.sin_family = AF_INET;
         raddr.sin_port = htons(port);
