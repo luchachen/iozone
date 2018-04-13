@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.53 $"
+#define THISVERSION "        Version $Revision: 3.56 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -99,15 +99,15 @@ char *help[] = {
 "                  [-l min_number_procs] [-u] max_number_procs] [-v] [-R] [-x]",
 "                  [-d microseconds] [-F path1 path2...] [-V pattern ] [-j stride ]",
 "                  [-T ] [-C] [-B] [-D] [-G] [-I] [-H depth] [-k depth] [-U mount_point]",
-"                  [-S cache_size] [-O] [-L line_size] [-K]",
-"                  [-N] [-Q] [-P start_cpu] [-e] [-c] [-b Excel.xls]",
+"                  [-S cache_size] [-O] [-L line_size] [-K] [-g maxfilesize_in_kb]",
+"                  [-n] minfilesize_in_kb] [-N] [-Q] [-P start_cpu] [-e] [-c] [-b Excel.xls]",
 "                  [-J milliseconds] [-X write_telemetry_filename]",
 "                  [-Y read_telemetry_filename]",
 " ",
-"           -s Kilobytes in file.",
+"           -s # Kilobytes in file.",
 "              or -s #k .. size in Kb",
 "              or -s #m .. size in Mb",
-"           -r record size in kb",
+"           -r # record size in kb",
 "              or -r #k .. size in Kb",
 "              or -r #m .. size in Mb",
 "           -f filename to use",
@@ -116,47 +116,49 @@ char *help[] = {
 "                 3=Read-backwards, 4=Re-write-record, 5=stride-read, 6=fwrite/re-fwrite",
 "                 7=fread/Re-fread, 8=pwrite/Re-pwrite, 9=pread/Re-pread, 10=pwritev/Re-pwritev",
 "                 11=preadv/Re-preadv)",
-"           -E run extension tests",
-"           -p purge on",
-"           -a auto mode",
-"           -A auto2 mode",
-"           -m multi buffer",
-"           -M uname -a output",
+"           -E Run extension tests",
+"           -p Purge on",
+"           -a Auto mode",
+"           -A Auto2 mode",
+"           -m Use multiple buffers",
+"           -M Report uname -a output",
 "           -W Lock file when reading or writing",
-"           -t # throughput test",
+"           -t # Number of threads or processes to use in throughput test",
 "           -h help",
 "           -o Writes are synch (O_SYNC)",
-"           -l Lower limit on number of processes to run",
-"           -u Upper limit on number of processes to run",
-"           -v version info",
+"           -l # Lower limit on number of processes to run",
+"           -u # Upper limit on number of processes to run",
+"           -v version information",
 "           -R Generate Excel report",
 "           -x Turn off stone-walling",
-"           -d Microsecond delay out of barrier",
-"           -F number_procs filenames for throughput test",
+"           -d # Microsecond delay out of barrier",
+"           -F filenames for each process/thread in throughput test",
 "           -V Verify data pattern write/read",
 "           -j # Set stride of file accesses to (# * record size)",
-"           -T Use threads for throughput tests ",
+"           -T Use POSIX pthreads for throughput tests ",
 "           -C Show bytes transfered by each child in throughput testing.",
 "           -B Use mmap() files",
 "           -D Use msync(MS_ASYNC) on mmap files",
 "           -G Use msync(MS_SYNC) on mmap files",
 "           -I Use VxFS VX_DIRECT for all file operations",
-"           -H Use POSIX async I/O with # async operations",
-"           -k Use POSIX async I/O. (no bcopy) with # async operations",
+"           -H # Use POSIX async I/O with # async operations",
+"           -k # Use POSIX async I/O. (no bcopy) with # async operations",
 "           -U Mount point to remount between tests",
-"           -S Set processor cache size to value (in Kbytes).",
+"           -S # Set processor cache size to value (in Kbytes).",
 "           -O Give results in ops/sec.",
-"           -L Set processor cache line size to value (in bytes).",
+"           -L # Set processor cache line size to value (in bytes).",
 "           -N Report results in microseconds per operation.",
 "           -Q Create offset/latency files.",
-"           -P start_cpu. Bind processes/threads to processors, starting with this cpu",
+"           -P # Bind processes/threads to processors, starting with this cpu",
 "           -e Include flush (fsync,fflush) in the timing calculations",
 "           -c Include close in the timing calculations",
 "           -b Filename. Create Excel worksheet file",
 "           -K Create jitter in the access pattern for readers.",
+"           -n #  Set minimum file size (in kbytes) for auto mode",
+"           -g #  Set maximum file size (in kbytes) for auto mode",
 "           -w Do not unlink temporary file",
-"           -X filename. Write telemetry. Contains lines with (offset reclen compute_time) in ascii",
-"           -Y filename. Read  telemetry. Contains lines with (offset reclen compute_time) in ascii",
+"           -X filename  Write telemetry file. Contains lines with (offset reclen compute_time) in ascii",
+"           -Y filename  Read  telemetry file. Contains lines with (offset reclen compute_time) in ascii",
 "" };
 
 char *head1[] = {
@@ -228,7 +230,9 @@ typedef long long off64_t;
 #ifndef _OFF64_T
 #ifndef __AIX__
 #ifndef __off64_t_defined
+#ifndef SCO_Unixware_gcc
 typedef long long off64_t;
+#endif
 #endif
 #endif
 #endif
@@ -280,11 +284,15 @@ typedef long long off64_t;
 #define AMAP_FILE (0)
 #endif
 
+#ifdef SCO_Unixware_gcc
+#define MAP_FILE (0)
+#endif
+
 #ifdef solaris
 #define MAP_FILE (0)
 #endif
 
-#if defined(IRIX) || defined(IRIX64) || defined(Windows) || defined(bsd4_2) || defined(bsd4_4) || defined(SCO) || defined(Solaris)
+#if defined(IRIX) || defined(IRIX64) || defined(Windows) || defined(bsd4_2) || defined(bsd4_4) || defined(SCO) || defined(Solaris) || defined(SCO_Unixware_gcc)
 long long page_size = 4096;
 #define GOT_PAGESIZE 1
 #elif defined(NBPG)
@@ -359,8 +367,8 @@ struct child_stats {
 #define TOOFAST 10
 #define MAXTESTS 10
 #define PATTERN 0xA5
-#define MAX_X 100
-#define MAX_Y 200
+#define MAX_X 100			/* Used for Excel internal tables */
+#define MAX_Y 200			/* Used for Excel internal tables */
 #define USAGE  "\tUsage: For usage information type iozone -h \n\n"
 
 
@@ -479,6 +487,13 @@ FILE *open_r_traj(void);
 void traj_vers(void);
 long long r_traj_size(void);
 long long w_traj_size(void);
+void init_file_sizes();
+off64_t get_next_file_size(off64_t);
+void add_file_size(off64_t);
+void init_file_sizes( off64_t,  off64_t);
+off64_t get_next_record_size(off64_t);
+void add_record_size(off64_t);
+void init_record_sizes( off64_t,  off64_t);
 #else
 void traj_vers();
 long long r_traj_size();
@@ -500,6 +515,12 @@ void *(thread_set_base)();
 void *(thread_join)();
 void disrupt();
 long long get_traj();
+void init_file_sizes();
+off64_t get_next_file_size();
+void add_file_size();
+void init_record_sizes();
+off64_t get_next_record_size();
+void add_record_size();
 #endif
 
 /************************************************************************/
@@ -573,7 +594,7 @@ int bif_fd;
 int bif_row,bif_column;
 char aflag, mflag, pflag, Eflag, hflag, oflag, Rflag, rflag, sflag;
 char no_copy_flag,h_flag,k_flag,include_close,include_flush,bif_flag;
-char stride_flag;
+char stride_flag,gflag,nflag;
 int direct_flag;
 char async_flag;
 char trflag; 
@@ -611,6 +632,14 @@ long long ret;
 #else
 short ret;
 #endif
+struct size_entry {
+	struct size_entry *next;
+	off64_t size;
+};
+struct size_entry *size_list=0;
+struct size_entry *rec_size_list=0;
+off64_t maximum_file_size;
+off64_t minimum_file_size;
 
 char bif_filename [MAXNAMESIZE];           /* name of biff file      */
 char filename [MAXNAMESIZE];               /* name of temporary file */
@@ -635,6 +664,11 @@ unsigned long cache_size=CACHE_SIZE;
 unsigned long cache_line_size=CACHE_LINE_SIZE;
 long long *pstatus;
 int no_unlink = 0;
+off64_t min_file_size = KILOBYTES_START;
+off64_t max_file_size = KILOBYTES_END;
+long long min_rec_size = RECLEN_START;
+long long max_rec_size = RECLEN_END;
+long long xover = CROSSOVER;
 char *throughput_tests[] = {"Initial write","Rewrite","Read","Re-read",
 	"Reverse Read","Stride read","Random read","Random write"};
 
@@ -714,7 +748,7 @@ char **argv;
 	auto_mode = 0;
 	inp_pat = PATTERN;
 	pattern = ((inp_pat << 24) | (inp_pat << 16) | (inp_pat << 8) | inp_pat);
-	while((cret = getopt(argc,argv,"ZQNIBDGCTOMREWovAxamwphceKJ:j:k:V:r:t:s:f:F:d:l:u:U:S:L:H:P:i:b:X:Y: ")) != EOF){
+	while((cret = getopt(argc,argv,"ZQNIBDGCTOMREWovAxamwphceKJ:j:k:V:r:t:s:f:F:d:l:u:U:S:L:H:P:i:b:X:Y:g:n: ")) != EOF){
 		switch(cret){
 		case 'k':	/* Async I/O with no bcopys */
 			depth = (long long)(atoi(optarg));
@@ -848,6 +882,8 @@ char **argv;
 			}
 			if(kilobytes64 <= 0)
 				kilobytes64=512;
+			min_file_size = (off64_t)kilobytes64; /* Make visable globally */
+			max_file_size = (off64_t)kilobytes64; /* Make visable globally */
 #ifdef NO_PRINT_LLD
 	    		printf("\tFile size set to %ld KB\n",kilobytes64);
 #else
@@ -1065,6 +1101,8 @@ char **argv;
 			if(reclen <= 0)
 				reclen=(long long)4096;
 
+			max_rec_size = (off64_t)reclen;   /* Make visable globally */
+			min_rec_size = (off64_t)reclen;   /* Make visable globally */
 #ifdef NO_PRINT_LLD
 	    		printf("\tRecord Size %ld KB\n",reclen/1024);
 #else
@@ -1190,6 +1228,28 @@ char **argv;
 			r_traj_fd=open_r_traj();
 			if(r_traj_fd == (FILE*) 0)
 				exit(200);
+			break;
+		case 'n':	/* Set min file size for auto mode */
+			nflag=1;
+			minimum_file_size = (off64_t)atoi(optarg);
+			if(minimum_file_size <= KILOBYTES_START)
+				minimum_file_size=(off64_t)KILOBYTES_START;
+#ifdef NO_PRINT_LLD
+			printf("\tUsing minimum file size of %ld kilobytes.\n",minimum_file_size);
+#else
+			printf("\tUsing minimum file size of %lld kilobytes.\n",minimum_file_size);
+#endif
+			break;
+		case 'g':	/* Set maximum file size for auto mode */
+			gflag=1;
+			maximum_file_size = (off64_t)atoi(optarg);
+			if(maximum_file_size <= KILOBYTES_START)
+				maximum_file_size=(off64_t)KILOBYTES_END;
+#ifdef NO_PRINT_LLD
+			printf("\tUsing maximum file size of %ld kilobytes.\n",maximum_file_size);
+#else
+			printf("\tUsing maximum file size of %lld kilobytes.\n",maximum_file_size);
+#endif
 			break;
 		}
 	}
@@ -1688,23 +1748,15 @@ void auto_test()
 {
     	off64_t kilosi;
 	long long recszi,count1;
-	off64_t min_file_size = KILOBYTES_START;
-        off64_t max_file_size = KILOBYTES_END;
-        long long min_rec_size = RECLEN_START;
-        long long max_rec_size = RECLEN_END;
-	long long xover = CROSSOVER;
-	long long mult,tmp,tmp2,tmp3,save_y=0;
+	long long mult,save_y=0;
 	long long xx;
 
-	tmp2=0;
-	for(tmp=RECLEN_START;tmp<RECLEN_END;tmp=tmp<<1)
-		tmp2++;
-	tmp3=tmp2;
 	/****************************************************************/
 	/* Start with file size of 1 megabyte and repeat the test 	*/
 	/* KILOBYTES_ITER_LIMIT  					*/
 	/* times.  Each time we run, the file size is doubled		*/
 	/****************************************************************/
+/*
         if(sflag) {
           min_file_size = kilobytes64;
           max_file_size = kilobytes64;
@@ -1713,9 +1765,21 @@ void auto_test()
           min_rec_size = reclen;
           max_rec_size = reclen;
         }
+*/
+	if(gflag)
+		max_file_size = maximum_file_size;
+	if(nflag)
+		min_file_size = minimum_file_size;
+
 	if(NOCROSSflag) xover = max_file_size;
 
-        for(kilosi=min_file_size;kilosi<=max_file_size;kilosi*=MULTIPLIER)
+	init_file_sizes(min_file_size, max_file_size);
+	init_record_sizes(min_rec_size, max_rec_size);
+
+
+
+
+        for(kilosi=get_next_file_size((off64_t)0); kilosi>0; kilosi=get_next_file_size(kilosi))
         {
 	/****************************************************************/
 	/* Start with record size of min_rec_size bytes and repeat the 	*/
@@ -1724,37 +1788,37 @@ void auto_test()
 	/* small buffers as it takes forever and becomes very 		*/
 	/* un-interesting.						*/
 	/****************************************************************/
-             if(!rflag)
-                     if(!sflag)
-                             if(kilosi > xover){
-                                     min_rec_size = LARGE_REC;
-				     mult = RECLEN_START/1024;
-				     /************************************/
-				     /* Generate dummy entries in the    */
-				     /* Excel buffer for skipped         */
-				     /* record sizes			 */
-				     /************************************/
-				     for(count1=min_rec_size;
-				     	(count1 != RECLEN_START) && (
+             if(!rflag && !sflag )
+             	if(kilosi > xover){
+                	min_rec_size = LARGE_REC;
+			mult = RECLEN_START/1024;
+		     	/************************************/
+			/* Generate dummy entries in the    */
+			/* Excel buffer for skipped         */
+			/* record sizes			 */
+			/************************************/
+			for(count1=min_rec_size;
+			     	(count1 != RECLEN_START) && (
 				     	mult <= (kilosi*1024)) ;
 						count1=(count1>>1))
-				     {
-				     	current_x=0;
-				     	store_value((off64_t)kilosi);
-				     	store_value((off64_t)mult);
-				     	for(xx=0;xx<20;xx++)
-				     		store_value((off64_t)0);
-				     	mult=mult*2;
-				     	current_y++;
-				     	if(current_y>max_y)
-				     		max_y=current_y;
-				     	current_x=0;
-				     }
-				}
+			{
+			    	current_x=0;
+			     	store_value((off64_t)kilosi);
+			     	store_value((off64_t)mult);
+			     	for(xx=0;xx<20;xx++)
+			     		store_value((off64_t)0);
+			     	mult=mult*2;
+			     	current_y++;
+			     	if(current_y>max_y)
+			     		max_y=current_y;
+			     	current_x=0;
+			}
+	     }
 
-             for (recszi=min_rec_size;recszi<=max_rec_size;recszi*=MULTIPLIER)
+             for (recszi=get_next_record_size((off64_t)0);recszi!=0;recszi=get_next_record_size(recszi))
              {
-                     if(recszi > (kilosi*1024)) break;
+                     if(recszi > (kilosi*1024)) 
+			break;
                      begin(kilosi, recszi );
 		     current_x=0;
 		     current_y++;
@@ -6501,34 +6565,34 @@ long long who;
 	long long i,j;
 	off64_t current_file_size;
 	long long counter=0;
+	off64_t rec_size;
 
 	if(bif_flag)
 		bif_column++;
 	printf("        ");
-	for(i=RECLEN_START;i<RECLEN_END;i=i*MULTIPLIER)
-		counter++;
 
-	for(i=RECLEN_START;i<=(RECLEN_END/MULTIPLIER);i=i*MULTIPLIER)
+	for(rec_size=get_next_record_size(0);rec_size < max_rec_size;
+		rec_size=get_next_record_size(rec_size))
 	{
 		if(bif_flag)
-			do_float(bif_fd,(double)(i/1024),bif_row,bif_column++);
+			do_float(bif_fd,(double)(rec_size/1024),bif_row,bif_column++);
 #ifdef NO_PRINT_LLD
-		printf("%c%ld%c ",042,i/1024,042);
+		printf("%c%ld%c ",042,rec_size/1024,042);
 #else
-		printf("%c%lld%c ",042,i/1024,042);
+		printf("%c%lld%c ",042,rec_size/1024,042);
 #endif
 	}
 	if(bif_flag)
 	{
-		do_float(bif_fd,(double)(RECLEN_END/1024),bif_row,bif_column);
+		do_float(bif_fd,(double)(max_rec_size/1024),bif_row,bif_column);
 	
 		bif_column=0;
 		bif_row++;
 	}
 #ifdef NO_PRINT_LLD
-	printf("%c%ld%c\n",042,(long long)RECLEN_END/1024,042);
+	printf("%c%ld%c\n",042,(long long)max_rec_size/1024,042);
 #else
-	printf("%c%lld%c\n",042,(long long)RECLEN_END/1024,042);
+	printf("%c%lld%c\n",042,(long long)max_rec_size/1024,042);
 #endif
 
 	current_file_size = report_array[0][0];
@@ -6757,7 +6821,7 @@ long long size;
 		MAP_SHARED, tfd, 0);
 	unlink("mmap.tmp");
 #else
-#if defined(SCO)
+#if defined(SCO) || defined(SCO_Unixware_gcc)
         if((tfd = creat("mmap.tmp", 0666))<0)
         {
                 printf("Unable to create tmp file\n");
@@ -11201,4 +11265,179 @@ loop2:
 		printf("Found %d items in the write telemetry file\n",things);
 #endif
 	}
+}
+
+/********************************************************************/
+/*							            */
+/* Today this initializes the default set of file sizes for Iozone. */
+/* in the future it may take input from the command line or	    */
+/* from a file.							    */
+/*								    */
+/********************************************************************/
+#ifdef HAVE_ANSIC_C
+void
+init_file_sizes( off64_t min_f_size,  off64_t max_f_size)
+#else
+void
+init_file_sizes(min_f_size, max_f_size)
+off64_t min_f_size;
+off64_t max_f_size;
+#endif
+{
+    	off64_t kilosi;
+        for(kilosi=min_f_size;kilosi<=max_f_size;kilosi*=MULTIPLIER)
+	{
+		add_file_size((off64_t)kilosi);
+	}
+}
+
+/********************************************************************/
+/* Used to constuct the list of file sizes to test.		    */
+/********************************************************************/
+#ifdef HAVE_ANSIC_C
+void
+add_file_size(off64_t size)
+#else
+void
+add_file_size(size)
+off64_t size;
+#endif
+{
+	struct size_entry *size_listp;
+	struct size_entry *nsize_list;
+	
+	size_listp=size_list;
+	
+	if(size_list)
+	{
+		if(size_listp->next)
+			while(size_listp->next!=0)
+				size_listp=size_listp->next;
+	}
+	nsize_list=(struct size_entry *)malloc(sizeof(struct size_entry));
+	if(nsize_list==0)
+	{
+		printf("Malloc failed in add_file_size\n");
+		exit(180);
+	}	
+	nsize_list->next=0;
+	nsize_list->size=size;
+	if(size_list == 0)
+		size_list=nsize_list;
+	else
+		size_listp->next=nsize_list;
+	size_listp=size_list;
+}
+
+/********************************************************************/
+/* Return the next file size to test.				    */
+/********************************************************************/
+#ifdef HAVE_ANSIC_C
+off64_t
+get_next_file_size(off64_t size)
+#else
+off64_t
+get_next_file_size(size)
+off64_t size;
+#endif
+{
+	struct size_entry *size_listp;
+	struct size_entry *nsize_list;
+	
+	size_listp=size_list;
+	
+	for( ; size_listp ; size_listp=size_listp->next )
+	{
+		if(size_listp->size > size)
+			return(size_listp->size);
+	}
+	return((off64_t)0);
+}
+
+
+/**********************************************************************/
+/*							              */
+/* Today this initializes the default set of record sizes for Iozone. */
+/* in the future it may take input from the command line or	      */
+/* from a file.							      */
+/*								      */
+/**********************************************************************/
+#ifdef HAVE_ANSIC_C
+void
+init_record_sizes( off64_t min_r_size,  off64_t max_r_size)
+#else
+void
+init_record_sizes(min_r_size, max_r_size)
+off64_t min_r_size;
+off64_t max_r_size;
+#endif
+{
+    	off64_t size;
+        for(size=min_r_size;size<=max_r_size;size*=MULTIPLIER)
+	{
+		add_record_size((off64_t)size);
+	}
+}
+
+/********************************************************************/
+/* Used to constuct the list of record sizes to test.		    */
+/********************************************************************/
+#ifdef HAVE_ANSIC_C
+void
+add_record_size(off64_t size)
+#else
+void
+add_record_size(size)
+off64_t size;
+#endif
+{
+	struct size_entry *size_listp;
+	struct size_entry *nsize_list;
+	
+	size_listp=rec_size_list;
+	
+	if(rec_size_list)
+	{
+		if(size_listp->next)
+			while(size_listp->next!=0)
+				size_listp=size_listp->next;
+	}
+	nsize_list=(struct size_entry *)malloc(sizeof(struct size_entry));
+	if(nsize_list==0)
+	{
+		printf("Malloc failed in add_file_size\n");
+		exit(180);
+	}	
+	nsize_list->next=0;
+	nsize_list->size=size;
+	if(rec_size_list == 0)
+		rec_size_list=nsize_list;
+	else
+		size_listp->next=nsize_list;
+	size_listp=rec_size_list;
+}
+
+/********************************************************************/
+/* Return the next record size to test.				    */
+/********************************************************************/
+#ifdef HAVE_ANSIC_C
+off64_t
+get_next_record_size(off64_t size)
+#else
+off64_t
+get_next_record_size(size)
+off64_t size;
+#endif
+{
+	struct size_entry *size_listp;
+	struct size_entry *nsize_list;
+	
+	size_listp=rec_size_list;
+	
+	for( ; size_listp ; size_listp=size_listp->next )
+	{
+		if(size_listp->size > size)
+			return(size_listp->size);
+	}
+	return((off64_t)0);
 }

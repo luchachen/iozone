@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.47 $
+# Version $Revision: 1.48 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -7,7 +7,7 @@
 # Supports:	hpux, hpux_no_ansi, hpux-10.1, hpux_no_ansi-10.1,
 #		sppux, sppux-10.1, ghpux, sppux, 
 #		convex, FreeBSD, OpenBSD, OSFV3, OSFV4, OSFV5, SCO
-#		NetBSD
+#		SCO_Unixware_gcc,NetBSD
 
 
 all:  
@@ -39,6 +39,7 @@ all:
 	@echo "        ->   OSFV4                (64bit)   <-"
 	@echo "        ->   OSFV5                (64bit)   <-"
 	@echo "        ->   SCO                  (32bit)   <-"
+	@echo "        ->   SCO_Unixware_gcc     (32bit)   <-"
 	@echo "        ->   Solaris              (32bit)   <-"
 	@echo "        ->   Solaris-2.6          (32bit)   <-"
 	@echo "        ->   sppux                (32bit)   <-"
@@ -299,6 +300,19 @@ OSFV5: iozone_OSFV5.o libbif.o libasync.o
 SCO: iozone_SCO.o  libbif.o
 	gcc -O -DSCO -Dunix -DHAVE_ANSIC_C iozone_SCO.o \
 		libbif.o -DNO_THREADS -o iozone
+
+
+#
+# GNU build with threads, largefiles, async I/O
+# for SCO Unixware 5 7.1.1 i386 x86at SCO UNIX SVR5
+# Note: Be sure you have the latest patches for SCO's Openserver
+# or you will get warnings about timer problems.
+#
+
+SCO_Unixware_gcc: iozone_SCO_Unixware_gcc.o  libbif.o libasync.o
+	/usr/local/bin/gcc -O -DSCO_Unixware_gcc -Dunix -DHAVE_ANSIC_C \
+		-DASYNC_IO -D_LARGEFILE64_SOURCE iozone_SCO_Unixware_gcc.o \
+		libbif.o libasync.o -lthread -o iozone
 
 #
 # GNU C compiler NetBSD build with no threads, no largefiles, no async I/O
@@ -625,6 +639,18 @@ iozone_SCO.o: iozone.c libbif.c
 		iozone.c -o iozone_SCO.o
 	gcc -c -O -DSCO -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
 		-DBIG_ENDIAN libbif.c -o libbif.o
+
+iozone_SCO_Unixware_gcc.o: iozone.c libbif.c libasync.c
+	@echo ""
+	@echo "Building iozone SCO_Unixware_gcc "
+	@echo ""
+	/usr/local/bin/gcc -c -O -DSCO_Unixware_gcc -Dunix -DHAVE_ANSIC_C  \
+		-DASYNC_IO -D_LARGEFILE64_SOURCE iozone.c -o \
+		iozone_SCO_Unixware_gcc.o
+	/usr/loca/bin/gcc -c -O -DSCO_Unixware_gcc -Dunix -DHAVE_ANSIC_C  \
+		-DASYNC_IO -D_LARGEFILE64_SOURCE libbif.c -o libbif.o
+	/usr/loca/bin/gcc -c -O -DSCO_Unixware_gcc -Dunix -DHAVE_ANSIC_C  \
+		-DASYNC_IO -D_LARGEFILE64_SOURCE libasync.c -o libasync.o
 
 iozone_netbsd.o: iozone.c libbif.c
 	@echo ""

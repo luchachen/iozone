@@ -96,7 +96,7 @@
 
 #include <sys/types.h>
 #include <aio.h>
-#if defined(solaris) || defined(linux)
+#if defined(solaris) || defined(linux) || defined(SCO_Unixware_gcc)
 #else
 #include <sys/timers.h>
 #endif
@@ -107,7 +107,7 @@
 #include <sys/fs/vx_ioctl.h>
 #endif
 
-#if !defined(off64_t) && !defined(_OFF64_T) && !defined(__off64_t_defined)
+#if !defined(off64_t) && !defined(_OFF64_T) && !defined(__off64_t_defined) && !defined(SCO_Unixware_gcc)
 typedef long long off64_t;
 #endif
 #if defined(OSFV5)
@@ -122,7 +122,7 @@ extern int one;
  * cache, pointed to by async_init(gc) will be of
  * this structure type.
  */
-char version[] = "Libasync Version $Revision: 3.9 $";
+char version[] = "Libasync Version $Revision: 3.10 $";
 struct cache_ent {
 	struct aiocb myaiocb;			/* For use in small file mode */
 #ifdef _LARGEFILE64_SOURCE 
@@ -200,7 +200,7 @@ int flag;
 		exit(174);
 	}
 	bzero(*gc,sizeof(struct cache));
-#ifdef __AIX__
+#if defined(__AIX__) || defined(SCO_Unixware_gcc)
 	max_depth=500;
 #else
 	max_depth=sysconf(_SC_AIO_MAX);
