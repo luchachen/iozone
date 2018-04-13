@@ -107,6 +107,22 @@
 #include <sys/fs/vx_ioctl.h>
 #endif
 
+#if defined(solaris) && defined(__LP64__)
+/* If we are building for 64-bit Solaris, all functions that return pointers
+ * must be declared before they are used; otherwise the compiler will assume
+ * that they return ints and the top 32 bits of the pointer will be lost,
+ * causing segmentation faults.  The following includes take care of this.
+ * It should be safe to add these for all other OSs too, but we're only
+ * doing it for Solaris now in case another OS turns out to be a special case.
+ */
+#include <stdio.h>
+#include <stdlib.h>
+#include <strings.h> /* For the BSD string functions */
+#endif
+
+void mbcopy(char *source, char *dest, size_t len);
+
+
 #if !defined(solaris) && !defined(off64_t) && !defined(_OFF64_T) && !defined(__off64_t_defined) && !defined(SCO_Unixware_gcc)
 typedef long long off64_t;
 #endif
@@ -122,7 +138,7 @@ extern int one;
  * cache, pointed to by async_init(gc) will be of
  * this structure type.
  */
-char version[] = "Libasync Version $Revision: 3.11 $";
+char version[] = "Libasync Version $Revision: 3.13 $";
 struct cache_ent {
 	struct aiocb myaiocb;			/* For use in small file mode */
 #ifdef _LARGEFILE64_SOURCE 
@@ -174,6 +190,18 @@ size_t async_write();
 void async_wait_for_write();
 void async_put_on_write_queue();
 void async_write_finish();
+
+/* On Solaris _LP64 will be defined by <sys/types.h> if we're compiling
+ * as a 64-bit binary.  Make sure that __LP64__ gets defined in this case,
+ * too -- it should be defined on the compiler command line, but let's
+ * not rely on this.
+ */
+#if defined(_LP64)
+#if !defined(__LP64__)
+#define __LP64__
+#endif
+#endif
+
 
 /***********************************************/
 /* Initialization routine to setup the library */
@@ -302,12 +330,12 @@ long long depth;
 		{
 #ifdef _LARGEFILE64_SOURCE 
 #ifdef __LP64__
-			mbcopy(ce->myaiocb.aio_buf,ubuffer,retval);
+			mbcopy((char *)ce->myaiocb.aio_buf,(char *)ubuffer,(size_t)retval);
 #else
-			mbcopy(ce->myaiocb64.aio_buf,ubuffer,retval);
+			mbcopy((char *)ce->myaiocb64.aio_buf,(char *)ubuffer,(size_t)retval);
 #endif
 #else
-			mbcopy(ce->myaiocb.aio_buf,ubuffer,retval);
+			mbcopy((char *)ce->myaiocb.aio_buf,(char *)ubuffer,(size_t)retval);
 #endif
 		}
 #ifdef _LARGEFILE64_SOURCE 
@@ -479,12 +507,12 @@ out:
 		{
 #ifdef _LARGEFILE64_SOURCE 
 #ifdef __LP64__
-			mbcopy(first_ce->myaiocb.aio_buf,ubuffer,retval);
+			mbcopy((char *)first_ce->myaiocb.aio_buf,(char *)ubuffer,(size_t)retval);
 #else
-			mbcopy(first_ce->myaiocb64.aio_buf,ubuffer,retval);
+			mbcopy((char *)first_ce->myaiocb64.aio_buf,(char *)ubuffer,(size_t)retval);
 #endif
 #else
-			mbcopy(first_ce->myaiocb.aio_buf,ubuffer,retval);
+			mbcopy((char *)first_ce->myaiocb.aio_buf,(char *)ubuffer,(size_t)retval);
 #endif
 		}
 		first_ce->direct=0;
@@ -1482,9 +1510,9 @@ again:
 	}
 }
 
-mbcopy(source, dest, len)
+void mbcopy(source, dest, len)
 char *source,*dest;
-int len;
+size_t len;
 {
 	int i;
 	for(i=0;i<len;i++)

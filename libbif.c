@@ -24,6 +24,22 @@
 #include <string.h>
 #endif
 
+#if defined(solaris) && defined( __LP64__ )
+/* If we are building for 64-bit Solaris, all functions that return pointers
+ * must be declared before they are used; otherwise the compiler will assume
+ * that they return ints and the top 32 bits of the pointer will be lost,
+ * causing segmentation faults.  The following includes take care of this.
+ * It should be safe to add these for all other OSs too, but we're only
+ * doing it for Solaris now in case another OS turns out to be a special case.
+ */
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#endif
+
+
 #ifdef HAVE_ANSIC_C
 /************************************************************************/
 /* Here is the API... Enjoy 						*/
@@ -57,7 +73,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.5 $";
+char libbif_version[] = "Libbif Version $Revision: 3.7 $";
 void do_eof(int );		/* Used internally */
 void do_header(int );		/* Used internally */
 #endif

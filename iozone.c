@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.94 $"
+#define THISVERSION "        Version $Revision: 3.98 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -65,7 +65,8 @@ extern  int h_errno;
 #endif
 
 
-#if defined (__LP64__) || defined(OSF_64) || defined(__alpha__) || defined(__arch64__)
+#include <sys/types.h>
+#if defined (__LP64__) || defined(OSF_64) || defined(__alpha__) || defined(__arch64__) || defined(_LP64)
 #define MODE "\tCompiled for 64 bit mode."
 #define _64BIT_ARCH_
 #else
@@ -207,7 +208,6 @@ THISVERSION,
     INCLUDE FILES (system-dependent)
 
 ******************************************************************/
-#include <sys/types.h>
 #include <sys/mman.h>
 #include <stdio.h>
 #include <signal.h>
@@ -225,6 +225,33 @@ THISVERSION,
 #define O_SYNC O_FSYNC
 #endif
 #endif
+
+#if defined(solaris) && defined(__LP64__)
+/* If we are building for 64-bit Solaris, all functions that return pointers
+ * must be declared before they are used; otherwise the compiler will assume
+ * that they return ints and the top 32 bits of the pointer will be lost,
+ * causing segmentation faults.  The following includes take care of this.
+ * It should be safe to add these for all other OSs too, but we're only
+ * doing it for Solaris now in case another OS turns out to be a special case.
+ */
+#include <strings.h>
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+size_t async_write(struct cache *gc, long long fd, long long size, char *buffer, off64_t offset, long long depth);
+size_t async_write_no_copy(struct cache *gc, long long fd, long long size, char *buffer, off64_t offset, long long depth, char *free_addr);
+void async_release(struct cache *gc);
+int create_xls(char *);
+void close_xls(int);
+void do_float(int fd, double value, int row, int column);
+void do_label(int fd, char *string, int row, int column);
+int mylockf(int fd, int op, int rdwr);
+int get_client_info(void);
+int thread_exit(void);
+#endif
+
 
 #if defined(OSFV5)
 #include <string.h>
@@ -361,34 +388,52 @@ struct client_command {
 	char c_working_dir[256];
 	char c_path_dir[256];
 	char c_execute_name[256];
+	char c_write_traj_filename[256];
+	char c_read_traj_filename[256];
 	char c_oflag;
 	char c_jflag;
 	char c_async_flag;
-	char c_mmapflag;
+	char c_k_flag;
+	char c_h_flag;
+	char c_mflag;
+	char c_pflag;
+	char c_stride_flag;
 	char c_verify;
+	char c_sverify;
 	char c_Q_flag;
-	char c_include_flush;
 	char c_OPS_flag;
+	char c_mmapflag;
+	char c_mmapasflag;
 	char c_mmapnsflag;
 	char c_mmapssflag;
 	char c_no_copy_flag;
 	char c_include_close;
+	char c_include_flush;
 	char c_disrupt_flag;
 	char c_compute_flag;
 	char c_xflag;
+	char c_w_traj_flag;
+	char c_r_traj_flag;
+	char c_MS_flag;
+	char c_mmap_mix;
 	int c_direct_flag;
 	int c_client_number;
 	int c_command;
 	int c_testnum;
 	int c_no_unlink;
-	int  c_file_lock;
+	int c_file_lock;
+	int c_pattern;
+	long long c_stride;
 	long long c_delay;
 	long long c_purge;
 	long long c_fetchon;
 	long long c_numrecs64;
 	long long c_reclen;
 	long long c_child_flag;
+	long long c_delay_start;
+	long long c_depth;
 	float c_stop_flag;
+	float c_compute_time;
 };	
 
 /*
@@ -405,34 +450,52 @@ struct client_neutral_command {
 	char c_working_dir[256];
 	char c_path_dir[256];
 	char c_execute_name[256];
+	char c_write_traj_filename[256];
+	char c_read_traj_filename[256];
 	char c_oflag;
 	char c_jflag;
 	char c_async_flag;
-	char c_mmapflag;
+	char c_k_flag;
+	char c_h_flag;
+	char c_mflag;
+	char c_pflag;
+	char c_stride_flag;
 	char c_verify;
+	char c_sverify;
 	char c_Q_flag;
-	char c_include_flush;
 	char c_OPS_flag;
+	char c_mmapflag;
+	char c_mmapasflag;
 	char c_mmapnsflag;
 	char c_mmapssflag;
 	char c_no_copy_flag;
 	char c_include_close;
+	char c_include_flush;
 	char c_disrupt_flag;
 	char c_compute_flag;
 	char c_xflag;
+	char c_w_traj_flag;
+	char c_r_traj_flag;
+	char c_MS_flag;
+	char c_mmap_mix;
 	char c_direct_flag[20]; 	/* int */
 	char c_client_number[20]; 	/* int */
 	char c_command[20]; 		/* int */
 	char c_testnum[20]; 		/* int */
 	char c_no_unlink[20]; 		/* int */
-	char  c_file_lock[20]; 		/* int */
+	char c_file_lock[20]; 		/* int */
+	char c_pattern[20]; 		/* int */
+	char c_stride[80]; 		/* long long */
 	char c_delay[80]; 		/* long long */
 	char c_purge[80]; 		/* long long */
 	char c_fetchon[80]; 		/* long long */
 	char c_numrecs64[80]; 		/* long long */
 	char c_reclen[80]; 		/* long long */
 	char c_child_flag[80]; 		/* long long */
-	char c_stop_flag[80]; 		/* double */
+	char c_delay_start[80]; 	/* long long */
+	char c_depth[80]; 		/* long long */
+	char c_stop_flag[80]; 		/* float */
+	char c_compute_time[80]; 	/* float */
 };	
 
 /* 
@@ -469,12 +532,12 @@ struct master_neutral_command {
 	char m_child_async_port[20];	/* int */
 	char m_command[20];		/* int */
 	char m_testnum[20];		/* int */
-	char m_throughput[80];		/* double */
-	char m_stop_time[80];		/* double */
-	char m_start_time[80];		/* double */
-	char m_fini_time[80];		/* double */
-	char m_stop_flag[80];		/* double */
-	char m_actual[80];		/* double */
+	char m_throughput[80];		/* float */
+	char m_stop_time[80];		/* float */
+	char m_start_time[80];		/* float */
+	char m_fini_time[80];		/* float */
+	char m_stop_flag[80];		/* float */
+	char m_actual[80];		/* float */
 	char m_child_flag[80];		/* long long */
 };	
 
@@ -519,30 +582,43 @@ struct master_neutral_command {
 #define IBUFSIZE 100
 #define DISRUPT 100
 #define LARGE_REC 65536
-#define KILOBYTES 512 			/* number of kilobytes in file */
-#define RECLEN 1024			/* number of bytes in a record */
-#define FILESIZE (KILOBYTES*1024)	/*size of file in bytes*/
-#define NUMRECS FILESIZE/RECLEN		/* number of records */
+
+/* number of kilobytes in file */
+#define KILOBYTES 512 			
+/* number of bytes in a record */
+#define RECLEN 1024			
+/*size of file in bytes*/
+#define FILESIZE (KILOBYTES*1024)	
+/* number of records */
+#define NUMRECS FILESIZE/RECLEN		
 
 #ifdef __bsdi__
-#define CROSSOVER (8*1024)		/* At 8 Meg switch to large records */
-#define MAXBUFFERSIZE (8*1024*1024)		/*maximum buffer size*/
+/* At 8 Meg switch to large records */
+#define CROSSOVER (8*1024)		
+/*maximum buffer size*/
+#define MAXBUFFERSIZE (8*1024*1024)		
 #else
-#define CROSSOVER (16*1024)		/* At 16 Meg switch to large records */
-#define MAXBUFFERSIZE (16*1024*1024)		/*maximum buffer size*/
+/* At 16 Meg switch to large records */
+#define CROSSOVER (16*1024)		
+/*maximum buffer size*/
+#define MAXBUFFERSIZE (16*1024*1024)		
 #endif
 
-#define	MAXSTREAMS	80		/* maximum number of children */
+/* maximum number of children */
+#define	MAXSTREAMS	80		
 #define MINBUFFERSIZE 128
 #define TOOFAST 10
 #define MAXTESTS 10
 #define PATTERN 0xA5
-#define MAX_X 100			/* Used for Excel internal tables */
-#define MAX_Y 200			/* Used for Excel internal tables */
+/* Used for Excel internal tables */
+#define MAX_X 100			
+/* Used for Excel internal tables */
+#define MAX_Y 200			
 #define USAGE  "\tUsage: For usage information type iozone -h \n\n"
 
 
-#define MAXNAMESIZE 1000                /* max # of characters in filename */
+/* max # of characters in filename */
+#define MAXNAMESIZE 1000                
 
 #ifdef NO_PRINT_LLD
 #ifdef HAVE_PREAD
@@ -618,11 +694,15 @@ struct master_neutral_command {
 /*
  * child_stat->flag values and transitions
  */
-#define CHILD_STATE_HOLD	0	/* parent initializes children to HOLD */
-#define CHILD_STATE_READY	1	/* child says when it's READY */
-#define CHILD_STATE_BEGIN	2	/* parent tells child to BEGIN */
-#define CHILD_STATE_DONE	3	/* child tells parent that it's DONE */
-			/* children sometimes use HOLD instead of DONE when finished */
+/* parent initializes children to HOLD */
+#define CHILD_STATE_HOLD	0	
+/* child says when it's READY */
+#define CHILD_STATE_READY	1	
+/* parent tells child to BEGIN */
+#define CHILD_STATE_BEGIN	2	
+/* child tells parent that it's DONE */
+#define CHILD_STATE_DONE	3	
+/* children sometimes use HOLD instead of DONE when finished */
 
 
 /******************************************************************/
@@ -653,8 +733,11 @@ void purgeit();			/* Purge on chip cache		  */
 void throughput_test();		/* Multi process throughput 	  */
 void multi_throughput_test();	/* Multi process throughput 	  */
 void prepage();			/* Pre-fault user buffer	  */
-double do_compute();		/* compute cycle simulation       */
-
+#if defined(linux) || defined(solaris)
+float do_compute(float);	/* compute cycle simulation       */
+#else
+float do_compute();		/* compute cycle simulation       */
+#endif
 void write_perf_test();		/* write/rewrite test		  */
 void fwrite_perf_test();	/* fwrite/refwrite test		  */
 void fread_perf_test();		/* fread/refread test		  */
@@ -698,7 +781,7 @@ void *(thread_stride_read_test)(void *);
 void *(thread_set_base)(void *);
 void *(thread_join)(long long, void *);
 void disrupt(int);
-long long get_traj(FILE *, long long *, double *, long);
+long long get_traj(FILE *, long long *, float *, long);
 void create_temp(off64_t, long long );
 FILE *open_w_traj(void);
 FILE *open_r_traj(void);
@@ -832,7 +915,7 @@ char disrupt_flag,r_traj_flag,w_traj_flag;
 char MS_flag;
 char mmapflag,mmapasflag,mmapssflag,mmapnsflag,mmap_mix;
 char compute_flag;
-double compute_time;
+float compute_time;
 struct runtime runtimes [MAX_X] [MAX_Y];	/* in parallel with report_array[][] */
 long long include_test[50];
 long long include_mask;
@@ -1098,7 +1181,7 @@ char **argv;
     	sprintf(splash[splash_line++],"\tContributors:William Norcott, Don Capps, Isom Crawford, Kirby Collins\n");
 	sprintf(splash[splash_line++],"\t             Al Slater, Scott Rhine, Mike Wisner, Ken Goss\n");
     	sprintf(splash[splash_line++],"\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR,\n");
-    	sprintf(splash[splash_line++],"\t             Randy Dunlap.\n\n");
+    	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
 	argvsave=argv;
@@ -1520,10 +1603,10 @@ char **argv;
 #endif
 			break;
 		case 'J':	/* Specify the compute time in millisecs */
-			compute_time = (double)(atoi(optarg));
+			compute_time = (float)(atoi(optarg));
 			compute_time=compute_time/1000;	
-			if(compute_time < (double)0)
-				compute_time=(double)0;
+			if(compute_time < (float)0)
+				compute_time=(float)0;
 			else
 				compute_flag=1;
 			jflag++;
@@ -2435,9 +2518,6 @@ void auto_test()
 	orig_min_rec_size=min_rec_size;
 	orig_max_rec_size=max_rec_size;
 	init_record_sizes(min_rec_size, max_rec_size);
-
-
-
 
         for(kilosi=get_next_file_size((off64_t)0); kilosi>0; kilosi=get_next_file_size(kilosi))
         {
@@ -5022,7 +5102,7 @@ long long *data2;
 		for(i=0; i<numrecs64; i++){
 			if(w_traj_flag)
 			{
-				traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(double *)&compute_time,(long)1);
+				traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(float *)&compute_time,(long)1);
 				reclen=traj_size;
 #ifdef _LARGEFILE64_SOURCE
 				lseek64(fd,(off64_t)traj_offset,SEEK_SET);
@@ -5149,7 +5229,7 @@ long long *data2;
 				fsync(fd);
 		}
 		if(file_lock)
-			if(mylockf((int) fd),(int)0,(int)0)
+			if(mylockf((int) fd,(int)0,(int)0))
 				printf("Unlock failed %d\n",errno);
 		if(include_close)
 		{
@@ -5789,7 +5869,7 @@ long long *data1,*data2;
 			}
 			if(r_traj_flag)
 			{
-				traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(double *)&compute_time, (long)0);
+				traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(float *)&compute_time, (long)0);
 				reclen=traj_size;
 #ifdef _LARGEFILE64_SOURCE
 				lseek64(fd,(off64_t)traj_offset,SEEK_SET);
@@ -8956,7 +9036,7 @@ thread_write_test( x)
 	double temp_time;
 	double walltime, cputime;
 	double compute_val = (double)0;
-	double delay = (double)0;
+	float delay = (float)0;
 	double thread_qtime_stop,thread_qtime_start;
 	off64_t traj_offset;
 	long long tt,flags,traj_size;
@@ -9176,7 +9256,7 @@ thread_write_test( x)
 	for(i=0; i<numrecs64; i++){
 		if(w_traj_flag)
 		{
-			traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(double *)&delay, (long)1);
+			traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(float *)&delay, (long)1);
 			reclen=traj_size;
 #ifdef _LARGEFILE64_SOURCE
 			lseek64(fd,(off64_t)traj_offset,SEEK_SET);
@@ -9478,7 +9558,7 @@ thread_rwrite_test(x)
 	long long tt;
 	double compute_val = (double)0;
 	double walltime, cputime;
-	double delay = (double)0;
+	float delay = (float)0;
 	double thread_qtime_stop,thread_qtime_start;
 	off64_t traj_offset;
 	long long w_traj_bytes_completed;
@@ -9668,7 +9748,7 @@ thread_rwrite_test(x)
 	for(i=0; i<numrecs64; i++){
 		if(w_traj_flag)
 		{
-			traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(double *)&delay,(long)1);
+			traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(float *)&delay,(long)1);
 			reclen=traj_size;
 #ifdef _LARGEFILE64_SOURCE
 			lseek64(fd,(off64_t)traj_offset,SEEK_SET);
@@ -9901,7 +9981,7 @@ thread_read_test(x)
 	long long flags = 0;
 	off64_t traj_offset;
 	double starttime1 = 0;
-	double delay = 0;
+	float delay = 0;
 	double temp_time;
 	double thread_qtime_start,thread_qtime_stop;
 	double compute_val = (double)0;
@@ -10088,7 +10168,7 @@ thread_read_test(x)
 		}
 		if(r_traj_flag)
 		{
-			traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(double *)&delay,(long)0);
+			traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(float *)&delay,(long)0);
 			reclen=traj_size;
 #ifdef _LARGEFILE64_SOURCE
 			lseek64(fd,(off64_t)traj_offset,SEEK_SET);
@@ -10328,7 +10408,7 @@ thread_rread_test(x)
 	off64_t traj_offset;
 	long long flags = 0;
 	double starttime1 = 0;
-	double delay = 0;
+	float delay = 0;
 	double temp_time;
 	double thread_qtime_start,thread_qtime_stop;
 	double compute_val = (double)0;
@@ -10488,8 +10568,9 @@ thread_rread_test(x)
 	}
 	else
 	
-		while(child_stat->flag==CHILD_STATE_READY)	/* wait for parent to say go */
-			Poll((long long)1);
+		/* Wait for signal from parent */
+                while(child_stat->flag!=CHILD_STATE_BEGIN)   
+                        Poll((long long)1);
 	if(file_lock)
 		if(mylockf((int) fd, (int) 1, (int)1) != 0)
 			printf("File lock for read failed. %d\n",errno);
@@ -10510,7 +10591,7 @@ thread_rread_test(x)
 		}
 		if(r_traj_flag)
 		{
-			traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(double *)&delay,(long)0);
+			traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(float *)&delay,(long)0);
 			reclen=traj_size;
 #ifdef _LARGEFILE64_SOURCE
 			lseek64(fd,(off64_t)traj_offset,SEEK_SET);
@@ -10746,7 +10827,7 @@ thread_reverse_read_test(x)
 	double walltime, cputime;
 	double thread_qtime_stop,thread_qtime_start;
 	double starttime2 = 0;
-	double delay = 0;
+	float delay = 0;
 	double temp_time;
 	double compute_val = (double)0;
 	long long recs_per_buffer;
@@ -11165,7 +11246,7 @@ thread_stride_read_test(x)
 	long long flags = 0;
 	double thread_qtime_stop,thread_qtime_start;
 	double starttime2 = 0;
-	double delay = 0;
+	float delay = 0;
 	double compute_val = (double)0;
 	double temp_time;
 	long long recs_per_buffer;
@@ -11318,7 +11399,8 @@ thread_stride_read_test(x)
         }
         else
 
-                while(child_stat->flag==CHILD_STATE_READY)      /* wait for parent to say go */
+		/* wait for parent to say go */
+                while(child_stat->flag!=CHILD_STATE_BEGIN)      
                         Poll((long long)1);
 	if(file_lock)
 		if(mylockf((int) fd, (int) 1,  (int)1)!=0)
@@ -11608,7 +11690,7 @@ thread_ranread_test(x)
 	long long flags = 0;
 	double thread_qtime_stop,thread_qtime_start;
 	double starttime1 = 0;
-	double delay = 0;
+	float delay = 0;
 	double temp_time;
 	double compute_val = (double)0;
 	off64_t written_so_far, ranread_so_far, re_written_so_far,re_read_so_far;
@@ -12026,7 +12108,7 @@ thread_ranwrite_test( x)
 	double temp_time;
 	double walltime, cputime;
 	double compute_val = (double)0;
-	double delay = (double)0;
+	float delay = (double)0;
 	double thread_qtime_stop,thread_qtime_start;
 	off64_t traj_offset;
 	off64_t current_offset=0;
@@ -13373,22 +13455,22 @@ int fd, op, rdwr;
 /************************************************************************/
 
 #ifdef HAVE_ANSIC_C
-double
-do_compute(double delay)
+float
+do_compute(float comp_delay)
 #else
-double
-do_compute(delay)
-double delay;
+float
+do_compute(comp_delay)
+float comp_delay;
 #endif
 {
 	double starttime,tmptime;
-	if(delay == (double)0)
+	if(comp_delay == (float)0)
 		return(0);
 	starttime=time_so_far();
 	while(1)
 	{	
 		tmptime=time_so_far()-starttime;
-		if(tmptime >= delay)
+		if(tmptime >= (double)comp_delay)
 			return(tmptime);
 	}
 }
@@ -13455,13 +13537,13 @@ int fd;
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 long long
-get_traj(FILE *traj_fd, long long *traj_size, double *delay, long which)
+get_traj(FILE *traj_fd, long long *traj_size, float *delay, long which)
 #else
 long long
 get_traj(traj_fd, traj_size, delay, which)
 FILE *traj_fd;
 long long *traj_size;
-double *delay;
+float *delay;
 long which;
 #endif
 {
@@ -13505,7 +13587,7 @@ long which;
 		ret=sscanf(sbuf,"%lld %lld %d\n",&traj_offset,traj_size,&tmp);
 #endif
 	/*printf("\nReading %s trajectory with %d items\n",which?"write":"read",tokens);*/
-		*delay= ((double)tmp/1000);
+		*delay= ((float)tmp/1000);
 	}
 	if(tokens == 2)
 	{ 
@@ -14306,43 +14388,64 @@ int send_size;
 	strcpy(outbuf.c_working_dir,send_buffer->c_working_dir);
 	strcpy(outbuf.c_path_dir,send_buffer->c_path_dir);
 	strcpy(outbuf.c_execute_name,send_buffer->c_execute_name);
+	strcpy(outbuf.c_write_traj_filename,send_buffer->c_write_traj_filename);
+	strcpy(outbuf.c_read_traj_filename,send_buffer->c_read_traj_filename);
 	sprintf(&outbuf.c_oflag,"%c",send_buffer->c_oflag);
 	sprintf(&outbuf.c_jflag,"%c",send_buffer->c_jflag);
 	sprintf(&outbuf.c_async_flag,"%c",send_buffer->c_async_flag);
 	sprintf(&outbuf.c_mmapflag,"%c",send_buffer->c_mmapflag);
+	sprintf(&outbuf.c_k_flag,"%c",send_buffer->c_k_flag);
+	sprintf(&outbuf.c_h_flag,"%c",send_buffer->c_h_flag);
+	sprintf(&outbuf.c_mflag,"%c",send_buffer->c_mflag);
+	sprintf(&outbuf.c_pflag,"%c",send_buffer->c_pflag);
+	sprintf(&outbuf.c_stride_flag,"%c",send_buffer->c_stride_flag);
 	sprintf(&outbuf.c_verify,"%c",send_buffer->c_verify);
+	sprintf(&outbuf.c_sverify,"%c",send_buffer->c_sverify);
 	sprintf(&outbuf.c_Q_flag,"%c",send_buffer->c_Q_flag);
 	sprintf(&outbuf.c_include_flush,"%c",send_buffer->c_include_flush);
 	sprintf(&outbuf.c_OPS_flag,"%c",send_buffer->c_OPS_flag);
 	sprintf(&outbuf.c_mmapnsflag,"%c",send_buffer->c_mmapnsflag);
 	sprintf(&outbuf.c_mmapssflag,"%c",send_buffer->c_mmapssflag);
+	sprintf(&outbuf.c_mmapasflag,"%c",send_buffer->c_mmapasflag);
 	sprintf(&outbuf.c_no_copy_flag,"%c",send_buffer->c_no_copy_flag);
 	sprintf(&outbuf.c_include_close,"%c",send_buffer->c_include_close);
 	sprintf(&outbuf.c_disrupt_flag,"%c",send_buffer->c_disrupt_flag);
 	sprintf(&outbuf.c_compute_flag,"%c",send_buffer->c_compute_flag);
 	sprintf(&outbuf.c_xflag,"%c",send_buffer->c_xflag);
+	sprintf(&outbuf.c_w_traj_flag,"%c",send_buffer->c_w_traj_flag);
+	sprintf(&outbuf.c_r_traj_flag,"%c",send_buffer->c_r_traj_flag);
+	sprintf(&outbuf.c_MS_flag,"%c",send_buffer->c_MS_flag);
+	sprintf(&outbuf.c_mmap_mix,"%c",send_buffer->c_mmap_mix);
 	sprintf(outbuf.c_direct_flag,"%d",send_buffer->c_direct_flag);
 	sprintf(outbuf.c_client_number,"%d",send_buffer->c_client_number);
 	sprintf(outbuf.c_command,"%d",send_buffer->c_command);
 	sprintf(outbuf.c_testnum,"%d",send_buffer->c_testnum);
 	sprintf(outbuf.c_no_unlink,"%d",send_buffer->c_no_unlink);
 	sprintf(outbuf.c_file_lock,"%d",send_buffer->c_file_lock);
+	sprintf(outbuf.c_pattern,"%d",send_buffer->c_pattern);
 #ifdef NO_PRINT_LLD
+	sprintf(outbuf.c_stride,"%ld",send_buffer->c_stride);
 	sprintf(outbuf.c_delay,"%ld",send_buffer->c_delay);
 	sprintf(outbuf.c_purge,"%ld",send_buffer->c_purge);
 	sprintf(outbuf.c_fetchon,"%ld",send_buffer->c_fetchon);
 	sprintf(outbuf.c_numrecs64,"%ld",send_buffer->c_numrecs64);
 	sprintf(outbuf.c_reclen,"%ld",send_buffer->c_reclen);
 	sprintf(outbuf.c_child_flag,"%ld",send_buffer->c_child_flag);
+	sprintf(outbuf.c_delay_start,"%ld",send_buffer->c_delay_start);
+	sprintf(outbuf.c_depth,"%ld",send_buffer->c_depth);
 #else
 	sprintf(outbuf.c_delay,"%lld",send_buffer->c_delay);
+	sprintf(outbuf.c_stride,"%lld",send_buffer->c_stride);
 	sprintf(outbuf.c_purge,"%lld",send_buffer->c_purge);
 	sprintf(outbuf.c_fetchon,"%lld",send_buffer->c_fetchon);
 	sprintf(outbuf.c_numrecs64,"%lld",send_buffer->c_numrecs64);
 	sprintf(outbuf.c_reclen,"%lld",send_buffer->c_reclen);
 	sprintf(outbuf.c_child_flag,"%lld",send_buffer->c_child_flag);
+	sprintf(outbuf.c_delay_start,"%lld",send_buffer->c_delay_start);
+	sprintf(outbuf.c_depth,"%lld",send_buffer->c_depth);
 #endif
 	sprintf(outbuf.c_stop_flag,"%f",send_buffer->c_stop_flag);
+	sprintf(outbuf.c_compute_time,"%f",send_buffer->c_compute_time);
 
 	if(mdebug >= 1)
 		printf("Master sending message to %s \n",host_name);
@@ -14391,7 +14494,7 @@ char *controlling_host_name;
 #ifndef UWIN
 	if(cdebug ==1)
 	{
-        	fprintf(newstdout,"Child: server host: %s\n", (char *)inet_ntoa(ip->s_addr));
+        	fprintf(newstdout,"Child: server host: %s\n", (char *)inet_ntoa(*ip));
 		fflush(newstdout);
 	}
 #endif
@@ -14748,7 +14851,7 @@ struct in_addr *my_s_addr;
 #ifndef UWIN
 	if(mdebug ==1)
 	{
-        	printf("Master: child name: %s\n", (char *)inet_ntoa(ip->s_addr));
+        	printf("Master: child name: %s\n", (char *)inet_ntoa(*ip));
         	printf("Master: child Port: %d\n", child_port);
 		fflush(stdout);
 	}
@@ -15013,6 +15116,8 @@ long long numrecs64, reclen;
 	strcpy(cc.c_host_name ,controlling_host_name);
 	strcpy(cc.c_client_name ,child_idents[x-1].child_name);
 	strcpy(cc.c_working_dir ,child_idents[x-1].workdir);
+	strcpy(cc.c_write_traj_filename ,write_traj_filename);
+	strcpy(cc.c_read_traj_filename ,read_traj_filename);
 	cc.c_command = R_JOIN_ACK;
 	cc.c_client_number = x-1;
 	cc.c_testnum = testnum;
@@ -15022,15 +15127,25 @@ long long numrecs64, reclen;
 	cc.c_jflag = jflag;
 	cc.c_direct_flag = direct_flag;
 	cc.c_async_flag = async_flag;
-	cc.c_mmapflag = mmapflag;
+	cc.c_k_flag = k_flag;
+	cc.c_h_flag = h_flag;
+	cc.c_mflag = mflag;
+	cc.c_pflag = pflag;
+	cc.c_stride_flag = stride_flag;
 	cc.c_fetchon = fetchon;
 	cc.c_verify = verify;
+	cc.c_sverify = sverify;
 	cc.c_file_lock = file_lock;
+	cc.c_pattern = pattern;
 	cc.c_Q_flag = Q_flag;
 	cc.c_xflag = xflag;
+	cc.c_w_traj_flag = w_traj_flag;
+	cc.c_r_traj_flag = r_traj_flag;
 	cc.c_include_flush = include_flush;
 	cc.c_OPS_flag = OPS_flag;
 	cc.c_purge = purge;
+	cc.c_mmapflag = mmapflag;
+	cc.c_mmapasflag = mmapasflag;
 	cc.c_mmapnsflag = mmapnsflag;
 	cc.c_mmapssflag = mmapssflag;
 	cc.c_no_copy_flag = no_copy_flag;
@@ -15039,6 +15154,12 @@ long long numrecs64, reclen;
 	cc.c_disrupt_flag = disrupt_flag;
 	cc.c_compute_flag = compute_flag;
 	cc.c_delay = delay;
+	cc.c_stride = stride;
+	cc.c_delay_start = delay_start;
+	cc.c_compute_time = compute_time;
+	cc.c_depth = depth;
+	cc.c_MS_flag = MS_flag;
+	cc.c_mmap_mix = mmap_mix;
 
 
 	if(mdebug)
@@ -15196,27 +15317,45 @@ become_client()
 	sscanf(cnc->c_fetchon,"%ld",&cc.c_fetchon);
 	sscanf(cnc->c_purge,"%ld",&cc.c_purge);
 	sscanf(cnc->c_delay,"%ld",&cc.c_delay);
+	sscanf(cnc->c_stride,"%ld",&cc.c_stride);
+	sscanf(cnc->c_delay_start,"%ld",&cc.c_delay_start);
+	sscanf(cnc->c_depth,"%ld",&cc.c_depth);
 #else
 	sscanf(cnc->c_numrecs64,"%lld",&cc.c_numrecs64);
 	sscanf(cnc->c_reclen,"%lld",&cc.c_reclen);
 	sscanf(cnc->c_fetchon,"%lld",&cc.c_fetchon);
 	sscanf(cnc->c_purge,"%lld",&cc.c_purge);
 	sscanf(cnc->c_delay,"%lld",&cc.c_delay);
+	sscanf(cnc->c_stride,"%lld",&cc.c_stride);
+	sscanf(cnc->c_delay_start,"%lld",&cc.c_delay_start);
+	sscanf(cnc->c_depth,"%lld",&cc.c_depth);
 #endif
 	sscanf(cnc->c_testnum,"%d",&cc.c_testnum);
 	sscanf(cnc->c_client_number,"%d",&cc.c_client_number);
 	sscanf(cnc->c_working_dir,"%s",cc.c_working_dir);
+	sscanf(cnc->c_write_traj_filename,"%s",cc.c_write_traj_filename);
+	sscanf(cnc->c_read_traj_filename,"%s",cc.c_read_traj_filename);
 	sscanf(&cnc->c_oflag,"%c",&cc.c_oflag);
 	sscanf(&cnc->c_jflag,"%c",&cc.c_jflag);
 	sscanf(cnc->c_direct_flag,"%d",&cc.c_direct_flag);
 	sscanf(&cnc->c_async_flag,"%c",&cc.c_async_flag);
-	sscanf(&cnc->c_mmapflag,"%c",&cc.c_mmapflag);
+	sscanf(&cnc->c_k_flag,"%c",&cc.c_k_flag);
+	sscanf(&cnc->c_h_flag,"%c",&cc.c_h_flag);
+	sscanf(&cnc->c_mflag,"%c",&cc.c_mflag);
+	sscanf(&cnc->c_pflag,"%c",&cc.c_pflag);
+	sscanf(&cnc->c_stride_flag,"%c",&cc.c_stride_flag);
 	sscanf(&cnc->c_verify,"%c",&cc.c_verify);
+	sscanf(&cnc->c_sverify,"%c",&cc.c_sverify);
 	sscanf(cnc->c_file_lock,"%d",&cc.c_file_lock);
+	sscanf(cnc->c_pattern,"%d",&cc.c_pattern);
 	sscanf(&cnc->c_Q_flag,"%c",&cc.c_Q_flag);
 	sscanf(&cnc->c_xflag,"%c",&cc.c_xflag);
+	sscanf(&cnc->c_w_traj_flag,"%c",&cc.c_w_traj_flag);
+	sscanf(&cnc->c_r_traj_flag,"%c",&cc.c_r_traj_flag);
 	sscanf(&cnc->c_include_flush,"%c",&cc.c_include_flush);
 	sscanf(&cnc->c_OPS_flag,"%c",&cc.c_OPS_flag);
+	sscanf(&cnc->c_mmapflag,"%c",&cc.c_mmapflag);
+	sscanf(&cnc->c_mmapasflag,"%c",&cc.c_mmapasflag);
 	sscanf(&cnc->c_mmapnsflag,"%c",&cc.c_mmapnsflag);
 	sscanf(&cnc->c_mmapssflag,"%c",&cc.c_mmapssflag);
 	sscanf(&cnc->c_no_copy_flag,"%c",&cc.c_no_copy_flag);
@@ -15224,7 +15363,12 @@ become_client()
 	sscanf(&cnc->c_include_close,"%c",&cc.c_include_close);
 	sscanf(&cnc->c_disrupt_flag,"%c",&cc.c_disrupt_flag);
 	sscanf(&cnc->c_compute_flag,"%c",&cc.c_compute_flag);
+	sscanf(&cnc->c_MS_flag,"%c",&cc.c_MS_flag);
+	sscanf(&cnc->c_mmap_mix,"%c",&cc.c_mmap_mix);
+	sscanf(cnc->c_compute_time,"%f",&cc.c_compute_time);
 
+	strcpy(write_traj_filename,cc.c_write_traj_filename);
+	strcpy(read_traj_filename,cc.c_read_traj_filename);
 	numrecs64 = cc.c_numrecs64;
 	reclen = cc.c_reclen;
 	testnum = cc.c_testnum;
@@ -15234,15 +15378,25 @@ become_client()
 	jflag = cc.c_jflag;
 	direct_flag = cc.c_direct_flag;
 	async_flag = cc.c_async_flag;
-	mmapflag = cc.c_mmapflag;
+	k_flag = cc.c_k_flag;
+	h_flag = cc.c_h_flag;
+	mflag = cc.c_mflag;
+	pflag = cc.c_pflag;
+	stride_flag = cc.c_stride_flag;
 	fetchon = cc.c_fetchon;
 	verify = cc.c_verify;
+	sverify = cc.c_sverify;
 	file_lock = cc.c_file_lock;
+	pattern = cc.c_pattern;
 	Q_flag = cc.c_Q_flag;
 	xflag = cc.c_xflag;
+	w_traj_flag = cc.c_w_traj_flag;
+	r_traj_flag = cc.c_r_traj_flag;
 	include_flush = cc.c_include_flush;
 	OPS_flag = cc.c_OPS_flag;
 	purge = cc.c_purge;
+	mmapflag = cc.c_mmapflag;
+	mmapasflag = cc.c_mmapasflag;
 	mmapnsflag = cc.c_mmapnsflag;
 	mmapssflag = cc.c_mmapssflag; 
 	no_copy_flag = cc.c_no_copy_flag;
@@ -15250,7 +15404,13 @@ become_client()
 	include_close = cc.c_include_close;
 	disrupt_flag = cc.c_disrupt_flag;
 	compute_flag = cc.c_compute_flag;
+	MS_flag = cc.c_MS_flag;
+	mmap_mix = cc.c_mmap_mix;
 	delay = cc.c_delay;
+	stride = cc.c_stride;
+	depth = cc.c_depth;
+	delay_start = cc.c_delay_start;
+	compute_time = cc.c_compute_time;
 	if(cdebug)
 	{
 		fprintf(newstdout,"Child change directory to %s\n",workdir);
