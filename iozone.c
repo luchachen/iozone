@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.458 $"
+#define THISVERSION "        Version $Revision: 3.459 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -280,7 +280,7 @@ THISVERSION,
 #include <stdio.h>
 #include <signal.h>
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(__solaris__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(solaris)
   #ifndef my_sig_t
   typedef void (*my_sig_t)(int);
   #endif
@@ -1001,7 +1001,7 @@ float do_compute(float);	/* compute cycle simulation       */
 void begin(off64_t,long long);
 void record_command_line(int, char **);
 void show_help(void);		/* show development help          */
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(__solaris__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(solaris)
 my_sig_t signal_handler(void);	/* clean up if user interrupts us */
 #else
 sighandler_t signal_handler(void);	/* clean up if user interrupts us */
@@ -1118,7 +1118,7 @@ float do_compute();		/* compute cycle simulation       */
 void begin();
 void record_command_line();
 void show_help();
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(__solaris__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(solaris)
 my_sig_t signal_handler(); /* clean up if user interrupts us */
 #else
 sighandler_t signal_handler(); /* clean up if user interrupts us */
@@ -1877,7 +1877,7 @@ char **argv;
 	argvsave=argv;
 
 #ifndef NO_SIGNAL
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(__solaris__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(solaris)
     	signal((int) SIGINT, (my_sig_t) signal_handler);   /* handle user interrupt */
     	signal((int) SIGTERM, (my_sig_t) signal_handler);  /* handle kill from shell */
 #else
@@ -3610,13 +3610,13 @@ void show_help()
 
 ******************************************************************/
 #ifdef HAVE_ANSIC_C
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(__solaris__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(solaris)
 my_sig_t signal_handler(void)
 #else
 sighandler_t signal_handler(void)
 #endif
 #else
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(__solaris__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(solaris)
 my_sig_t signal_handler()
 #else
 sighandler_t signal_handler()
