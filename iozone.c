@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.396 $"
+#define THISVERSION "        Version $Revision: 3.397 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -2698,7 +2698,7 @@ char **argv;
 			}	
 			break;
 		default:
-			printf("Unsupported option -> %c <-\n",(char)cret);
+			printf("Unsupported option -> %s <-\n",optarg);
 			exit(255);
 		}
 	}

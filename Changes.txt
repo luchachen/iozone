@@ -2401,3 +2401,6 @@ Add warnings for default switch cases, and exit with value for unknowns.
 Revision 3.396
 Fix warnings from RedHat patches
 =============================================================================
+Revision 3.397
+Bug fix for getopt default case, with bad parameter handed in.
+=============================================================================
