@@ -1304,5 +1304,10 @@ Bug fix for CPU utilization in normal mode.
 Revision 3.78
 =============================================================================
 Fix compatibility with AIX for shmat()
+=============================================================================
+Revision 3.79
+=============================================================================
+Fix throughput labels when user is selecting specific tests with -i option.
+
 
 

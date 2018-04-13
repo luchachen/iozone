@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.78 $"
+#define THISVERSION "        Version $Revision: 3.79 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -919,7 +919,8 @@ int master_listen_socket;
 int clients_found;
 char controlling_host_name[256];
 FILE *newstdin, *newstdout, *newerrout;
-
+char toutput[20][20];
+int toutputindex;
 int cdebug = 0;
 int mdebug = 0;
 
@@ -2435,6 +2436,8 @@ throughput_test()
 	double min_xfer = 0; 
 
 
+	toutputindex=0;
+	strcpy(&toutput[0][0],throughput_tests[0]);
 	ptotal=written_so_far=read_so_far=re_written_so_far=re_read_so_far=0 ;
 
 	if(OPS_flag)
@@ -2772,6 +2775,8 @@ waitout:
 	cputime = 0.0;
 	jstarttime=0;
 	total_kilos=0;
+	toutputindex=1;
+	strcpy(&toutput[1][0],throughput_tests[1]);
 	/* Hooks to start the distributed Iozone client/server code */
 	if(distributed)
 	{
@@ -2987,6 +2992,8 @@ next0:
 	/**************************************************************/
 	/*** Reader throughput tests **********************************/
 	/**************************************************************/
+	toutputindex++;
+	strcpy(&toutput[toutputindex][0],throughput_tests[2]);
 	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
@@ -3195,6 +3202,8 @@ jumpend:
 	/**************************************************************/
 	/*** ReReader throughput tests **********************************/
 	/**************************************************************/
+	toutputindex++;
+	strcpy(&toutput[toutputindex][0],throughput_tests[3]);
 	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
@@ -3407,6 +3416,8 @@ next1:
 	/**************************************************************/
 	/*** Reverse reader throughput tests **************************/
 	/**************************************************************/
+	toutputindex++;
+	strcpy(&toutput[toutputindex][0],throughput_tests[4]);
 	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
@@ -3611,6 +3622,8 @@ next2:
 	/**************************************************************/
 	/*** stride reader throughput tests **************************/
 	/**************************************************************/
+	toutputindex++;
+	strcpy(&toutput[toutputindex][0],throughput_tests[5]);
 	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
@@ -3818,6 +3831,8 @@ next3:
 		if(!(include_mask & RANDOM_RW_MASK))
 			goto next4;
 	
+	toutputindex++;
+	strcpy(&toutput[toutputindex][0],throughput_tests[6]);
 	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
@@ -4024,6 +4039,8 @@ next4:
 		if(!(include_mask & RANDOM_RW_MASK))
 			goto next5;
 	
+	toutputindex++;
+	strcpy(&toutput[toutputindex][0],throughput_tests[7]);
 	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
@@ -8094,6 +8111,7 @@ void dump_excel(void)
 void dump_excel()
 #endif
 {
+	printf("include_mask = %llx\n",include_mask);
 	if(bif_flag)
 	{
 		bif_fd=create_xls(bif_filename);
@@ -12506,7 +12524,6 @@ dump_throughput()
 #endif
 {
 	long long x,y,i,j;
-	int step,sel,skip;
 	char *port;
 	char *label;
 	char print_str[300];
@@ -12549,70 +12566,29 @@ dump_throughput()
 		sprintf(print_str,"Output is in %s",label);
 		do_label(bif_fd,print_str,bif_row++,bif_column);
 	}
-	step=0;
-	skip=0;
-	sel=-1;
-	for(i=0;i<x;i++)
+	for(i=0;i<=toutputindex;i++)
 	{
-		if(!include_tflag)
-			skip=1;
-		if(!skip)
-		{
-			for( ; step < 12 ; step++)
-			{
-				if(include_test[step])
-					break;
-			}
-			switch (step) {
-			case 0: 
-				sel = 0;
-				skip=1;
-				break;
-			case 1: 
-				sel = 2;
-				skip=1;
-				break;
-			case 2: 
-				sel = 6;
-				skip=1;
-				break;
-			case 3: 
-				sel = 4;
-				skip=0;
-				break;
-			case 5: 
-				sel = 5;
-				skip=0;
-				break;
-			}
-		}else
-		{
-			sel++;
-			skip=0;
-		}
-		step++;
-		
-		if(!silent) printf("\"%15s \"",throughput_tests[sel]);
-		if(bif_flag)
-		{
-			sprintf(print_str,"%15s ",throughput_tests[sel]);
-			do_label(bif_fd,print_str,bif_row,bif_column++);
-			bif_column++;
-		}
-		for(j=0;j<=y;j++)
-		{
-			if(bif_flag)
-			{
-				do_float(bif_fd,(double)report_darray[i][j],bif_row,bif_column++);
-			}
-			if(!silent) printf("%10.2f ",report_darray[i][j]);
-		}
-		if(!silent) printf("\n\n");
-		if(bif_flag)
-		{
-			bif_column=0;
-			bif_row++;
-		}
+		   if(!silent) printf("\"%15s \"",toutput[i]);
+		   if(bif_flag)
+		   {
+			   sprintf(print_str,"%15s ",toutput[i]);
+			   do_label(bif_fd,print_str,bif_row,bif_column++);
+			   bif_column++;
+		   }
+		   for(j=0;j<=y;j++)
+		   {
+			   if(bif_flag)
+			   {
+				   do_float(bif_fd,(double)report_darray[i][j],bif_row,bif_column++);
+			   }
+			   if(!silent) printf("%10.2f ",report_darray[i][j]);
+		   }
+		   if(!silent) printf("\n\n");
+		   if(bif_flag)
+		   {
+			   bif_column=0;
+			   bif_row++;
+		   }
 	}
 	if (cpuutilflag)
 		dump_throughput_cpu();
