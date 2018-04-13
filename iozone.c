@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.382 $"
+#define THISVERSION "        Version $Revision: 3.383 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -19792,7 +19792,7 @@ start_master_listen()
 	struct sockaddr_in addr;
 	int recv_buf_size=65536*4;
 #if defined(Windows)
-	struct linger dummy={0,0};
+	struct linger dummy={1,0};
 #endif
 
         s = socket(AF_INET, SOCK_STREAM, 0);
@@ -20278,7 +20278,7 @@ int size_of_message;
 	int sockerr;
 	int recv_buf_size=65536;
 #if defined(Windows)
-	struct linger dummy={0,0};
+	struct linger dummy={1,0};
 #endif
 	xx = 0;
 	tsize=size_of_message; /* Number of messages to receive */
