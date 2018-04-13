@@ -1333,5 +1333,11 @@ Revision 3.92
 =============================================================================
 Add a small sleep in the client so the master's terminate message 
 can arrive before the client exits and closes the channel.
-
-
+=============================================================================
+Revision 3.93 
+=============================================================================
+Add support for UWIN (Unix for Windows)
+=============================================================================
+Revision 3.94 
+=============================================================================
+Bug fix for client's working dir in cluster mode.

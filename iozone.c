@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.93 $"
+#define THISVERSION "        Version $Revision: 3.94 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -15205,7 +15205,7 @@ become_client()
 #endif
 	sscanf(cnc->c_testnum,"%d",&cc.c_testnum);
 	sscanf(cnc->c_client_number,"%d",&cc.c_client_number);
-	sscanf(cnc->c_working_dir,"%d",cc.c_working_dir);
+	sscanf(cnc->c_working_dir,"%s",cc.c_working_dir);
 	sscanf(&cnc->c_oflag,"%c",&cc.c_oflag);
 	sscanf(&cnc->c_jflag,"%c",&cc.c_jflag);
 	sscanf(cnc->c_direct_flag,"%d",&cc.c_direct_flag);
