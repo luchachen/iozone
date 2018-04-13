@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.114 $"
+#define THISVERSION "        Version $Revision: 3.115 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -14608,6 +14608,9 @@ int sock, size_of_message;
 	int rcvd;
 	int s;
 	int rc;
+	char *cnc;
+
+	cnc = (char *)&child_rcv_buf[0];
 	s = sock;
 	tsize=size_of_message; /* Number of messages to receive */
 	rcvd = 0;
@@ -14619,7 +14622,7 @@ int sock, size_of_message;
 			fflush(newstdout);
 		}
 		/*rc=recv(s,child_rcv_buf,size_of_message,0);*/
-		rc=read(s,child_rcv_buf,size_of_message);
+		rc=read(s,cnc,size_of_message);
 		if(rc < 0)
 		{
 			perror("Read failed\n");
@@ -14631,6 +14634,7 @@ int sock, size_of_message;
 			fflush(newstdout);
 		}
 		rcvd+=rc;
+		cnc+=rc;
 	}
 	if(cdebug >= 1)
 	{
@@ -14710,6 +14714,9 @@ int sock, size_of_message;
 	int rcvd;
 	int s;
 	int rc;
+	char *cnc;
+
+	cnc = &child_async_rcv_buf[0];
 	s = sock;
 	tsize=size_of_message; /* Number of messages to receive */
 	rcvd = 0;
@@ -14721,7 +14728,7 @@ int sock, size_of_message;
 			fflush(newstdout);
 		}
 		/*rc=recv(s,child_async_rcv_buf,size_of_message,0);*/
-		rc=read(s,child_async_rcv_buf,size_of_message);
+		rc=read(s,cnc,size_of_message);
 		if(rc < 0)
 		{
 			perror("Read failed\n");
@@ -14733,6 +14740,7 @@ int sock, size_of_message;
 			fflush(newstdout);
 		}
 		rcvd+=rc;
+		cnc+=rc;
 	}
 	if(cdebug >= 1)
 	{
