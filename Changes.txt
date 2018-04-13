@@ -2105,3 +2105,18 @@ Make non-dedupable more unique.
 =============================================================================
 Revision 3.291
 Bug fix for non-dedup.
+=============================================================================
+Revision 3.292
+Make random offsets unique, using Knuth shuffle.
+=============================================================================
+Revision 3.292
+free memory used for random offset uniqueness.
+=============================================================================
+Revision 3.294
+Make unique/random offsets 64bits.
+=============================================================================
+Revision 3.295
+Add fallback for random/unique.
+=============================================================================
+Revision 3.296
+Make non-dedup region more unique

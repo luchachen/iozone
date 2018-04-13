@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.291 $"
+#define THISVERSION "        Version $Revision: 3.296 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -7902,9 +7902,9 @@ long long *data1, *data2;
 	double walltime[2], cputime[2];
 	double compute_val = (double)0;
 #if defined (bsd4_2) || defined(Windows)
-	long long big_rand;
 	long long rand1,rand2,rand3;
 #endif
+	long long big_rand;
 	long long j;
 	off64_t i,numrecs64;
 	long long Index=0;
@@ -7916,6 +7916,7 @@ long long *data1, *data2;
 	char *wmaddr,*nbuff;
 	char *maddr,*free_addr;
 	int fd,wval;
+	long long *recnum= 0;
 #ifdef VXFS
 	int test_foo=0;
 #endif
@@ -7927,6 +7928,49 @@ long long *data1, *data2;
 
 	maddr=free_addr=0;
 	numrecs64 = (kilo64*1024)/reclen;
+#ifdef bsd4_2
+        srand(0);
+#else
+#ifdef Windows
+        srand(0);
+#else
+        srand48(0);
+#endif
+#endif
+        recnum = (long long *)malloc(sizeof(*recnum)*numrecs64);
+        if (recnum){
+             /* pre-compute random sequence based on 
+		Fischer-Yates (Knuth) card shuffle */
+            for(i = 0; i < numrecs64; i++){
+                recnum[i] = i;
+            }
+            for(i = 0; i < numrecs64; i++) {
+                long long tmp = recnum[i];
+#ifdef bsd4_2
+               rand1=(long long)rand();
+               rand2=(long long)rand();
+               rand3=(long long)rand();
+               big_rand=(rand1<<32)|(rand2<<16)|(rand3);
+#else
+#ifdef Windows
+               rand1=(long long)rand();
+               rand2=(long long)rand();
+               rand3=(long long)rand();
+               big_rand=(rand1<<32)|(rand2<<16)|(rand3);
+#else
+               big_rand = lrand48();
+#endif
+#endif
+               big_rand = big_rand%numrecs64;
+               tmp = recnum[i];
+               recnum[i] = recnum[big_rand];
+               recnum[big_rand] = tmp;
+            }
+        }
+	else
+	{
+		fprintf(stderr,"Random uniqueness fallback.\n");
+	}
 	flags = O_RDWR;
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
@@ -8016,23 +8060,30 @@ long long *data1, *data2;
                         }
 			if(purge)
 				purgeit(nbuff,reclen);
+                        if (recnum) {
+				offset64 = reclen * (long long)recnum[i];
+                        }
+			else
+			{
+
 #ifdef bsd4_2
-			rand1=(long long)rand();
-			rand2=(long long)rand();
-			rand3=(long long)rand();
-			big_rand=(rand1<<32)|(rand2<<16)|(rand3);
-                        offset64 = reclen * (big_rand%numrecs64);
+			   rand1=(long long)rand();
+			   rand2=(long long)rand();
+			   rand3=(long long)rand();
+			   big_rand=(rand1<<32)|(rand2<<16)|(rand3);
+                           offset64 = reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
-			rand1=(long long)rand();
-			rand2=(long long)rand();
-			rand3=(long long)rand();
-			big_rand=(rand1<<32)|(rand2<<16)|(rand3);
-                        offset64 = reclen * (big_rand%numrecs64);
+			   rand1=(long long)rand();
+			   rand2=(long long)rand();
+			   rand3=(long long)rand();
+			   big_rand=(rand1<<32)|(rand2<<16)|(rand3);
+                           offset64 = reclen * (big_rand%numrecs64);
 #else
-			offset64 = reclen * (lrand48()%numrecs64);
+			   offset64 = reclen * (lrand48()%numrecs64);
 #endif
 #endif
+			}
 
 			if( !(h_flag || k_flag || mmapflag))
 			{
@@ -8119,23 +8170,29 @@ long long *data1, *data2;
                                	         Index=0;
                                	    nbuff = mbuffer + Index;
                         	}
+                                if (recnum) {
+				  offset64 = reclen * (long long)recnum[i];
+                                }
+			        else
+			        {
 #ifdef bsd4_2
-				rand1=(long long)rand();
-				rand2=(long long)rand();
-				rand3=(long long)rand();
-				big_rand=(rand1<<32)|(rand2<<16)|(rand3);
-				offset64 = reclen * (big_rand%numrecs64);
+				  rand1=(long long)rand();
+				  rand2=(long long)rand();
+				  rand3=(long long)rand();
+				  big_rand=(rand1<<32)|(rand2<<16)|(rand3);
+				  offset64 = reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
-				rand1=(long long)rand();
-				rand2=(long long)rand();
-				rand3=(long long)rand();
-				big_rand=(rand1<<32)|(rand2<<16)|(rand3);
-				offset64 = reclen * (big_rand%numrecs64);
+				  rand1=(long long)rand();
+				  rand2=(long long)rand();
+				  rand3=(long long)rand();
+				  big_rand=(rand1<<32)|(rand2<<16)|(rand3);
+				  offset64 = reclen * (big_rand%numrecs64);
 #else
-				offset64 = reclen * (lrand48()%numrecs64);
+				  offset64 = reclen * (lrand48()%numrecs64);
 #endif
 #endif
+				}
 				if(async_flag && no_copy_flag)
 				{
 					free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
@@ -8315,6 +8372,8 @@ long long *data1, *data2;
 	if(!silent) printf("%8lld",randreadrate[1]);
 	if(!silent) fflush(stdout);
 #endif
+	if(recnum)
+		free(recnum);
 }
 
 /************************************************************************/
@@ -15581,20 +15640,64 @@ thread_ranread_test(x)
 	char now_string[30];
 	FILE *thread_randrfd=0;
 	FILE *thread_Lwqfd=0;
+	long long *recnum=0;
 #ifdef VXFS
 	int test_foo = 0;
 #endif
 	long long save_pos;
 #if defined (bsd4_2) || defined(Windows)
 	long long rand1,rand2,rand3;
-	long long big_rand;
 #endif
+	long long big_rand;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
 	long long *gc=0;
 #endif
 
+#ifdef bsd4_2
+        srand(0);
+#else
+#ifdef Windows
+        srand(0);
+#else
+        srand48(0);
+#endif
+#endif
+        recnum = (long long *)malloc(sizeof(*recnum)*numrecs64);
+        if (recnum){
+             /* pre-compute random sequence based on 
+		Fischer-Yates (Knuth) card shuffle */
+            for(i = 0; i < numrecs64; i++){
+                recnum[i] = i;
+            }
+            for(i = 0; i < numrecs64; i++) {
+                long long tmp = recnum[i];
+#ifdef bsd4_2
+               rand1=(long long)rand();
+               rand2=(long long)rand();
+               rand3=(long long)rand();
+               big_rand=(rand1<<32)|(rand2<<16)|(rand3);
+#else
+#ifdef Windows
+               rand1=(long long)rand();
+               rand2=(long long)rand();
+               rand3=(long long)rand();
+               big_rand=(rand1<<32)|(rand2<<16)|(rand3);
+#else
+               big_rand = lrand48();
+#endif
+#endif
+               big_rand = big_rand%numrecs64;
+               tmp = recnum[i];
+               recnum[i] = recnum[big_rand];
+               recnum[big_rand] = tmp;
+            }
+        }
+	else
+	{
+		fprintf(stderr,"Random uniqueness fallback.\n");
+	}
 	if(compute_flag)
 		delay=compute_time;
 	thread_qtime_stop=thread_qtime_start=0;
@@ -15798,23 +15901,27 @@ thread_ranread_test(x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
+		if (recnum) {
+			current_offset = reclen * (long long)recnum[i];
+                } else {
 #ifdef bsd4_2
-		rand1=(long long)rand();
-		rand2=(long long)rand();
-		rand3=(long long)rand();
-		big_rand=(rand1<<32)|(rand2<<16)|(rand3);
-		current_offset = (off64_t)reclen * (big_rand%numrecs64);
+		   rand1=(long long)rand();
+		   rand2=(long long)rand();
+		   rand3=(long long)rand();
+		   big_rand=(rand1<<32)|(rand2<<16)|(rand3);
+		   current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
-		rand1=(long long)rand();
-		rand2=(long long)rand();
-		rand3=(long long)rand();
-		big_rand=(rand1<<32)|(rand2<<16)|(rand3);
-		current_offset = (off64_t)reclen * (big_rand%numrecs64);
+		   rand1=(long long)rand();
+		   rand2=(long long)rand();
+		   rand3=(long long)rand();
+		   big_rand=(rand1<<32)|(rand2<<16)|(rand3);
+		   current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
-		current_offset = reclen * (lrand48()%numrecs64);
+		   current_offset = reclen * (lrand48()%numrecs64);
 #endif
 #endif
+		}
 
 		if (!(h_flag || k_flag || mmapflag))
 		{
@@ -16022,6 +16129,8 @@ thread_ranread_test(x)
 		fprintf(thread_Lwqfd,"%-25s %s","Random read finished: ",now_string);
 		fclose(thread_Lwqfd);
 	}
+	if(recnum)
+		free(recnum);
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -16076,13 +16185,14 @@ thread_ranwrite_test( x)
 	char now_string[30];
 	FILE *thread_randwqfd=0;
 	FILE *thread_Lwqfd=0;
+	long long *recnum = 0;
 #ifdef VXFS
 	int test_foo = 0;
 #endif
 #if defined (bsd4_2) || defined(Windows)
 	long long rand1,rand2,rand3;
-	long long big_rand;
 #endif
+	long long big_rand;
 
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -16100,6 +16210,49 @@ thread_ranwrite_test( x)
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
 	w_traj_bytes_completed=w_traj_ops_completed=0;
 	recs_per_buffer = cache_size/reclen ;
+#ifdef bsd4_2
+        srand(0);
+#else
+#ifdef Windows
+        srand(0);
+#else
+        srand48(0);
+#endif
+#endif
+        recnum = (long long *) malloc(sizeof(*recnum)*numrecs64);
+        if (recnum){
+             /* pre-compute random sequence based on 
+		Fischer-Yates (Knuth) card shuffle */
+            for(i = 0; i < numrecs64; i++){
+                recnum[i] = i;
+            }
+            for(i = 0; i < numrecs64; i++) {
+                long long tmp = recnum[i];
+#ifdef bsd4_2
+               rand1=(long long)rand();
+               rand2=(long long)rand();
+               rand3=(long long)rand();
+               big_rand=(rand1<<32)|(rand2<<16)|(rand3);
+#else
+#ifdef Windows
+               rand1=(long long)rand();
+               rand2=(long long)rand();
+               rand3=(long long)rand();
+               big_rand=(rand1<<32)|(rand2<<16)|(rand3);
+#else
+               big_rand = lrand48();
+#endif
+#endif
+               big_rand = big_rand%numrecs64;
+               tmp = recnum[i];
+               recnum[i] = recnum[big_rand];
+               recnum[big_rand] = tmp;
+            }
+        }
+	else
+	{
+		fprintf(stderr,"Random uniqueness fallback.\n");
+	}
 #ifdef NO_THREADS
 	xx=chid;
 #else
@@ -16303,23 +16456,27 @@ thread_ranwrite_test( x)
 	for(i=0; i<numrecs64; i++){
 		if(compute_flag)
 			compute_val+=do_compute(delay);
+		if (recnum) {
+			current_offset = reclen * (long long)recnum[i];
+                } else {
 #ifdef bsd4_2
-		rand1=rand();
-		rand2=rand();
-		rand3=rand();
-		big_rand=(rand1<<32)|(rand2<<16)|(rand3);
-		current_offset = (off64_t)reclen * (big_rand%numrecs64);
+		   rand1=rand();
+		   rand2=rand();
+		   rand3=rand();
+		   big_rand=(rand1<<32)|(rand2<<16)|(rand3);
+		   current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
-		rand1=rand();
-		rand2=rand();
-		rand3=rand();
-		big_rand=(rand1<<32)|(rand2<<16)|(rand3);
-		current_offset = (off64_t)reclen * (big_rand%numrecs64);
+		   rand1=rand();
+		   rand2=rand();
+		   rand3=rand();
+		   big_rand=(rand1<<32)|(rand2<<16)|(rand3);
+		   current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
-		current_offset = reclen * (lrand48()%numrecs64);
+		   current_offset = reclen * (lrand48()%numrecs64);
 #endif
 #endif
+		}
 
 		if (!(h_flag || k_flag || mmapflag))
 		{
@@ -16597,6 +16754,8 @@ again:
 			now_string);
 		fclose(thread_Lwqfd);
 	}
+	if(recnum)
+		free(recnum);
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -21666,7 +21825,7 @@ gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,int all)
 	if(percent < 100)
 	{
 		isize=size/sizeof(long);
-		srand(chid+1+seed);
+		srand(chid+1+seed+(chid*(int)numrecs64));
 		value=rand();
 		for( ; x<isize;x++)
 			*op++=(*ip++)^value; /* randomize the remainder */
