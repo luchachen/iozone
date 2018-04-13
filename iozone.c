@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.52 $"
+#define THISVERSION "        Version $Revision: 3.53 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -3380,7 +3380,7 @@ long long *data2;
 	off64_t filebytes64;
 	char *maddr;
 	char *wmaddr,*free_addr;
-	int fd,returnval,foo;
+	int fd,returnval,foo,wval;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 
@@ -3476,14 +3476,16 @@ long long *data2;
 		}
 		if(mmap_mix)
 		{
-			if(write(fd, buffer, (size_t) 1) != 1)
+			wval=write(fd, buffer, (size_t) 1);
+			if(wval != 1)
 			{
 #ifdef NO_PRINT_LLD
 			    	printf("\nError writing block %ld, fd= %d\n", (long long)0, fd);
 #else
 			    	printf("\nError writing block %lld, fd= %d\n", (long long)0, fd);
 #endif
-				perror("write");
+				if(wval==-1)
+					perror("write");
 				signal_handler();
 			}
 #ifdef _LARGEFILE64_SOURCE
@@ -3584,7 +3586,8 @@ long long *data2;
 			  }
 			  else
 			  {
-			    if(write(fd, buffer, (size_t ) reclen) != reclen)
+			    wval=write(fd, buffer, (size_t ) reclen);
+			    if(wval != reclen)
 			    {
 #ifdef NO_PRINT_LLD
 			    	printf("\nError writing block %ld, fd= %d\n", i,
@@ -3593,7 +3596,8 @@ long long *data2;
 			    	printf("\nError writing block %lld, fd= %d\n", i,
 					 fd);
 #endif
-				perror("write");
+			    	if(wval == -1)
+					perror("write");
 				signal_handler();
 			    }
 			  }
@@ -4458,7 +4462,7 @@ long long *data1, *data2;
 	volatile char *buffer1;
 	char *wmaddr;
 	char *maddr,*free_addr;
-	int fd;
+	int fd,wval;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -4693,7 +4697,8 @@ long long *data1, *data2;
 			  		}
 			  		else
 			  		{
-			  		  if(write(fd, buffer,(size_t)reclen) != reclen)
+			  		  wval=write(fd, buffer,(size_t)reclen);
+			  		  if(wval != reclen)
 			  		  {
 #ifdef NO_PRINT_LLD
 						printf("\nError writing block at %ld\n",
@@ -4702,7 +4707,8 @@ long long *data1, *data2;
 						printf("\nError writing block at %lld\n",
 							offset64); 
 #endif
-						perror("write");
+						if(wval==-1)
+							perror("write");
 						signal_handler();
 			 		  }
 					}
@@ -5047,7 +5053,7 @@ long long *data1,*data2;
 	long long Index=0;
 	unsigned long long writeinrate;
 	off64_t filebytes64;
-	int fd;
+	int fd,wval;
 	char *maddr;
 	char *wmaddr,*free_addr;
 #ifdef ASYNC_IO
@@ -5106,14 +5112,16 @@ long long *data1,*data2;
 	if(fetchon)
 		fetchit(buffer,reclen);
 	/*
-	if(write(fd, buffer, (size_t) reclen) != reclen)
+	wval=write(fd, buffer, (size_t) reclen);
+	if(wval != reclen)
 	{
 #ifdef NO_PRINT_LLD
 	    	printf("\nError writing block %ld, fd= %d\n", 0, fd);
 #else
 	    	printf("\nError writing block %lld, fd= %d\n", 0, fd);
 #endif
-		perror("write");
+		if(wval==-1)
+			perror("write");
 		signal_handler();
 	}
 	*/
@@ -5160,14 +5168,16 @@ long long *data1,*data2;
 			  }
 			  else
 			  {
-			       if(write(fd, buffer, (size_t) reclen) != reclen)
+			       wval=write(fd, buffer, (size_t) reclen);
+			       if(wval != reclen)
 			       {
 #ifdef NO_PRINT_LLD
 		    		   printf("\nError writing block %ld, fd= %d\n", i, fd);
 #else
 		    		   printf("\nError writing block %lld, fd= %d\n", i, fd);
 #endif
-				   perror("write");
+				   if(wval==-1)
+				   	perror("write");
 				   signal_handler();
 			       }
 			  }
@@ -6926,7 +6936,7 @@ thread_write_test( x)
 	char *nbuff;
 	char *maddr;
 	char *wmaddr,*free_addr;
-	int anwser,bind_cpu;
+	int anwser,bind_cpu,wval;
 	off64_t filebytes64;
 	char tmpname[256];
 	FILE *thread_wqfd;
@@ -7186,7 +7196,8 @@ again:
 		   }
 		   else
 		   {
-		      if(write(fd, nbuff, (size_t) reclen) != reclen)
+		      wval=write(fd, nbuff, (size_t) reclen);
+		      if(wval != reclen)
 		      {
 			if(*stop_flag && !stopped){
 				if(include_flush)
@@ -7235,7 +7246,8 @@ again:
 		    	printf("\nError writing block %lld, fd= %d\n", i,
 				 fd);
 #endif
-			perror("write");
+			if(wval==-1)
+				perror("write");
 			if (!no_unlink)
 				unlink(dummyfile[xx]);
 			child_stat->flag = 0;
@@ -7385,7 +7397,7 @@ thread_rwrite_test(x)
 	char *nbuff;
 	char *maddr,*free_addr;
 	char *wmaddr;
-	int anwser,bind_cpu;
+	int anwser,bind_cpu,wval;
 	FILE *thread_rwqfd;
 	char tmpname[256];
 #ifdef ASYNC_IO
@@ -7589,7 +7601,8 @@ thread_rwrite_test(x)
 			}
 			else
 			{
-			   if(write(fd, nbuff, (size_t) reclen) != reclen)
+			   wval=write(fd, nbuff, (size_t) reclen);
+			   if(wval != reclen)
 			   {
 				if(*stop_flag)
 				{
@@ -7604,7 +7617,8 @@ thread_rwrite_test(x)
 		    		printf("\nError writing block %lld, fd= %d\n", i,
 					 fd);
 #endif
-				perror("write");
+				if(wval==-1)
+					perror("write");
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
 				child_stat->flag = 0;
@@ -9667,7 +9681,7 @@ thread_ranwrite_test( x)
 	char *nbuff;
 	char *maddr;
 	char *wmaddr,*free_addr;
-	int anwser,bind_cpu;
+	int anwser,bind_cpu,wval;
 	off64_t filebytes64;
 	char tmpname[256];
 	FILE *thread_randwqfd;
@@ -9933,7 +9947,8 @@ again:
 		   }
 		   else
 		   {
-		      if(write(fd, nbuff, (size_t) reclen) != reclen)
+		      wval = write(fd, nbuff, (size_t) reclen);
+		      if(wval != reclen)
 		      {
 			if(*stop_flag && !stopped){
 				if(include_flush)
@@ -9982,7 +9997,8 @@ again:
 		    	printf("\nError writing block %lld, fd= %d\n", i,
 				 fd);
 #endif
-			perror("write");
+			if(wval==-1)
+				perror("write");
 			if (!no_unlink)
 				unlink(dummyfile[xx]);
 			child_stat->flag = 0;
