@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.177 $"
+#define THISVERSION "        Version $Revision: 3.178 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -5870,7 +5870,7 @@ char sverify;
 	      if(*where != (unsigned long long)pattern_buf)
 	      {
 		   file_position = (off64_t)( (recnum * recsize))+
-			((i*cache_line_size)+j);
+			((i*cache_line_size)+(j*sizeof(long long)));
 		   where2=(char *)where;
 		   for(k=0;k<sizeof(long long);k++){
 		   	if(*where2 != *pattern_ptr)
@@ -5889,7 +5889,7 @@ char sverify;
 	printf("Error in file: Position %lld \n",file_position);
 	printf("Record # %lld Record size %lld kb \n",recnum,recsize/1024);
 #endif
-	printf("Found pattern: Char >>%c<< Hex >>%2.2x<<\n", *where2,*where2);
+	printf("Found pattern: Char >>%c<< Expecting >>%c<<\n", *where2,*pattern_ptr);
 		   return(1);
 	      }
 	      where++;

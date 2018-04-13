@@ -1676,4 +1676,9 @@ Revision 3.177
 =============================================================================
 Improve -+d so that each byte is more unique.
 Improve byte level validation.
+=============================================================================
+Revision 3.178 
+=============================================================================
+Provide byte level error detection with Found char and Expecting Char in
+  -+d mode.
 
