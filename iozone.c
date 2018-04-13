@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.192 $"
+#define THISVERSION "        Version $Revision: 3.193 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -7319,7 +7319,8 @@ long long *data1, *data2;
 #ifdef bsd4_2
 			rand1=rand();
 			rand2=rand();
-			big_rand=(rand1<<16)||(rand2);
+			rand3=rand();
+			big_rand=(rand1<<32)||(rand2<<16)||(rand3);
                         offset64 = reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
@@ -7409,7 +7410,8 @@ long long *data1, *data2;
 #ifdef bsd4_2
 				rand1=rand();
 				rand2=rand();
-				big_rand=(rand1<<16)||(rand2);
+				rand3=rand();
+				big_rand=(rand1<<32)||(rand2<<16)||(rand3);
 				offset64 = reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
@@ -9074,7 +9076,8 @@ again:
 #ifdef bsd4_2
 		rand1=rand();
 		rand2=rand();
-		big_rand=(rand1<<16)||(rand2);
+		rand3=rand();
+		big_rand=(rand1<<32)||(rand2<<16)||(rand3);
 		offset64 = reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
@@ -13990,7 +13993,8 @@ thread_ranread_test(x)
 #ifdef bsd4_2
 		rand1=rand();
 		rand2=rand();
-		big_rand=(rand1<<16)||(rand2);
+		rand3=rand();
+		big_rand=(rand1<<32)||(rand2<<16)||(rand3);
 		current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
@@ -14418,7 +14422,8 @@ thread_ranwrite_test( x)
 #ifdef bsd4_2
 		rand1=rand();
 		rand2=rand();
-		big_rand=(rand1<<16)||(rand2);
+		rand3=rand();
+		big_rand=(rand1<<32)||(rand2<<16)||(rand3);
 		current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows

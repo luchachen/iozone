@@ -1738,4 +1738,8 @@ Move BIG_ENDIAN to ZBIG_ENDIAN to avoid header conflicts.
 Revision 3.192 
 =============================================================================
 Make random offsets always based on 48 bit random values.
+=============================================================================
+Revision 3.193 
+=============================================================================
+Addition for make random offsets always based on 48 bit random values.
 
