@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.92 $"
+#define THISVERSION "        Version $Revision: 3.93 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -244,7 +244,9 @@ typedef long long off64_t;
 #ifndef __AIX__
 #ifndef __off64_t_defined
 #ifndef SCO_Unixware_gcc
+#ifndef UWIN
 typedef long long off64_t;
+#endif
 #endif
 #endif
 #endif
@@ -298,7 +300,7 @@ typedef long long off64_t;
 #define AMAP_FILE (0)
 #endif
 
-#if defined(SCO_Unixware_gcc) || defined(solaris)
+#if defined(SCO_Unixware_gcc) || defined(solaris) || defined(UWIN)
 #define MAP_FILE (0)
 #endif
 
@@ -14258,7 +14260,7 @@ int send_size;
 		fprintf(newstdout,"Child sending message to %s\n",controlling_host_name);
 		fflush(newstdout);
 	}
-        rc = send(child_socket_val, &outbuf, sizeof(struct master_neutral_command), 0);
+        rc = send(child_socket_val, (char *)&outbuf, sizeof(struct master_neutral_command), 0);
         if (rc < 0)
         {
                 perror("write failed\n");
@@ -14344,7 +14346,7 @@ int send_size;
 
 	if(mdebug >= 1)
 		printf("Master sending message to %s \n",host_name);
-        rc = send(child_socket_val, &outbuf, sizeof(struct client_neutral_command), 0);
+        rc = send(child_socket_val, (char *)&outbuf, sizeof(struct client_neutral_command), 0);
         if (rc < 0)
         {
                 perror("write failed\n");
@@ -14386,11 +14388,13 @@ char *controlling_host_name;
 		fflush(newstdout);
 	}
         ip = (struct in_addr *)he->h_addr_list[0];
+#ifndef UWIN
 	if(cdebug ==1)
 	{
         	fprintf(newstdout,"Child: server host: %s\n", (char *)inet_ntoa(ip->s_addr));
 		fflush(newstdout);
 	}
+#endif
 
 
         raddr.sin_family = AF_INET;
@@ -14741,12 +14745,14 @@ struct in_addr *my_s_addr;
 		fflush(stdout);
 	}
         ip = (struct in_addr *)he->h_addr_list[0];
+#ifndef UWIN
 	if(mdebug ==1)
 	{
         	printf("Master: child name: %s\n", (char *)inet_ntoa(ip->s_addr));
         	printf("Master: child Port: %d\n", child_port);
 		fflush(stdout);
 	}
+#endif
 
 	port=child_port;
 	my_s_addr->s_addr = ip->s_addr;

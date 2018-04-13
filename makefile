@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.54 $
+# Version $Revision: 1.55 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -46,6 +46,7 @@ all:
 	@echo "        ->   sppux                (32bit)   <-"
 	@echo "        ->   sppux-10.1           (32bit)   <-"
 	@echo "        ->   sppux_no_ansi-10.1   (32bit)   <-"
+	@echo "        ->   UWIN                 (32bit)   <-"
 	@echo "        ->   Windows (95/98/NT)   (32bit)   <-"
 	@echo ""
 
@@ -239,6 +240,14 @@ Solaris-2.6: iozone_solaris-2.6.o libbif.o
 Windows: iozone_windows.o libbif.o
 	gcc  -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
 		-DWindows iozone_windows.o libbif.o -o iozone
+
+#
+# Uwin build requires UWIN development environment. 
+# No threads, No largefiles, No async I/O
+#
+UWIN: iozone_uwin.o libbif.o
+	gcc  -O -DUWIN -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
+		-DSHARED_MEM -DWindows iozone_uwin.o libbif.o -o iozone
 
 #
 # GNU C compiler BSD/OS build with threads, largefiles, no async I/O
@@ -528,6 +537,16 @@ iozone_windows.o: iozone.c libasync.c libbif.c
 		-DWindows iozone.c -o iozone_windows.o
 	gcc -c -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS  \
 		-DWindows libbif.c -o libbif.o
+
+iozone_uwin.o: iozone.c libbif.c
+	@echo ""
+	@echo "Building iozone for UWIN (No threads, No async I/O)"
+	@echo ""
+	gcc -c -O -DUWIN -Dunix -DHAVE_ANSIC_C -DNO_THREADS  \
+		-DSHARED_MEM -DWindows iozone.c -o iozone_uwin.o
+	gcc -c -O -DUWIN -Dunix -DHAVE_ANSIC_C -DNO_THREADS  \
+		-DSHARED_MEM -DWindows libbif.c -o libbif.o
+	
 	
 iozone_IRIX64.o: iozone.c libasync.c libbif.c
 	@echo ""
