@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.233 $"
+#define THISVERSION "        Version $Revision: 3.234 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -6225,6 +6225,37 @@ long long *data2;
 		file_flags |=O_DIRECTIO;
 #endif
 #endif
+
+/* Sanity check */
+/* Some filesystems do not behave correctly and fail
+ * when this sequence is performned. This is a very
+ * bad thing. It breaks many applications and lurks
+ * around quietly. This code should never get
+ * triggered, but in the case of running iozone on
+ * an NFS client, the filesystem type on the server
+ * that is being exported can cause this failure.
+ * If this failure happens, then the NFS client is
+ * going to going to have problems, but the acutal
+ * problem is the filesystem on the NFS server.
+ * It's not NFS, it's the local filesystem on the
+ * NFS server that is not correctly permitting
+ * the sequence to function.
+ */
+        if((fd = I_OPEN(filename, (int)O_CREAT|O_WRONLY,0))<0)
+        {
+                printf("\nCan not open temp file: %s\n",
+                        filename);
+                perror("open");
+                exit(44);
+        }
+        wval=ftruncate(fd,0);
+        if(wval < 0)
+        {
+                printf("Sanity check failed. Do not deploy this filesystem in a production environment !\n");
+                exit(44);
+        }
+        unlink(filename);
+/* Sanity check */
 
 	if(noretest)
 		ltest=1;

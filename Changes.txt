@@ -1907,4 +1907,11 @@ Add another space to the throughput output dump.
 Revision 3.233
 =============================================================================
 Enable shared file with no locking
+=============================================================================
+Revision 3.234
+=============================================================================
+Add sanity check to validate that open(name, O_CREAT | O_WRONLY | O_TRUNC, 0)
+does work correctly. This is an NFS client test that
+detects if the NFS server's local filesystem is broken and
+fails to support the sequence above correctly. 
 
