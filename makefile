@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.73 $
+# Version $Revision: 1.75 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -310,7 +310,7 @@ Solaris8-64: iozone_solaris8-64.o libasync.o libbif.o
 # No threads, No largefiles, No async I/O
 #
 Windows:	iozone_windows.o libbif.o
-	gcc  -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
+	gcc  -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DNO_MADVISE \
 		-DWindows iozone_windows.o \
 		libbif.o -o iozone
 
@@ -413,7 +413,7 @@ TRU64:	iozone_TRU64.o libbif.o libasync.o
 
 SCO:	iozone_SCO.o  libbif.o
 	gcc -O -DSCO -Dunix -DHAVE_ANSIC_C iozone_SCO.o \
-		libbif.o -DNO_THREADS -o iozone
+		-lsocket -s libbif.o -DNO_THREADS -o iozone
 
 
 #
@@ -425,8 +425,9 @@ SCO:	iozone_SCO.o  libbif.o
 
 SCO_Unixware_gcc:	iozone_SCO_Unixware_gcc.o  libbif.o libasync.o
 	/usr/local/bin/gcc -O -DSCO_Unixware_gcc -Dunix -DHAVE_ANSIC_C \
-		-DASYNC_IO -D_LARGEFILE64_SOURCE iozone_SCO_Unixware_gcc.o \
-		libbif.o libasync.o -lthread -o iozone
+		-DNO_MADVISE -DASYNC_IO -D_LARGEFILE64_SOURCE \
+		iozone_SCO_Unixware_gcc.o libbif.o libasync.o \
+		-lsocket -lthread -o iozone
 
 #
 # GNU C compiler NetBSD build with no threads, no largefiles, no async I/O
@@ -666,30 +667,31 @@ iozone_solaris8-64.o: iozone.c libasync.c libbif.c
 	@echo ""
 	cc -fast -xtarget=generic64 -v -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-D__LP64__ -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
-		-DNAME='"Solaris8-64"' -Dsolaris iozone.c -o iozone_solaris8-64.o
+		-DNAME='"Solaris8-64"' -Dsolaris -DHAVE_PREAD \
+		iozone.c -o iozone_solaris8-64.o
 	cc -fast -xtarget=generic64 -v -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-D__LP64__ -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
-		-Dsolaris libasync.c -o libasync.o
+		-Dsolaris -DHAVE_PREAD libasync.c -o libasync.o
 	cc -fast -xtarget=generic64 -v -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-D__LP64__ -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
-		-Dsolaris -DBIG_ENDIAN libbif.c -o libbif.o
+		-Dsolaris -DBIG_ENDIAN -DHAVE_PREAD libbif.c -o libbif.o
 
 iozone_windows.o:	iozone.c libasync.c libbif.c
 	@echo ""
 	@echo "Building iozone for Windows (No threads, No async I/O)"
 	@echo ""
-	gcc -c -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS  \
+	gcc -c -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DNO_MADVISE  \
 		-DWindows iozone.c -o iozone_windows.o
-	gcc -c -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS  \
+	gcc -c -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS  -DNO_MADVISE \
 		-DWindows libbif.c -o libbif.o
 
 iozone_uwin.o:	iozone.c libbif.c
 	@echo ""
 	@echo "Building iozone for UWIN (No threads, No async I/O)"
 	@echo ""
-	gcc -c -O -DUWIN -Dunix -DHAVE_ANSIC_C -DNO_THREADS  \
+	gcc -c -O -DUWIN -Dunix -DHAVE_ANSIC_C -DNO_THREADS  -DNO_MADVISE \
 		-DNAME='"UWIN"' -DSHARED_MEM -DWindows iozone.c -o iozone_uwin.o
-	gcc -c -O -DUWIN -Dunix -DHAVE_ANSIC_C -DNO_THREADS  \
+	gcc -c -O -DUWIN -Dunix -DHAVE_ANSIC_C -DNO_THREADS  -DNO_MADVISE \
 		-DSHARED_MEM -DWindows libbif.c -o libbif.o
 
 iozone_IRIX64.o:	iozone.c libasync.c libbif.c
@@ -862,9 +864,9 @@ iozone_SCO.o:	iozone.c libbif.c
 	@echo ""
 	@echo "Building iozone SCO "
 	@echo ""
-	gcc -c -O -DSCO -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
+	gcc -c -O -DSCO -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DNO_MADVISE \
 		-DNAME='"SCO"' iozone.c -o iozone_SCO.o
-	gcc -c -O -DSCO -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
+	gcc -c -O -DSCO -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DNO_MADVISE \
 		-DBIG_ENDIAN libbif.c -o libbif.o
 
 iozone_SCO_Unixware_gcc.o:	iozone.c libbif.c libasync.c

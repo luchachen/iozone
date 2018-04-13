@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.170 $"
+#define THISVERSION "        Version $Revision: 3.172 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -178,7 +178,7 @@ char *help[] = {
 "           -+p # Percentage of mix to be reads",
 "           -+r Enable O_RSYNC|O_SYNC for all testing.",
 "           -+t Enable network performance test. Requires -+m ",
-#ifndef Windows
+#ifndef NO_MADVISE
 "           -+A #  Enable madvise. 0 = normal, 1=random, 2=sequential",
 "                                  3=dontneed, 4=willneed",
 #endif
@@ -326,11 +326,7 @@ typedef long long off64_t;
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
-#ifdef SCO
-#define AMAP_FILE (0)
-#endif
-
-#if defined(SCO_Unixware_gcc) || defined(solaris) || defined(UWIN)
+#if defined(SCO_Unixware_gcc) || defined(solaris) || defined(UWIN) || defined(SCO)
 #define MAP_FILE (0)
 #endif
 
@@ -340,7 +336,7 @@ long long page_size = 4096;
 #elif defined(NBPG)
 long long page_size = NBPG;
 #define GOT_PAGESIZE 1
-#elif defined(linux)
+#elif defined(old_linux)
 #include <asm/page.h>
 long long page_size = PAGE_SIZE;
 #define GOT_PAGESIZE 1
@@ -2162,7 +2158,7 @@ char **argv;
     					sprintf(splash[splash_line++],"\tRead & Write sync mode active.\n");
 					break;
 #endif
-#ifndef Windows
+#ifndef NO_MADVISE
 				case 'A':  /* Argument is madvise selector */
 					subarg=argv[optind++];
 					advise_flag=1;
@@ -15134,7 +15130,7 @@ int flag, prot;
 #endif
 #endif
 #endif
-#ifndef Windows
+#ifndef NO_MADVISE
 	if(advise_flag)
 	{
 		switch(advise_op){
