@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.115 $"
+#define THISVERSION "        Version $Revision: 3.116 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -216,11 +216,11 @@ THISVERSION,
   #define __USE_GNU
 #endif
 #include <fcntl.h>
-#if !defined(__FreeBSD__) && !defined(__OpenBSD__)
+#if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__APPLE__)
 #include <malloc.h>
 #endif
 
-#if defined (__FreeBSD__) || defined(__OpenBSD__) || defined(__bsdi__)
+#if defined (__FreeBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__APPLE__)
 #ifndef O_SYNC
 #define O_SYNC O_FSYNC
 #endif
@@ -280,6 +280,9 @@ typedef long long off64_t;
 #endif
 
 #ifdef unix
+#ifdef __APPLE__
+#include <sys/time.h>
+#endif
 #include <sys/times.h>
 #include <sys/file.h>
 #include <sys/resource.h>
@@ -304,7 +307,7 @@ typedef long long off64_t;
 #include <sys/shm.h>
 #endif
 
-#ifdef bsd4_2
+#if defined(bsd4_2) && !defined(MS_SYNC)
 #define MS_SYNC 0
 #define MS_ASYNC 0
 #endif
@@ -782,7 +785,7 @@ void purgeit();			/* Purge on chip cache		  */
 void throughput_test();		/* Multi process throughput 	  */
 void multi_throughput_test();	/* Multi process throughput 	  */
 void prepage();			/* Pre-fault user buffer	  */
-#if defined(linux) || defined(solaris) || defined(__AIX__) || defined(OSFV5) || defined(UWIN) || defined(Windows)
+#if defined(linux) || defined(solaris) || defined(__AIX__) || defined(OSFV5) || defined(UWIN) || defined(Windows) || defined(__APPLE__)
 float do_compute(float);	/* compute cycle simulation       */
 #else
 float do_compute();		/* compute cycle simulation       */

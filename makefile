@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.60 $
+# Version $Revision: 1.61 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -7,7 +7,7 @@
 # Supports:	hpux, hpux_no_ansi, hpux-10.1, hpux_no_ansi-10.1,
 #		sppux, sppux-10.1, ghpux, sppux, 
 #		convex, FreeBSD, OpenBSD, OSFV3, OSFV4, OSFV5, SCO
-#		SCO_Unixware_gcc,NetBSD,TRU64
+#		SCO_Unixware_gcc,NetBSD,TRU64, Mac OS X
 
 
 all:  
@@ -33,6 +33,7 @@ all:
 	@echo "        ->   IRIX64               (64bit)   <-"
 	@echo "        ->   linux                (32bit)   <-"
 	@echo "        ->   linux-ia64           (32bit)   <-"
+	@echo "        ->   macosx               (32bit)   <-"
 	@echo "        ->   netbsd               (32bit)   <-"
 	@echo "        ->   openbsd              (32bit)   <-"
 	@echo "        ->   openbsd-threads      (32bit)   <-"
@@ -286,6 +287,15 @@ bsdi:	iozone_bsdi.o libbif.o
 freebsd:	iozone_freebsd.o libbif.o
 	cc -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DSHARED_MEM \
 		iozone_freebsd.o libbif.o -o iozone
+
+#
+# GNU C compiler MacosX build with no threads, no largefiles, no async I/O
+#
+
+macosx:	iozone_macosx.o libbif.o
+	cc -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DSHARED_MEM \
+		iozone_macosx.o libbif.o -o iozone
+#
 #
 # GNU C compiler OpenBSD build with no threads, no largefiles, no async I/O
 #
@@ -604,7 +614,6 @@ iozone_uwin.o:	iozone.c libbif.c
 	gcc -c -O -DUWIN -Dunix -DHAVE_ANSIC_C -DNO_THREADS  \
 		-DSHARED_MEM -DWindows libbif.c -o libbif.o
 	
-	
 iozone_IRIX64.o:	iozone.c libasync.c libbif.c
 	@echo ""
 	@echo "Building iozone for IRIX64"
@@ -680,6 +689,15 @@ iozone_freebsd.o:	iozone.c libbif.c
 	@echo ""
 	cc -c -O -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
 		-DSHARED_MEM iozone.c -o iozone_freebsd.o
+	cc -c -O -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
+		-DSHARED_MEM libbif.c -o libbif.o
+
+iozone_macosx.o:	iozone.c libbif.c
+	@echo ""
+	@echo "Build iozone for MacOSX"
+	@echo ""
+	cc -c -O -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
+		-DSHARED_MEM iozone.c -o iozone_macosx.o
 	cc -c -O -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
 		-DSHARED_MEM libbif.c -o libbif.o
 

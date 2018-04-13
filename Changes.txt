@@ -1429,5 +1429,8 @@ Code cleanup for AIX. No async support caused warnings.
 Revision 3.115 
 =============================================================================
 Fix for Solaris returning short reads() from socket to child_listen.
-
+=============================================================================
+Revision 3.116 
+=============================================================================
+Add support for Mac OS X
 
