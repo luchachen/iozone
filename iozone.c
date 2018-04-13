@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.75 $"
+#define THISVERSION "        Version $Revision: 3.76 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -8445,7 +8445,14 @@ long long size;
 #endif
                 exit(119);
         }
-        addr = (char *)shmat(shmid, 0, SHM_W);
+        /*addr = (char *)shmat(shmid, 0, SHM_W);*/
+	/* Some systems will not take the above but
+	 * will default to read/write if no flags
+	 * are provided. (AIX)
+	 * The POSIX standard states that if SHM_RDONLY
+	 * is not specified then it will be read/write.
+	 */
+        addr = (char *)shmat(shmid, 0, 0);
 #ifdef __LP64__
         if((long long)addr == (long long)-1)
 #else
