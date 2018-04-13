@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.461 $"
+#define THISVERSION "        Version $Revision: 3.462 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -4013,7 +4013,7 @@ throughput_test()
 		}
 
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create((void *)tthread_write_test,(int)xx);
+		childids[xx] = mythread_create((void *)thread_write_test,(int)xx);
 #else
 		childids[xx] = mythread_create((void *)thread_write_test,(int)xx);
 #endif
@@ -18948,7 +18948,7 @@ mythread_create( void *(*func)(void *),int x)
 		printf("Thread create failed. Returned %d Errno = %d\n",xx,errno);
 	if(debug1 )
 	{
-		printf("\nthread created has an id of %p\n",(void *)ts);
+		printf("\nthread created has an id of %p\n",(void *)&ts);
 #ifdef NO_PRINT_LLD
 		printf("meme %ld\n",(long)meme);
 #else
