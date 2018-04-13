@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.130 $"
+#define THISVERSION "        Version $Revision: 3.131 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -12600,7 +12600,8 @@ thread_cleanup_test(x)
 #else
 	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
 #endif
-	unlink(dummyfile[xx]);
+	if(!no_unlink)
+		unlink(dummyfile[xx]);
 
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	/*****************/
@@ -12977,6 +12978,9 @@ int flag, prot;
 	 if(flag)
 	 {
 
+#ifdef _HPUX_SOURCE
+		prealloc(fd,filebytes);
+#else
 	 	I_LSEEK(fd,(filebytes-1),SEEK_SET);
 		x=write(fd,"b",1);
 		if(x < 1)
@@ -12984,6 +12988,7 @@ int flag, prot;
 			printf("Unable to write file\n");
 		}
 	 	I_LSEEK(fd,0,SEEK_SET);
+#endif
 	 }
 
 #ifdef IRIX64
