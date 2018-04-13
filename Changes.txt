@@ -1693,4 +1693,8 @@ Fix so that Windows can use multiple processes. Needed mmap like SCO.
 Revision 3.181 
 =============================================================================
 Use malloc() instead of mmap() for threads memory, instead of mmap.
+=============================================================================
+Revision 3.182 
+=============================================================================
+Make CPU utilization use doubles everywhere.
 

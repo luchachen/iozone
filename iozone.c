@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.181 $"
+#define THISVERSION "        Version $Revision: 3.182 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -382,9 +382,9 @@ struct child_stats {
 	float cputime;		/* child CPU time */
 	float throughput; 	/* Throughput in either kb/sec or ops/sec */
 	float actual;	   	/* Either actual kb read or # of ops performed */
-	float start_time;	/* Actual start time */
-	float stop_time;	/* Actual end time */
-	float fini_time;	/* always set, while stop_time is not always set for a child */
+	double start_time;	/* Actual start time */
+	double stop_time;	/* Actual end time */
+	double fini_time;	/* always set, while stop_time is not always set for a child */
 } VOLATILE *child_stat;
 
 /*
@@ -563,9 +563,9 @@ struct master_command {
 	int m_testnum;
 	int m_version;
 	float m_throughput;
-	float m_stop_time;
-	float m_start_time;
-	float m_fini_time;
+	double m_stop_time;
+	double m_start_time;
+	double m_fini_time;
 	float m_actual;
 	long long m_child_flag;
 };	
@@ -18073,8 +18073,8 @@ int num;
 #endif
 		sscanf(mnc->m_actual,"%f",&mc.m_actual);
 		sscanf(mnc->m_throughput,"%f",&mc.m_throughput);
-		sscanf(mnc->m_start_time,"%f",&mc.m_start_time);
-		sscanf(mnc->m_stop_time,"%f",&mc.m_stop_time);
+		sscanf(mnc->m_start_time,"%f",(float *)&mc.m_start_time);
+		sscanf(mnc->m_stop_time,"%f",(float *)&mc.m_stop_time);
 		sscanf(mnc->m_stop_flag,"%d",&temp);
 		mc.m_stop_flag = temp;
 
