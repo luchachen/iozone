@@ -2425,3 +2425,6 @@ Fix type-oh in usage message.
 Revision 3.405
 Reduce CPU consumption in the op_rate control mechanism.
 =============================================================================
+Revision 3.406
+Increase buffer size for configuration lines. They might be 700 chars long.
+=============================================================================

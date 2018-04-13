@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.405 $"
+#define THISVERSION "        Version $Revision: 3.406 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -22433,7 +22433,7 @@ get_client_info()
 	FILE *fd;
 	char *ret1;
 	int count;
-	char buffer[200];
+	char buffer[800];
 	count=0;
 	fd=fopen(client_filename,"r");
 	if(fd == (FILE *)NULL)
@@ -22449,7 +22449,7 @@ get_client_info()
 			MAXSTREAMS);
             	  exit(7);
           	}
-		ret1=fgets(buffer,200,fd);
+		ret1=fgets(buffer,800,fd);
 		if(ret1== (char *)NULL)
 			break;
 		count+=parse_client_line(buffer,count);
