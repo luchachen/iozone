@@ -2552,3 +2552,6 @@ Add support for building targets with NO_SIGNAL, NO_FORK, NO_SOCKET
 Revision 3.449
 Add support for building targets with NO_SIGNAL, NO_FORK, NO_SOCKET
 =============================================================================
+Revision 3.450
+Fix missing typedef in FreeBSD.
+=============================================================================

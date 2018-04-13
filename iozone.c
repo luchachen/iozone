@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.449 $"
+#define THISVERSION "        Version $Revision: 3.450 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -279,6 +279,13 @@ THISVERSION,
 #include <sys/mman.h>
 #include <stdio.h>
 #include <signal.h>
+
+#ifdef freebsd
+  #ifndef sighandler_t
+  typedef __sighandler_t sighandler_t;
+  #endif
+#endif
+
 #include <unistd.h>
 
 #include <fcntl.h>
