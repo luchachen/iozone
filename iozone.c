@@ -52,11 +52,11 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.24 $"
+#define THISVERSION "        Version $Revision: 3.27 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
-#include <Winbase.h>
+#include <Windows.h>
 int errno;
 #else
 extern  int errno;
@@ -3335,7 +3335,7 @@ long long *data2;
 
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
-	stdio_buf=(char *)malloc(reclen);
+	stdio_buf=(char *)malloc((size_t)reclen);
 	for( j=0; j<2; j++)
 	{
 		if(Uflag) /* Unmount and re-mount the mountpoint */
@@ -3499,7 +3499,7 @@ long long *data1,*data2;
 
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
-	stdio_buf=(char *)malloc(reclen);
+	stdio_buf=(char *)malloc((size_t)reclen);
 
 	for( j=0; j<2; j++ )
 	{
@@ -8984,7 +8984,7 @@ long long *dest_buffer;
 long long length;
 #endif
 {
-	bcopy(src_buffer,dest_buffer,(size_t)length);
+	bcopy((void *)src_buffer,(void *)dest_buffer,(size_t)length);
 }
 
 #ifndef ASYNC_IO

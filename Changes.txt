@@ -1124,4 +1124,10 @@ Fixups for IBM AIX.
 Revision 3.24        
 Fixups for BSD 2.7  (New release of BSD that supports O_SYNC)
 =============================================================================
+Revision 3.27        
+Fixups for Cygnus compiler changes. (Windows targets). With this
+change Iozone will compile with at least 2 versions of the Cygnus
+compilers.
+=============================================================================
+
 
