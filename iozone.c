@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.190 $"
+#define THISVERSION "        Version $Revision: 3.191 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -71,7 +71,7 @@ extern  int h_errno; /* imported for errors */
 
 
 #include <sys/types.h>
-#if defined (__LP64__) || defined(OSF_64) || defined(__alpha__) || defined(__arch64__) || defined(_LP64)
+#if defined (__LP64__) || defined(OSF_64) || defined(__alpha__) || defined(__arch64__) || defined(_LP64) || defined(__s390x__)
 #define MODE "\tCompiled for 64 bit mode."
 #define _64BIT_ARCH_
 #else

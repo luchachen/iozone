@@ -1729,4 +1729,9 @@ Add support for the IBM S390 running Linux.
 Revision 3.190 
 =============================================================================
 Cleanup naming conventions for the S390 and fixup a #define.
+=============================================================================
+Revision 3.191 
+=============================================================================
+Add 64 bit compiles for s390x
+Move BIG_ENDIAN to ZBIG_ENDIAN to avoid header conflicts.
 
