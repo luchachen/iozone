@@ -1210,5 +1210,12 @@ Revision 3.57
 =============================================================================
 Fixed bug where file locking was not being used when
 _LARGE_FILE64_SOURCE was defined in read_perf_test.
+=============================================================================
+Revision 3.58
+=============================================================================
+Added -z option. This is to be used with the -a option. It
+provides more complete testing for small record sizes 
+when the file sizes are very large.
+Fixed -a so that the cross-over mechanism works correctly.
 
 

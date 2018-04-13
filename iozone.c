@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.57 $"
+#define THISVERSION "        Version $Revision: 3.58 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -159,6 +159,7 @@ char *help[] = {
 "           -w Do not unlink temporary file",
 "           -X filename  Write telemetry file. Contains lines with (offset reclen compute_time) in ascii",
 "           -Y filename  Read  telemetry file. Contains lines with (offset reclen compute_time) in ascii",
+"           -z Used in conjunction with -a to test all possible record sizes",
 "" };
 
 char *head1[] = {
@@ -494,6 +495,7 @@ void init_file_sizes( off64_t,  off64_t);
 off64_t get_next_record_size(off64_t);
 void add_record_size(off64_t);
 void init_record_sizes( off64_t,  off64_t);
+void del_record_sizes( void );
 #else
 void traj_vers();
 long long r_traj_size();
@@ -748,7 +750,7 @@ char **argv;
 	auto_mode = 0;
 	inp_pat = PATTERN;
 	pattern = ((inp_pat << 24) | (inp_pat << 16) | (inp_pat << 8) | inp_pat);
-	while((cret = getopt(argc,argv,"ZQNIBDGCTOMREWovAxamwphceKJ:j:k:V:r:t:s:f:F:d:l:u:U:S:L:H:P:i:b:X:Y:g:n: ")) != EOF){
+	while((cret = getopt(argc,argv,"ZQNIBDGCTOMREWovAxamwphcezKJ:j:k:V:r:t:s:f:F:d:l:u:U:S:L:H:P:i:b:X:Y:g:n: ")) != EOF){
 		switch(cret){
 		case 'k':	/* Async I/O with no bcopys */
 			depth = (long long)(atoi(optarg));
@@ -1250,6 +1252,9 @@ char **argv;
 #else
 			printf("\tUsing maximum file size of %lld kilobytes.\n",maximum_file_size);
 #endif
+			break;
+		case 'z':	/* Set no cross over */
+			NOCROSSflag=1;
 			break;
 		}
 	}
@@ -1792,6 +1797,8 @@ void auto_test()
              	if(kilosi > xover){
                 	min_rec_size = LARGE_REC;
 			mult = RECLEN_START/1024;
+			del_record_sizes();
+			init_record_sizes(min_rec_size, max_rec_size);
 		     	/************************************/
 			/* Generate dummy entries in the    */
 			/* Excel buffer for skipped         */
@@ -11377,6 +11384,30 @@ off64_t max_r_size;
 	{
 		add_record_size((off64_t)size);
 	}
+}
+
+#ifdef HAVE_ANSIC_C
+void
+del_record_sizes(void)
+#else
+void
+del_record_sizes()
+#endif
+{
+        struct size_entry *size_listp;
+        struct size_entry *save_item;
+
+        size_listp=rec_size_list;
+        if(rec_size_list)
+        {
+                while(size_listp!=0)
+                {
+                        save_item=size_listp->next;
+                        free(size_listp);
+                        size_listp=save_item;
+                }
+        }
+        rec_size_list=0;
 }
 
 /********************************************************************/
