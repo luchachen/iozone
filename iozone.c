@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.140 $"
+#define THISVERSION "        Version $Revision: 3.141 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -889,7 +889,9 @@ off64_t get_next_record_size(off64_t);
 void add_record_size(off64_t);
 void init_record_sizes( off64_t,  off64_t);
 void del_record_sizes( void );
+void do_speed_check(int);
 #else
+void do_speed_check();
 char *getenv();
 char *inet_ntoa();
 void my_nap();
@@ -1033,6 +1035,7 @@ char *haveshm;
 extern int optind;
 long long onetime, auto_mode, sfd, multi_buffer;
 int fd;
+int sp_msfd,sp_mrfd,sp_csfd,sp_crfd;
 int begin_proc,num_processors,ioz_processor_bind;
 long long res_prob,rec_prob;
 char silent,read_sync;
@@ -1044,9 +1047,9 @@ char diag_v,sent_stop;
 char bif_flag;
 char gflag,nflag;
 char yflag,qflag;
+char *build_name = NAME;
 char trflag; 
 char cpuutilflag;
-char *build_name = NAME;
 long base_time;
 long long mint, maxt; 
 long long w_traj_ops, r_traj_ops, w_traj_fsize,r_traj_fsize;
@@ -1060,7 +1063,7 @@ long long include_mask;
 char RWONLYflag, NOCROSSflag;		/*auto mode 2 - kcollins 8-21-96*/
 char mfflag;
 long long status, x, y, childids[MAXSTREAMS+1], myid, num_child;
-int pct_read;
+int pct_read,speed_code;
 #ifndef NO_THREADS
 pthread_t p_childids[MAXSTREAMS+1];
 #endif
@@ -1137,6 +1140,13 @@ char remote_shell[256];
 
 /* Childs async message port. Used for stop flag and terminate */
 #define CHILD_ALIST_PORT (CHILD_LIST_PORT+MAXSTREAMS)
+
+/* Ports for the network speed code */
+#define SP_CHILD_LISTEN_PORT 31000
+#define SP_CHILD_ESEND_PORT (SP_CHILD_LISTEN_PORT+10)
+#define SP_MASTER_LISTEN_PORT (SP_CHILD_ESEND_PORT+10)
+#define SP_MASTER_ESEND_PORT (SP_MASTER_LISTEN_PORT+10)
+#define SP_MASTER_RESULTS_PORT (SP_MASTER_ESEND_PORT+10)
 
 
 #define THREAD_WRITE_TEST 1
@@ -2073,6 +2083,9 @@ char **argv;
 						pct_read = 100;
     					sprintf(splash[splash_line++],"\tPercent read in mix test is %d\n",pct_read);
 					break;
+				case 't':  /* Speed code activated */
+					speed_code=1;
+					break;
 #if defined(_HPUX_SOURCE) || defined(linux)
 				case 'r':  /* Read sync too */
 					read_sync=1;
@@ -2086,6 +2099,11 @@ char **argv;
 			}	
 			break;
 		}
+	}
+	if(speed_code)
+	{
+		do_speed_check(client_iozone);
+		exit(0);
 	}
 	if(r_count > 1)
 	{
@@ -2709,6 +2727,10 @@ void signal_handler()
 		if(w_traj_flag)
 			fclose(w_traj_fd);
 	}
+	if(sp_msfd)
+		close(sp_msfd);
+	if(sp_mrfd)
+		close(sp_mrfd);
     	exit(0);
 }
 
@@ -15119,6 +15141,8 @@ int size_of_message;
 	int xx;
 	int tmp_port;
 	xx = 0;
+	int sockerr;
+	int recv_buf_size=65536;
 	tsize=size_of_message; /* Number of messages to receive */
         s = socket(AF_INET, SOCK_STREAM, 0);
         if (s < 0)
@@ -15126,6 +15150,11 @@ int size_of_message;
                 perror("socket failed:");
                 exit(19);
         }
+	sockerr = setsockopt (s, SOL_SOCKET, SO_RCVBUF, (char *)
+		&recv_buf_size, sizeof(int));
+	if ( sockerr == -1 ) {
+		perror("Error in setsockopt\n");
+	}
         bzero(&child_sync_sock, sizeof(struct sockaddr_in));
 	tmp_port=CHILD_LIST_PORT+chid;
         child_sync_sock.sin_port = htons(tmp_port);
@@ -15275,6 +15304,8 @@ int size_of_message;
 	int rc;
 	int xx;
 	int tmp_port;
+	int sockerr;
+	int recv_buf_size=65536;
 	xx = 0;
 	tsize=size_of_message; /* Number of messages to receive */
         s = socket(AF_INET, SOCK_STREAM, 0);
@@ -15283,6 +15314,11 @@ int size_of_message;
                 perror("socket failed:");
                 exit(19);
         }
+	sockerr = setsockopt (s, SOL_SOCKET, SO_RCVBUF, (char *)
+		&recv_buf_size, sizeof(int));
+	if ( sockerr == -1 ) {
+		perror("Error in setsockopt\n");
+	}
         bzero(&child_async_sock, sizeof(struct sockaddr_in));
 	tmp_port=CHILD_ALIST_PORT;
         child_async_sock.sin_port = htons(tmp_port);
@@ -16777,4 +16813,699 @@ long long *data1,*data2;
 	signal_handler();
 	exit(180);
 */
+}
+
+/*
+ * Speed check code 
+ */
+char *sp_dest; /* Name of destination for messages */
+
+int sp_child_listen_port = SP_CHILD_LISTEN_PORT;
+int sp_child_esend_port  = SP_CHILD_ESEND_PORT;
+
+int sp_master_listen_port = SP_MASTER_LISTEN_PORT;
+int sp_master_esend_port  = SP_MASTER_ESEND_PORT;
+
+int sp_master_results_port = SP_MASTER_RESULTS_PORT;
+
+struct in_addr sp_my_cs_addr;
+struct in_addr sp_my_ms_addr;
+struct sockaddr_in sp_child_sync_sock, sp_child_async_sock;
+struct sockaddr_in sp_master_sync_sock, sp_master_async_sock;
+char *sp_buf;
+char sp_command[1024];
+char sp_remote_shell[100];
+int sp_child_mode;
+int sp_count,sp_msize,sp_once;
+int sp_tcount;
+double sp_start_time,sp_finish_time;
+void sp_send_result(int, int, float );
+void sp_get_result(int , int );
+void sp_do_child_t(void);
+void sp_do_master_t(void);
+void speed_main(char *, char *, long long ,long long , int);
+int sp_cret;
+char sp_remote_host[256];
+char sp_master_host[256];
+char sp_location[256];
+
+
+/*
+ * This is the front end for the speed check code
+ */
+#ifdef HAVE_ANSIC_C
+void
+speed_main(char *client_name, char *e_path, long long reclen,
+	long long kilos, int client_flag)
+#else
+speed_main(client_name, e_path, reclen, kilos, client_flag)
+char *client_name;
+char *e_path;
+long long reclen;
+long long kilos;
+int client_flag;
+#endif
+{
+	int x,y,i,fdx;
+
+
+	strcpy(sp_master_host,controlling_host_name);
+	sp_msize=(int)reclen;
+	sp_count=((int)kilos*1024)/(int)reclen;
+	if(!client_flag)
+	{
+		printf("\n");
+		strcpy(sp_remote_host,client_name);
+		strcpy(sp_location,e_path);
+	}
+
+	if(client_flag)
+		sp_child_mode=1;
+	sp_buf=(char *)malloc(sp_msize);
+	bzero(sp_buf,sp_msize); /* get page faults out of the way */
+
+	if(sp_child_mode)
+	{
+		close(0);
+		close(1);
+		close(2);
+		if(cdebug)
+		{
+			newstdin=freopen("/tmp/don_in","r+",stdin);
+			newstdout=freopen("/tmp/don_out","a+",stdout);
+			newstderr=freopen("/tmp/don_err","a+",stderr);
+		}
+		sp_dest=sp_master_host;
+		sp_do_child_t();
+		free(sp_buf);
+		exit(0);
+	}
+	x=fork();
+	if(x==0)
+	{
+		find_remote_shell(sp_remote_shell);
+	 sprintf(sp_command,"%s %s %s -+s -t 1 -r %d -s %d -+c %s -+t ",
+			sp_remote_shell, sp_remote_host, 
+			sp_location, (int)reclen/1024, 
+			(int)kilos,sp_master_host);
+		/*printf("%s\n",sp_command);*/
+		system(sp_command);
+		exit(0);
+	}
+	else
+	{
+		if(!sp_once)
+		{
+		printf("***************************************************\n");
+		printf("* >>>>>     Client Network Speed check      <<<<< *\n");
+		printf("***************************************************\n\n");
+			printf("Master: %s\n",sp_master_host);
+			printf("Transfer size %d bytes  \n",sp_msize);
+			printf("Count %d\n",sp_count);
+			printf("Total size %d kbytes  \n\n",
+				(sp_msize*sp_count)/1024);
+			sp_once=1;
+		}
+		sp_dest=sp_remote_host;
+		sleep(1);
+		sp_do_master_t();
+		free(sp_buf);
+	}
+}
+
+/*
+ * Get results back from the client.
+ */
+#ifdef HAVE_ANSIC_C
+void
+sp_get_result(int port,int flag)
+#else
+void
+sp_get_result(port,flag)
+int port,flag;
+#endif
+{
+	int tcfd;
+	float throughput;
+	int count;
+	char mybuf[1024];
+	int sp_offset,xx;
+
+	tcfd=sp_start_master_listen(port, 1024);
+	sp_offset=0;
+	while(sp_offset < 1024)
+	{
+		xx=read(tcfd,&mybuf[sp_offset],1024);
+		sp_offset+=xx;
+	}
+	sscanf(mybuf,"%d %f",&count,&throughput);
+	if(!flag)
+		printf("%-20s received  %10d Kbytes @ %10.2f Kbytes/sec \n",
+			sp_remote_host,count,throughput);
+	else
+		printf("%-20s  sent     %10d Kbytes @ %10.2f Kbytes/sec \n",
+			sp_remote_host,count,throughput);
+	close(tcfd);
+}
+
+/*
+ * Send results to the master.
+ */
+#ifdef HAVE_ANSIC_C
+void
+sp_send_result(int port, int count, float throughput)
+#else
+void
+sp_send_result(port, count, throughput)
+int port,count; 
+float throughput;
+#endif
+{
+	int msfd;
+	char mybuf[1024];
+	sprintf(mybuf,"%d %f",count, throughput);
+	msfd=sp_start_child_send(sp_dest, port, &sp_my_cs_addr);
+	write(msfd,mybuf,1024);
+	if(cdebug)
+		printf("Sending result\n");
+	close(msfd);
+}
+
+/*
+ * Start the channel for the master to send a message to 
+ * a child on a port that the child
+ * has created for the parent to use to communicate.
+ */
+#ifdef HAVE_ANSIC_C
+int
+sp_start_master_send(char *sp_child_host_name, int sp_child_listen_port, struct in_addr *sp_my_ms_addr)
+#else
+int
+sp_start_master_send(sp_child_host_name, sp_child_listen_port, sp_my_ms_addr)
+char *sp_child_host_name; 
+int sp_child_listen_port;
+struct in_addr *sp_my_ms_addr;
+#endif
+{
+	int rc,master_socket_val;
+	struct sockaddr_in addr,raddr;
+	struct hostent *he;
+	int port,tmp_port;
+	struct in_addr *ip;
+        he = gethostbyname(sp_child_host_name);
+        if (he == NULL)
+        {
+                printf("Master: Bad hostname >%s<\n",sp_child_host_name);
+		fflush(stdout);
+                exit(22);
+        }
+	if(mdebug ==1)
+	{
+	        printf("Master: start master send: %s\n", he->h_name);
+		fflush(stdout);
+	}
+        ip = (struct in_addr *)he->h_addr_list[0];
+#ifndef UWIN
+	if(mdebug ==1)
+	{
+        	printf("Master: child name: %s\n", (char *)inet_ntoa(*ip));
+        	printf("Master: child Port: %d\n", sp_child_listen_port);
+		fflush(stdout);
+	}
+#endif
+
+	port=sp_child_listen_port;
+	sp_my_ms_addr->s_addr = ip->s_addr;
+	/*port=CHILD_LIST_PORT;*/
+
+        raddr.sin_family = AF_INET;
+        raddr.sin_port = htons(port);
+        raddr.sin_addr.s_addr = ip->s_addr;
+        master_socket_val = socket(AF_INET, SOCK_STREAM, 0);
+        if (master_socket_val < 0)
+        {
+                perror("Master: socket failed:");
+                exit(23);
+        }
+        bzero(&addr, sizeof(struct sockaddr_in));
+	tmp_port=sp_master_esend_port;
+        addr.sin_port = htons(tmp_port);
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = INADDR_ANY;
+        rc = -1;
+        while (rc < 0)
+        {
+                rc = bind(master_socket_val, (struct sockaddr *)&addr,
+                                                sizeof(struct sockaddr_in));
+		if(rc < 0)
+		{
+			tmp_port++;
+                	addr.sin_port=htons(tmp_port);
+			continue;
+		}
+        }
+	if(mdebug ==1)
+	{
+		printf("Master: Bound port\n");
+		fflush(stdout);
+	}
+        if (rc < 0)
+        {
+                perror("Master: bind failed for sync channel to child.\n");
+                exit(24);
+        }
+	sleep(1);
+        rc = connect(master_socket_val, (struct sockaddr *)&raddr, 
+			sizeof(struct sockaddr_in));
+	if (rc < 0)
+        {
+                perror("Master: connect failed\n");
+		printf("Error %d\n",errno);
+                exit(25);
+        }
+	if(mdebug ==1)
+	{
+		printf("Master Connected\n");
+		fflush(stdout);
+	}
+	return (master_socket_val);
+}
+
+/*
+ * Start the childs listening service for messages from the master.
+ */
+#ifdef HAVE_ANSIC_C
+int
+sp_start_child_listen(int listen_port, int size_of_message)
+#else
+int
+sp_start_child_listen(listen_port, size_of_message)
+int listen_port;
+int size_of_message;
+#endif
+{
+	int tsize;
+	int s,ns,me;
+	int rc;
+	int xx;
+	int tmp_port;
+	struct sockaddr_in *addr;
+	int sockerr;
+	int recv_buf_size=65536;
+	xx = 0;
+	me=sizeof(struct sockaddr_in);
+	tsize=size_of_message; /* Number of messages to receive */
+        s = socket(AF_INET, SOCK_STREAM, 0);
+        if (s < 0)
+        {
+                perror("socket failed:");
+                exit(19);
+        }
+	sockerr = setsockopt (s, SOL_SOCKET, SO_RCVBUF, (char *)
+		&recv_buf_size, sizeof(int));
+	if ( sockerr == -1 ) {
+		perror("Error in setsockopt\n");
+	}
+        bzero(&sp_child_sync_sock, sizeof(struct sockaddr_in));
+	tmp_port=sp_child_listen_port;
+        sp_child_sync_sock.sin_port = htons(tmp_port);
+        sp_child_sync_sock.sin_family = AF_INET;
+        sp_child_sync_sock.sin_addr.s_addr = INADDR_ANY;
+        rc = -1;
+        while (rc < 0)
+        {
+                rc = bind(s, (struct sockaddr *)&sp_child_sync_sock,
+                                sizeof(struct sockaddr_in));
+		if(rc < 0)
+		{
+			tmp_port++;
+                	sp_child_sync_sock.sin_port=htons(tmp_port);
+			continue;
+		}
+        }
+	sp_child_listen_port = ntohs(sp_child_sync_sock.sin_port);
+	if(cdebug ==1)
+	{
+		printf("Child: Listen: Bound at port %d\n", tmp_port);
+		fflush(stdout);
+	}
+	if(rc < 0)
+	{
+		perror("bind failed\n");
+		exit(20);
+	}
+
+	addr=&sp_child_async_sock;
+	listen(s,10);
+	if(cdebug)
+	{
+		printf("Child enters accept\n");
+		fflush(stdout);
+	}
+	ns=accept(s,(void *)addr,&me);
+	if(cdebug)
+	{
+		printf("Child attached for receive. Sock %d  %d\n", ns,errno);
+		fflush(stdout);
+	}
+	close(s);
+	return(ns);
+}
+
+
+/*
+ * The client runs this code
+ */
+#ifdef HAVE_ANSIC_C
+void
+sp_do_child_t(void)
+#else
+void
+sp_do_child_t()
+#endif
+{
+	int i,y;
+	int offset;
+	int sp_tcount=0;
+	/* child */
+	/*
+	 * Child reads from master 
+	 */
+	sp_crfd=sp_start_child_listen(sp_child_listen_port, sp_msize);
+	sp_start_time=time_so_far();
+	for(i=0;i<sp_count;i++)
+	{
+		offset=0;
+		while(offset<sp_msize)
+		{
+			y=read(sp_crfd,&sp_buf[offset],sp_msize-offset);
+			if(y < 0)
+			{
+			      	if(cdebug)
+					printf("Child error %d offset %d\n",
+						errno,offset);
+				exit(1);
+			}
+			offset+=y;
+			if(cdebug)
+				printf("Child offset %d read %d\n",offset,y);
+		}
+		sp_tcount+=offset;
+	}
+	sp_finish_time=time_so_far();
+
+	close(sp_crfd);
+	sleep(1); /* Wait for master to get into sp_get_result */
+	sp_send_result(sp_master_results_port, sp_tcount/1024, 
+		(float)(sp_tcount/1024)/(sp_finish_time-sp_start_time));
+
+	sleep(1);
+	/*
+	 * Child writes to master 
+	 */
+	sp_csfd=sp_start_child_send(sp_dest, sp_master_listen_port,
+		&sp_my_cs_addr);
+	sp_tcount=0;
+	offset=0;
+	sp_start_time=time_so_far();
+	for(i=0;i<sp_count;i++)
+	{
+		y=write(sp_csfd,sp_buf,sp_msize);
+		sp_tcount+=y;
+	}
+	sp_finish_time=time_so_far();
+	close(sp_csfd);
+	sleep(1);
+	sp_send_result(sp_master_results_port, sp_tcount/1024, 
+		(float)(sp_tcount/1024)/(sp_finish_time-sp_start_time));
+	if(cdebug)
+		printf("child exits\n");
+}
+
+/*
+ * The master runs this code.
+ */
+#ifdef HAVE_ANSIC_C
+void
+sp_do_master_t(void)
+#else
+void
+sp_do_master_t()
+#endif
+{
+	int i,y,sp_offset;
+	int sp_tcount = 0;
+
+
+	/*
+	 * Master writes to child 
+	 */
+	sp_msfd=sp_start_master_send(sp_dest, sp_child_listen_port,
+		&sp_my_ms_addr);
+	sp_start_time=time_so_far();
+	for(i=0;i<sp_count;i++)
+	{
+		y=write(sp_msfd,sp_buf,sp_msize);
+		sp_tcount+=y;
+	}
+	sp_finish_time=time_so_far();
+	close(sp_msfd);
+	sp_msfd=0;
+	sp_get_result(sp_master_results_port,0);
+	printf("%-20s  sent     %10d kbytes @ %10.2f Kbytes/sec \n",
+		sp_master_host,sp_tcount/1024, 
+		(float)(sp_tcount/1024)/(sp_finish_time-sp_start_time));
+
+	/* printf("\n"); */
+	/*
+	 * Master reads from child 
+	 */
+	sp_mrfd=sp_start_master_listen(sp_master_listen_port, sp_msize);
+	sp_offset=0;
+	sp_start_time=time_so_far();
+	sp_tcount=0;
+	for(i=0;i<sp_count;i++)
+	{
+		sp_offset=0;
+		while(sp_offset<sp_msize)
+		{
+			y=read(sp_mrfd,&sp_buf[sp_offset],sp_msize-sp_offset);
+			if(y < 0)
+			{
+			      	printf("Master error %d offset %d\n",errno,
+					sp_offset);
+				exit(1);
+			}
+			sp_offset+=y;
+			/* printf("Master offset %d read %d\n",offset,y);*/
+		}
+		sp_tcount+=sp_offset;
+	}
+	sp_finish_time=time_so_far();
+	sp_get_result(sp_master_results_port,1);
+	printf("%-20s received  %10d kbytes @ %10.2f Kbytes/sec \n",
+		sp_master_host,sp_tcount/1024,
+		(float)(sp_tcount/1024)/(sp_finish_time-sp_start_time));
+	printf("\n");
+	wait();
+	close(sp_mrfd);
+	sp_mrfd=0;
+}
+
+/*
+ * Start the master listening service for messages from the child.
+ */
+#ifdef HAVE_ANSIC_C
+int
+sp_start_master_listen(int sp_master_listen_port, int sp_size_of_message)
+#else
+int
+sp_start_master_listen(sp_master_listen_port, sp_size_of_message)
+int sp_size_of_message;
+int sp_master_listen_port;
+#endif
+{
+	int tsize;
+	int s,ns,me;
+	int rc;
+	int xx;
+	int tmp_port;
+	struct sockaddr_in *addr;
+	int sockerr;
+	int recv_buf_size=65536;
+	xx = 0;
+	me=sizeof(struct sockaddr_in);
+	tsize=sp_size_of_message; /* Number of messages to receive */
+        s = socket(AF_INET, SOCK_STREAM, 0);
+        if (s < 0)
+        {
+                perror("socket failed:");
+                exit(19);
+        }
+	sockerr = setsockopt (s, SOL_SOCKET, SO_RCVBUF, (char *)
+		&recv_buf_size, sizeof(int));
+	if ( sockerr == -1 ) {
+		perror("Error in setsockopt\n");
+	}
+        bzero(&sp_master_sync_sock, sizeof(struct sockaddr_in));
+	tmp_port=sp_master_listen_port;
+        sp_master_sync_sock.sin_port = htons(tmp_port);
+        sp_master_sync_sock.sin_family = AF_INET;
+        sp_master_sync_sock.sin_addr.s_addr = INADDR_ANY;
+        rc = -1;
+        while (rc < 0)
+        {
+                rc = bind(s, (struct sockaddr *)&sp_master_sync_sock,
+                                sizeof(struct sockaddr_in));
+		if(rc < 0)
+		{
+			tmp_port++;
+                	sp_master_sync_sock.sin_port=htons(tmp_port);
+			continue;
+		}
+        }
+	sp_master_listen_port = ntohs(sp_master_sync_sock.sin_port);
+	if(mdebug ==1)
+	{
+		printf("Master: Listen: Bound at port %d\n", tmp_port);
+		fflush(stdout);
+	}
+	if(rc < 0)
+	{
+		perror("bind failed\n");
+		exit(20);
+	}
+
+	addr=&sp_master_async_sock;
+	listen(s,10);
+	if(mdebug)
+	{
+		printf("Master enters accept\n");
+		fflush(stdout);
+	}
+	ns=accept(s,(void *)addr,&me);
+	if(mdebug)
+	{
+		printf("Master attached for receive. Sock %d  %d\n", ns,errno);
+		fflush(stdout);
+	}
+	close(s);
+	return(ns);
+}
+
+/*
+ * Start the channel for the child to send a message to 
+ * the master.
+ */
+#ifdef HAVE_ANSIC_C
+int
+sp_start_child_send(char *sp_master_host_name, int sp_master_listen_port, struct in_addr *sp_my_cs_addr)
+#else
+int
+sp_start_child_send(sp_master_host_name, sp_master_listen_port, sp_my_cs_addr)
+char *sp_master_host_name; 
+int sp_master_listen_port;
+struct in_addr *sp_my_cs_addr;
+#endif
+{
+	int rc,sp_child_socket_val;
+	struct sockaddr_in addr,raddr;
+	struct hostent *he;
+	int port,tmp_port;
+	struct in_addr *ip;
+        he = gethostbyname(sp_master_host_name);
+        if (he == NULL)
+        {
+                printf("Child: Bad hostname >%s<\n",sp_master_host_name);
+		fflush(stdout);
+                exit(22);
+        }
+	if(cdebug ==1)
+	{
+	        printf("Child: start child send: %s\n", he->h_name);
+	        printf("To: %s at port %d\n",sp_master_host_name,
+			sp_master_listen_port);
+		fflush(stdout);
+	}
+        ip = (struct in_addr *)he->h_addr_list[0];
+
+	port=sp_master_listen_port;
+	sp_my_cs_addr->s_addr = ip->s_addr;
+
+        raddr.sin_family = AF_INET;
+        raddr.sin_port = htons(port);
+        raddr.sin_addr.s_addr = ip->s_addr;
+        sp_child_socket_val = socket(AF_INET, SOCK_STREAM, 0);
+        if (sp_child_socket_val < 0)
+        {
+                perror("child: socket failed:");
+                exit(23);
+        }
+        bzero(&addr, sizeof(struct sockaddr_in));
+	tmp_port=sp_child_esend_port;
+        addr.sin_port = htons(tmp_port);
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = INADDR_ANY;
+        rc = -1;
+        while (rc < 0)
+        {
+                rc = bind(sp_child_socket_val, (struct sockaddr *)&addr,
+                                                sizeof(struct sockaddr_in));
+		if(rc < 0)
+		{
+			tmp_port++;
+                	addr.sin_port=htons(tmp_port);
+			continue;
+		}
+        }
+	if(cdebug ==1)
+	{
+		printf("Child: Bound port %d\n",tmp_port);
+		fflush(stdout);
+	}
+        if (rc < 0)
+        {
+                perror("Child: bind failed for sync channel to child.\n");
+                exit(24);
+        }
+        rc = connect(sp_child_socket_val, (struct sockaddr *)&raddr, 
+			sizeof(struct sockaddr_in));
+	if (rc < 0)
+        {
+                perror("child: connect failed\n");
+		printf("Error %d\n",errno);
+		exit(25);
+        }
+	if(cdebug ==1)
+	{
+		printf("child Connected\n");
+		fflush(stdout);
+	}
+	return (sp_child_socket_val);
+}
+
+#ifdef HAVE_ANSIC_C
+void
+do_speed_check(int client_flag)
+#else
+void
+do_speed_check(client_flag)
+int client_flag;
+#endif
+{
+	int i;
+	if(client_flag)
+	{
+		speed_main(" "," ",reclen,kilobytes64,client_flag);
+	}
+	else
+	{
+		printf("Checking %d clients\n",clients_found);
+		for(i=0;i<clients_found;i++)
+		{
+			speed_main(child_idents[i].child_name,
+				child_idents[i].execute_path,
+				reclen, kilobytes64,client_flag);
+		}
+	}
 }
