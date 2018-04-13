@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.182 $"
+#define THISVERSION "        Version $Revision: 3.185 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -382,9 +382,6 @@ struct child_stats {
 	float cputime;		/* child CPU time */
 	float throughput; 	/* Throughput in either kb/sec or ops/sec */
 	float actual;	   	/* Either actual kb read or # of ops performed */
-	double start_time;	/* Actual start time */
-	double stop_time;	/* Actual end time */
-	double fini_time;	/* always set, while stop_time is not always set for a child */
 } VOLATILE *child_stat;
 
 /*
@@ -448,6 +445,7 @@ struct client_command {
 	int c_w_traj_flag;
 	int c_r_traj_flag;
 	int c_direct_flag;
+	int c_cpuutilflag;
 	int c_client_number;
 	int c_command;
 	int c_testnum;
@@ -522,6 +520,7 @@ struct client_neutral_command {
 	char c_w_traj_flag[2];		/* small int */
 	char c_r_traj_flag[2];		/* small int */
 	char c_direct_flag[2]; 		/* small int */
+	char c_cpuutilflag[2]; 		/* small int */
 	char c_stride[10]; 		/* small long long */
 	char c_purge[10]; 		/* very small long long */
 	char c_fetchon[10]; 		/* very small long long */
@@ -563,9 +562,8 @@ struct master_command {
 	int m_testnum;
 	int m_version;
 	float m_throughput;
-	double m_stop_time;
-	double m_start_time;
-	double m_fini_time;
+	float m_cputime;
+	float m_walltime;
 	float m_actual;
 	long long m_child_flag;
 };	
@@ -587,9 +585,8 @@ struct master_neutral_command {
 	char m_testnum[20];		/* int */
 	char m_version[20];		/* int */
 	char m_throughput[80];		/* float */
-	char m_stop_time[80];		/* float */
-	char m_start_time[80];		/* float */
-	char m_fini_time[80];		/* float */
+	char m_cputime[80];		/* float */
+	char m_walltime[80];		/* float */
 	char m_actual[80];		/* float */
 	char m_child_flag[80];		/* long long */
 };	
@@ -1291,7 +1288,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 9;
+int proto_version = 10;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -2253,13 +2250,6 @@ char **argv;
 		}
 	}
 	
-	if(distributed && master_iozone && cpuutilflag)
-	{
-		printf("\n\t>>> WARNING <<< CPU utilization not supported in distributed mode.\n");
-		printf("\tRunning with CPU utilization disabled.\n\n");
-		cpuutilflag=0;
-
-	}
 	if(!OPS_flag && !MS_flag)
 	{
 		if(!silent) printf("\tOutput is in Kbytes/sec\n");
@@ -2954,9 +2944,6 @@ void auto_test()
 /*	double cputime;		Child's CPU time		*/
 /* 	double throughput;	Child's throughput		*/
 /* 	double actual;		Child's actual read/written	*/
-/*	double start_time;	Actual start time		*/
-/*	double stop_time;	Actual end time			*/
-/*	double fini_time;	Ending time for a child		*/
 /* } 								*/
 /*								*/
 /* There is an array of child_stat structures layed out in 	*/
@@ -2978,7 +2965,6 @@ throughput_test()
 	double jtime = 0;
 	double walltime = 0;
 	double cputime = 0;
-	double time_begin, time_fini;
 	char *port;
 	char getout;
 	long long throughsize = KILOBYTES;
@@ -3031,11 +3017,8 @@ throughput_test()
 		child_stat->flag=CHILD_STATE_HOLD;
 		child_stat->actual=0;
 		child_stat->throughput=0;
-		child_stat->start_time=0;
-		child_stat->stop_time=0;
-		child_stat->fini_time=0;
-		child_stat->cputime=0.0;
-		child_stat->walltime=0.0;
+		child_stat->cputime=0;
+		child_stat->walltime=0;
 	}
 	*stop_flag = 0;
 	if(!sflag)
@@ -3236,7 +3219,6 @@ waitout:
 
 	total_kilos=0;
 	ptotal=0;
-	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
 	if(!silent) printf("\n");
@@ -3259,20 +3241,14 @@ waitout:
 
 		/* and find the child with the longest wall time */
 		/* Get the earliest start time and latest fini time to calc. elapsed time. */
-		if (time_begin == 0.0)
-			time_begin = child_stat->start_time;
-		else
-			if (child_stat->start_time < time_begin)
-				time_begin = child_stat->start_time;
-		if (child_stat->fini_time > time_fini)
-			time_fini = child_stat->fini_time;
+		if (child_stat->walltime < child_stat->cputime)
+			child_stat->walltime = child_stat->cputime;
+		if (child_stat->walltime > walltime)
+			walltime = child_stat->walltime;
 	}
 	avg_throughput=total_kilos/num_child;
 	if(cpuutilflag)
 	{
-		walltime = time_fini - time_begin;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 	}
@@ -3305,7 +3281,7 @@ waitout:
 		}
 		else
 		{
-			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+			if(!silent) printf("\tCPU Utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 100.0 * cputime / walltime);
 		}
 	}
@@ -3343,7 +3319,6 @@ waitout:
 	/**********************************************************/
 	/* Re-write throughput performance test. ******************/
 	/**********************************************************/
-	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -3490,20 +3465,18 @@ jump3:
 			max_throughput=child_stat->throughput;
 		cputime += child_stat->cputime;
 		/* Get the earliest start time and latest fini time to calc. elapsed time. */
-		if (time_begin == 0.0)
-			time_begin = child_stat->start_time;
-		else
-			if (child_stat->start_time < time_begin)
-				time_begin = child_stat->start_time;
-		if (child_stat->fini_time > time_fini)
-			time_fini = child_stat->fini_time;
+		if (child_stat->walltime < child_stat->cputime)
+			child_stat->walltime = child_stat->cputime;
+		if (child_stat->walltime > walltime)
+			walltime = child_stat->walltime;
 	}
 	avg_throughput=total_kilos/num_child;
 	if(cpuutilflag)
 	{
-		walltime = time_fini - time_begin;
+/*
 		if (walltime < cputime_res)
 			walltime = 0.0;
+*/
 		if (cputime < cputime_res)
 			cputime = 0.0;
 	}
@@ -3578,7 +3551,6 @@ next0:
 	/**************************************************************/
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[2]);
-	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -3717,20 +3689,14 @@ jumpend:
 			max_throughput=child_stat->throughput;
 		cputime += child_stat->cputime;
 		/* Get the earliest start time and latest fini time to calc. elapsed time. */
-		if (time_begin == 0.0)
-			time_begin = child_stat->start_time;
-		else
-			if (child_stat->start_time < time_begin)
-				time_begin = child_stat->start_time;
-		if (child_stat->fini_time > time_fini)
-			time_fini = child_stat->fini_time;
+		if (child_stat->walltime < child_stat->cputime)
+			child_stat->walltime = child_stat->cputime;
+		if (child_stat->walltime > walltime)
+			walltime = child_stat->walltime;
 	}
 	avg_throughput=total_kilos/num_child;
 	if(cpuutilflag)
 	{
-		walltime = time_fini - time_begin;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 	}
@@ -3802,7 +3768,6 @@ jumpend:
 	/**************************************************************/
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[3]);
-	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -3943,20 +3908,18 @@ jumpend2:
 			max_throughput=child_stat->throughput;
 		cputime += child_stat->cputime;
 		/* Get the earliest start time and latest fini time to calc. elapsed time. */
-		if (time_begin == 0.0)
-			time_begin = child_stat->start_time;
-		else
-			if (child_stat->start_time < time_begin)
-				time_begin = child_stat->start_time;
-		if (child_stat->fini_time > time_fini)
-			time_fini = child_stat->fini_time;
+		if (child_stat->walltime < child_stat->cputime)
+			child_stat->walltime = child_stat->cputime;
+		if (child_stat->walltime > walltime)
+			walltime = child_stat->walltime;
 	}
 	avg_throughput=total_kilos/num_child;
 	if(cpuutilflag)
 	{
-		walltime = time_fini - time_begin;
+/*
 		if (walltime < cputime_res)
 			walltime = 0.0;
+*/
 		if (cputime < cputime_res)
 			cputime = 0.0;
 	}
@@ -4027,7 +3990,6 @@ next1:
 	/**************************************************************/
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[4]);
-	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -4167,20 +4129,18 @@ next1:
 		/* walltime += child_stat->walltime; */
 		cputime += child_stat->cputime;
 		/* Get the earliest start time and latest fini time to calc. elapsed time. */
-		if (time_begin == 0.0)
-			time_begin = child_stat->start_time;
-		else
-			if (child_stat->start_time < time_begin)
-				time_begin = child_stat->start_time;
-		if (child_stat->fini_time > time_fini)
-			time_fini = child_stat->fini_time;
+		if (child_stat->walltime < child_stat->cputime)
+			child_stat->walltime = child_stat->cputime;
+		if (child_stat->walltime > walltime)
+			walltime = child_stat->walltime;
 	}
 	avg_throughput=total_kilos/num_child;
 	if(cpuutilflag)
 	{
-		walltime = time_fini - time_begin;
+/*
 		if (walltime < cputime_res)
 			walltime = 0.0;
+*/
 		if (cputime < cputime_res)
 			cputime = 0.0;
 	}
@@ -4244,7 +4204,6 @@ next2:
 	/**************************************************************/
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[5]);
-	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -4385,21 +4344,19 @@ next2:
 			max_throughput=child_stat->throughput;
 		/* walltime += child_stat->walltime; */
 		cputime += child_stat->cputime;
-		/* Get the earliest start time and latest fini time to calc. elapsed time. */
-		if (time_begin == 0.0)
-			time_begin = child_stat->start_time;
-		else
-			if (child_stat->start_time < time_begin)
-				time_begin = child_stat->start_time;
-		if (child_stat->fini_time > time_fini)
-			time_fini = child_stat->fini_time;
+		/* Get the biggest walltime */
+		if (child_stat->walltime < child_stat->cputime)
+			child_stat->walltime = child_stat->cputime;
+		if (child_stat->walltime > walltime)
+			walltime = child_stat->walltime;
 	}
 	avg_throughput=total_kilos/num_child;
 	if(cpuutilflag)
 	{
-		walltime = time_fini - time_begin;
+/*
 		if (walltime < cputime_res)
 			walltime = 0.0;
+*/
 		if (cputime < cputime_res)
 			cputime = 0.0;
 	}
@@ -4464,7 +4421,6 @@ next3:
 	
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[6]);
-	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -4604,21 +4560,15 @@ next3:
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
 		cputime += child_stat->cputime;
-		/* Get the earliest start time and latest fini time to calc. elapsed time. */
-		if (time_begin == 0.0)
-			time_begin = child_stat->start_time;
-		else
-			if (child_stat->start_time < time_begin)
-				time_begin = child_stat->start_time;
-		if (child_stat->fini_time > time_fini)
-			time_fini = child_stat->fini_time;
+		/* Get the biggest walltime */
+		if (child_stat->walltime < child_stat->cputime)
+			child_stat->walltime = child_stat->cputime;
+		if (child_stat->walltime > walltime)
+			walltime = child_stat->walltime;
 	}
 	avg_throughput=total_kilos/num_child;
 	if(cpuutilflag)
 	{
-		walltime = time_fini - time_begin;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 	}
@@ -4683,7 +4633,6 @@ next4:
 	
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[7]);
-	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -4823,21 +4772,15 @@ next4:
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
 		cputime += child_stat->cputime;
-		/* Get the earliest start time and latest fini time to calc. elapsed time. */
-		if (time_begin == 0.0)
-			time_begin = child_stat->start_time;
-		else
-			if (child_stat->start_time < time_begin)
-				time_begin = child_stat->start_time;
-		if (child_stat->fini_time > time_fini)
-			time_fini = child_stat->fini_time;
+		/* Get the biggest walltime */
+		if (child_stat->walltime < child_stat->cputime)
+			child_stat->walltime = child_stat->cputime;
+		if (child_stat->walltime > walltime)
+			walltime = child_stat->walltime;
 	}
 	avg_throughput=total_kilos/num_child;
 	if(cpuutilflag)
 	{
-		walltime = time_fini - time_begin;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 	}
@@ -4902,7 +4845,6 @@ next5:
 	
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[8]);
-	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -5042,21 +4984,15 @@ next5:
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
 		cputime += child_stat->cputime;
-		/* Get the earliest start time and latest fini time to calc. elapsed time. */
-		if (time_begin == 0.0)
-			time_begin = child_stat->start_time;
-		else
-			if (child_stat->start_time < time_begin)
-				time_begin = child_stat->start_time;
-		if (child_stat->fini_time > time_fini)
-			time_fini = child_stat->fini_time;
+		/* Get the biggest walltime */
+		if (child_stat->walltime < child_stat->cputime)
+			child_stat->walltime = child_stat->cputime;
+		if (child_stat->walltime > walltime)
+			walltime = child_stat->walltime;
 	}
 	avg_throughput=total_kilos/num_child;
 	if(cpuutilflag)
 	{
-		walltime = time_fini - time_begin;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 	}
@@ -5124,7 +5060,6 @@ next6:
 	
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[9]);
-	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -5264,21 +5199,15 @@ next6:
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
 		cputime += child_stat->cputime;
-		/* Get the earliest start time and latest fini time to calc. elapsed time. */
-		if (time_begin == 0.0)
-			time_begin = child_stat->start_time;
-		else
-			if (child_stat->start_time < time_begin)
-				time_begin = child_stat->start_time;
-		if (child_stat->fini_time > time_fini)
-			time_fini = child_stat->fini_time;
+		/* Get the biggest walltime*/
+		if (child_stat->walltime < child_stat->cputime)
+			child_stat->walltime = child_stat->cputime;
+		if (child_stat->walltime > walltime)
+			walltime = child_stat->walltime;
 	}
 	avg_throughput=total_kilos/num_child;
 	if(cpuutilflag)
 	{
-		walltime = time_fini - time_begin;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 	}
@@ -5348,7 +5277,6 @@ next7:
 	
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[10]);
-	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -5488,21 +5416,15 @@ next7:
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
 		cputime += child_stat->cputime;
-		/* Get the earliest start time and latest fini time to calc. elapsed time. */
-		if (time_begin == 0.0)
-			time_begin = child_stat->start_time;
-		else
-			if (child_stat->start_time < time_begin)
-				time_begin = child_stat->start_time;
-		if (child_stat->fini_time > time_fini)
-			time_fini = child_stat->fini_time;
+		/* Get the biggest walltime*/
+		if (child_stat->walltime < child_stat->cputime)
+			child_stat->walltime = child_stat->cputime;
+		if (child_stat->walltime > walltime)
+			walltime = child_stat->walltime;
 	}
 	avg_throughput=total_kilos/num_child;
 	if(cpuutilflag)
 	{
-		walltime = time_fini - time_begin;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 	}
@@ -6394,12 +6316,12 @@ long long *data2;
 		}
 		if(cpuutilflag)
 		{
-			walltime[j] = time_so_far() - walltime[j];
-			if (walltime[j] < cputime_res)
-				walltime[j] = 0.0;
 			cputime[j]  = cputime_so_far() - cputime[j];
 			if (cputime[j] < cputime_res)
 				cputime[j] = 0.0;
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime[j])
+			   walltime[j] = cputime[j];
 		}
 	}
 	if(OPS_flag || MS_flag){
@@ -6574,12 +6496,12 @@ long long *data2;
 
 		if(cpuutilflag)
 		{
-			walltime[j] = time_so_far() - walltime[j];
-			if (walltime[j] < cputime_res)
-				walltime[j] = 0.0;
 			cputime[j]  = cputime_so_far() - cputime[j];
 			if (cputime[j] < cputime_res)
 				cputime[j] = 0.0;
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime[j])
+			   walltime[j] = cputime[j];
 		}
 	}
 	free(stdio_buf);
@@ -6751,12 +6673,12 @@ long long *data1,*data2;
 		stream = NULL;
 		if(cpuutilflag)
 		{
-			walltime[j] = time_so_far() - walltime[j];
-			if (walltime[j] < cputime_res)
-				walltime[j] = 0.0;
 			cputime[j]  = cputime_so_far() - cputime[j];
 			if (cputime[j] < cputime_res)
 				cputime[j] = 0.0;
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime[j])
+			   walltime[j] = cputime[j];
 		}
     	}
 	free(stdio_buf);
@@ -7142,12 +7064,12 @@ long long *data1,*data2;
 		}
 		if(cpuutilflag)
 		{
-			walltime[j] = time_so_far() - walltime[j];
-			if (walltime[j] < cputime_res)
-				walltime[j] = 0.0;
 			cputime[j]  = cputime_so_far() - cputime[j];
 			if (cputime[j] < cputime_res)
 				cputime[j] = 0.0;
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime[j])
+			   walltime[j] = cputime[j];
 		}
     	}
 	if(OPS_flag || MS_flag){
@@ -7525,12 +7447,12 @@ long long *data1, *data2;
  	    }
             if(cpuutilflag)
 	    {
-	    	walltime[j] = time_so_far() - walltime[j];
-		    if (walltime[j] < cputime_res)
-			walltime[j] = 0.0;
 	    	cputime[j]  = cputime_so_far() - cputime[j];
 	    	if (cputime[j] < cputime_res)
 			cputime[j] = 0.0;
+	    	walltime[j] = time_so_far() - walltime[j];
+		if (walltime[j] < cputime[j])
+		   walltime[j] = cputime[j];
 	    }
     	}
 	if(OPS_flag || MS_flag){
@@ -7780,12 +7702,12 @@ long long *data1,*data2;
 		}
 		if(cpuutilflag)
 		{
-			walltime[j] = time_so_far() - walltime[j];
-			if (walltime[j] < cputime_res)
-				walltime[j] = 0.0;
 			cputime[j]  = cputime_so_far() - cputime[j];
 			if (cputime[j] < cputime_res)
 				cputime[j] = 0.0;
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime[j])
+			   walltime[j] = cputime[j];
 		}
         }
 	if(OPS_flag || MS_flag){
@@ -8018,12 +7940,12 @@ long long *data1,*data2;
 		compute_val;
 	if(cpuutilflag)
 	{
-		walltime = time_so_far() - walltime;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		cputime  = cputime_so_far() - cputime;
 		if (cputime < cputime_res)
 			cputime = 0.0;
+		walltime = time_so_far() - walltime;
+		if (walltime < cputime)
+		   walltime = cputime;
 	}
 	if(writeintime < (double).000001) 
 	{
@@ -8282,12 +8204,12 @@ long long *data1, *data2;
 	}
 	if(cpuutilflag)
 	{
-		walltime = time_so_far() - walltime;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		cputime  = cputime_so_far() - cputime;
 		if (cputime < cputime_res)
 			cputime = 0.0;
+		walltime = time_so_far() - walltime;
+		if (walltime < cputime)
+		   walltime = cputime;
 	}
 
 #ifdef ASYNC_IO
@@ -8539,12 +8461,12 @@ long long *data1,*data2;
 
 		if(cpuutilflag)
 		{
-			walltime[j] = time_so_far() - walltime[j];
-			if (walltime[j] < cputime_res)
-				walltime[j] = 0.0;
 			cputime[j]  = cputime_so_far() - cputime[j];
 			if (cputime[j] < cputime_res)
 				cputime[j] = 0.0;
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime[j])
+			   walltime[j] = cputime[j];
 		}
 	}
 	if(OPS_flag || MS_flag){
@@ -8716,12 +8638,12 @@ long long *data1, *data2;
 
 		if(cpuutilflag)
 		{
-			walltime[j] = time_so_far() - walltime[j];
-			if (walltime[j] < cputime_res)
-				walltime[j] = 0.0;
 			cputime[j]  = cputime_so_far() - cputime[j];
 			if (cputime[j] < cputime_res)
 				cputime[j] = 0.0;
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime[j])
+			   walltime[j] = cputime[j];
 		}
     	}
 
@@ -8948,12 +8870,12 @@ long long *data1,*data2;
 
 		if(cpuutilflag)
 		{
-			walltime[j] = time_so_far() - walltime[j];
-			if (walltime[j] < cputime_res)
-				walltime[j] = 0.0;
 			cputime[j]  = cputime_so_far() - cputime[j];
 			if (cputime[j] < cputime_res)
 				cputime[j] = 0.0;
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime[j])
+			   walltime[j] = cputime[j];
 		}
 	}
 	if(OPS_flag || MS_flag){
@@ -9202,12 +9124,12 @@ long long *data1,*data2;
 
 		if(cpuutilflag)
 		{
-			walltime[j] = time_so_far() - walltime[j];
-			if (walltime[j] < cputime_res)
-				walltime[j] = 0.0;
 			cputime[j]  = cputime_so_far() - cputime[j];
 			if (cputime[j] < cputime_res)
 				cputime[j] = 0.0;
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime[j])
+			   walltime[j] = cputime[j];
 		}
     	}
 	if(OPS_flag || MS_flag){
@@ -10385,7 +10307,6 @@ thread_write_test( x)
 		fprintf(thread_wqfd,"Offset in Kbytes   Latency in microseconds\n");
 	}
 	starttime1 = time_so_far();
-	child_stat->start_time = starttime1;
 	if(cpuutilflag)
 	{
 		walltime = starttime1;
@@ -10488,7 +10409,6 @@ again:
 						fsync(fd);
 				}
 				temp_time = time_so_far();
-				child_stat->stop_time = temp_time;
 				child_stat->throughput = 
 					(temp_time - starttime1)-time_res;
 				if(child_stat->throughput < (double).000001) 
@@ -10605,7 +10525,6 @@ again:
 		child_stat->throughput =
 			(double)written_so_far/child_stat->throughput;
 		child_stat->actual = (double)written_so_far;
-		child_stat->stop_time = temp_time;
 	}
 	if(cdebug)
 	{
@@ -10613,27 +10532,25 @@ again:
 			child_stat->actual);
 		fflush(stdout);
 	}
-	if(distributed && client_iozone)
-		tell_master_stats(THREAD_WRITE_TEST, chid, child_stat->throughput, 
-			child_stat->actual, child_stat->stop_time,
-			child_stat->start_time,child_stat->fini_time,(char)*stop_flag,
-			(long long)CHILD_STATE_HOLD);
-			
 	if(cpuutilflag)
 	{
-		child_stat->fini_time = time_so_far();
 		cputime = cputime_so_far() - cputime;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 		child_stat->cputime = cputime;
 		walltime = time_so_far() - walltime;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		child_stat->walltime = walltime;
 	}
+	if(distributed && client_iozone)
+		tell_master_stats(THREAD_WRITE_TEST, chid, child_stat->throughput, 
+			child_stat->actual, 
+			child_stat->cputime, child_stat->walltime,
+			(char)*stop_flag,
+			(long long)CHILD_STATE_HOLD);
+			
 	if (debug1) {
-		printf(" child/slot: %lld, start-fini: %8.3f-%8.3f=%8.3f %8.3fC" " -> %6.2f%%\n",
-			xx, child_stat->start_time, child_stat->fini_time, walltime, cputime,
+		printf(" child/slot: %lld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",
+			xx, walltime, cputime,
 			cpu_util(cputime, walltime));
 	}
 	child_stat->flag = CHILD_STATE_HOLD; /* Tell parent I'm done */
@@ -10906,7 +10823,6 @@ thread_pwrite_test( x)
 		fprintf(thread_wqfd,"Offset in Kbytes   Latency in microseconds\n");
 	}
 	starttime1 = time_so_far();
-	child_stat->start_time = starttime1;
 	if(cpuutilflag)
 	{
 		walltime = starttime1;
@@ -11009,7 +10925,6 @@ again:
 						fsync(fd);
 				}
 				temp_time = time_so_far();
-				child_stat->stop_time = temp_time;
 				child_stat->throughput = 
 					(temp_time - starttime1)-time_res;
 				if(child_stat->throughput < (double).000001) 
@@ -11126,7 +11041,6 @@ again:
 		child_stat->throughput =
 			(double)written_so_far/child_stat->throughput;
 		child_stat->actual = (double)written_so_far;
-		child_stat->stop_time = temp_time;
 	}
 	if(cdebug)
 	{
@@ -11134,27 +11048,25 @@ again:
 			child_stat->actual);
 		fflush(stdout);
 	}
-	if(distributed && client_iozone)
-		tell_master_stats(THREAD_PWRITE_TEST, chid, child_stat->throughput, 
-			child_stat->actual, child_stat->stop_time,
-			child_stat->start_time,child_stat->fini_time,(char)*stop_flag,
-			(long long)CHILD_STATE_HOLD);
-			
 	if(cpuutilflag)
 	{
-		child_stat->fini_time = time_so_far();
 		cputime = cputime_so_far() - cputime;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 		child_stat->cputime = cputime;
 		walltime = time_so_far() - walltime;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		child_stat->walltime = walltime;
 	}
+	if(distributed && client_iozone)
+		tell_master_stats(THREAD_PWRITE_TEST, chid, child_stat->throughput, 
+			child_stat->actual, 
+			child_stat->cputime, child_stat->walltime,
+			(char)*stop_flag,
+			(long long)CHILD_STATE_HOLD);
+			
 	if (debug1) {
-		printf(" child/slot: %lld, start-fini: %8.3f-%8.3f=%8.3f %8.3fC" " -> %6.2f%%\n",
-			xx, child_stat->start_time, child_stat->fini_time, walltime, cputime,
+		printf(" child/slot: %lld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",
+			xx, walltime, cputime,
 			cpu_util(cputime, walltime));
 	}
 	child_stat->flag = CHILD_STATE_HOLD; /* Tell parent I'm done */
@@ -11394,7 +11306,6 @@ thread_rwrite_test(x)
 			Poll((long long)1);
 	}
 	starttime1 = time_so_far();
-	child_stat->start_time = starttime1;
 	if(cpuutilflag)
 	{
 		walltime = starttime1;
@@ -11405,7 +11316,6 @@ thread_rwrite_test(x)
 			printf("File lock for write failed. %d\n",errno);
 	if(cpuutilflag)
 	{
-		child_stat->start_time = starttime1;
 		walltime = starttime1;
 		cputime = cputime_so_far();
 	}
@@ -11555,7 +11465,6 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 		res_prob=1;
 	}
 
-	child_stat->stop_time = temp_time;
 	if(OPS_flag){
 	   /*re_written_so_far=(re_written_so_far*1024)/reclen;*/
 	   re_written_so_far=w_traj_ops_completed;
@@ -11572,23 +11481,21 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 	if(cdebug)
 		printf("Child %d: throughput %f actual %f \n",(int)chid, child_stat->throughput,
 			child_stat->actual);
-	if(distributed && client_iozone)
-		tell_master_stats(THREAD_REWRITE_TEST, chid, child_stat->throughput, 
-			child_stat->actual, child_stat->stop_time,
-			child_stat->start_time,child_stat->fini_time,(char)*stop_flag,
-			(long long)CHILD_STATE_HOLD);
 	if(cpuutilflag)
 	{
-		child_stat->fini_time = time_so_far();
 		cputime = cputime_so_far() - cputime;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 		child_stat->cputime = cputime;
 		walltime = time_so_far() - walltime;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		child_stat->walltime = walltime;
 	}
+	if(distributed && client_iozone)
+		tell_master_stats(THREAD_REWRITE_TEST, chid, child_stat->throughput, 
+			child_stat->actual,
+			child_stat->cputime, child_stat->walltime,
+			(char)*stop_flag,
+			(long long)CHILD_STATE_HOLD);
 	child_stat->flag = CHILD_STATE_HOLD;	/* Tell parent I'm done */
 	if(!include_close)
 	{
@@ -11817,7 +11724,6 @@ thread_read_test(x)
 		if(mylockf((int) fd, (int) 1, (int)1) != 0)
 			printf("File lock for read failed. %d\n",errno);
 	starttime1 = time_so_far();
-	child_stat->start_time = starttime1;
 	if(cpuutilflag)
 	{
 		walltime = starttime1;
@@ -11964,7 +11870,6 @@ thread_read_test(x)
 		close(fd);
 	}
 	temp_time = time_so_far();
-	child_stat->stop_time = temp_time;
 	child_stat=(struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = ((temp_time - starttime1)-time_res)
 		-compute_val;
@@ -11991,23 +11896,21 @@ thread_read_test(x)
         if(cdebug)
                 printf("Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
                         child_stat->actual);
-        if(distributed && client_iozone)
-                tell_master_stats(THREAD_READ_TEST, chid, child_stat->throughput,
-                        child_stat->actual, child_stat->stop_time,
-                        child_stat->start_time,child_stat->fini_time,(char)*stop_flag,
-                        (long long)CHILD_STATE_HOLD);
 	if(cpuutilflag)
 	{
-		child_stat->fini_time = time_so_far();
 		cputime = cputime_so_far() - cputime;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 		child_stat->cputime = cputime;
 		walltime = time_so_far() - walltime;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		child_stat->walltime = walltime;
 	}
+        if(distributed && client_iozone)
+                tell_master_stats(THREAD_READ_TEST, chid, child_stat->throughput,
+                        child_stat->actual, 
+			child_stat->cputime, child_stat->walltime,
+			(char)*stop_flag,
+                        (long long)CHILD_STATE_HOLD);
 	child_stat->flag = CHILD_STATE_HOLD; 	/* Tell parent I'm done */
 	/*fsync(fd);*/
 	if(!include_close)
@@ -12235,7 +12138,6 @@ thread_pread_test(x)
 		if(mylockf((int) fd, (int) 1, (int)1) != 0)
 			printf("File lock for read failed. %d\n",errno);
 	starttime1 = time_so_far();
-	child_stat->start_time = starttime1;
 	if(cpuutilflag)
 	{
 		walltime = starttime1;
@@ -12382,7 +12284,6 @@ thread_pread_test(x)
 		close(fd);
 	}
 	temp_time = time_so_far();
-	child_stat->stop_time = temp_time;
 	child_stat=(struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = ((temp_time - starttime1)-time_res)
 		-compute_val;
@@ -12409,23 +12310,21 @@ thread_pread_test(x)
         if(cdebug)
                 printf("Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
                         child_stat->actual);
-        if(distributed && client_iozone)
-                tell_master_stats(THREAD_READ_TEST, chid, child_stat->throughput,
-                        child_stat->actual, child_stat->stop_time,
-                        child_stat->start_time,child_stat->fini_time,(char)*stop_flag,
-                        (long long)CHILD_STATE_HOLD);
 	if(cpuutilflag)
 	{
-		child_stat->fini_time = time_so_far();
 		cputime = cputime_so_far() - cputime;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 		child_stat->cputime = cputime;
 		walltime = time_so_far() - walltime;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		child_stat->walltime = walltime;
 	}
+        if(distributed && client_iozone)
+                tell_master_stats(THREAD_READ_TEST, chid, child_stat->throughput,
+                        child_stat->actual,
+			child_stat->cputime, child_stat->walltime,
+			(char)*stop_flag,
+                        (long long)CHILD_STATE_HOLD);
 	child_stat->flag = CHILD_STATE_HOLD; 	/* Tell parent I'm done */
 	/*fsync(fd);*/
 	if(!include_close)
@@ -12652,7 +12551,6 @@ thread_rread_test(x)
 		if(mylockf((int) fd, (int) 1, (int)1) != 0)
 			printf("File lock for read failed. %d\n",errno);
 	starttime1 = time_so_far();
-	child_stat->start_time = starttime1;
 	if(cpuutilflag)
 	{
 		walltime = starttime1;
@@ -12800,7 +12698,6 @@ thread_rread_test(x)
 		close(fd);
 	}
 	temp_time = time_so_far();
-	child_stat->stop_time = temp_time;
 	child_stat->throughput = ((temp_time - starttime1)-time_res)
 		-compute_val;
 	if(child_stat->throughput < (double).000001) 
@@ -12823,24 +12720,22 @@ thread_rread_test(x)
 		if(distributed && client_iozone)
 			send_stop();
 	}
-	if(distributed && client_iozone)
-	{
-		tell_master_stats(THREAD_REREAD_TEST,chid, child_stat->throughput,
-			child_stat->actual, child_stat->stop_time,
-			child_stat->start_time,child_stat->fini_time,(char)*stop_flag,
-			(long long)CHILD_STATE_HOLD);
-	}
 	if(cpuutilflag)
 	{
-		child_stat->fini_time = time_so_far();
 		cputime = cputime_so_far() - cputime;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 		child_stat->cputime = cputime;
 		walltime = time_so_far() - walltime;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		child_stat->walltime = walltime;
+	}
+	if(distributed && client_iozone)
+	{
+		tell_master_stats(THREAD_REREAD_TEST,chid, child_stat->throughput,
+			child_stat->actual, 
+			child_stat->cputime, child_stat->walltime,
+			(char)*stop_flag,
+			(long long)CHILD_STATE_HOLD);
 	}
 	child_stat->flag = CHILD_STATE_HOLD;	/* Tell parent I'm done */
 	if(!include_close)
@@ -13047,7 +12942,6 @@ thread_reverse_read_test(x)
                         Poll((long long)1);
         }
 	starttime2 = time_so_far();
-	child_stat->start_time = starttime2;
 	if(cpuutilflag)
 	{
 		walltime = starttime2;
@@ -13201,7 +13095,6 @@ thread_reverse_read_test(x)
 		close(fd);
 	}
 	temp_time = time_so_far();
-	child_stat->stop_time = temp_time;
 	child_stat->throughput = ((temp_time - starttime2)-time_res)
 		-compute_val;
 	if(child_stat->throughput < (double).000001) 
@@ -13222,23 +13115,21 @@ thread_reverse_read_test(x)
 		if(distributed && client_iozone)
 			send_stop();
 	}
-        if(distributed && client_iozone)
-                tell_master_stats(THREAD_REVERSE_READ_TEST, chid, child_stat->throughput,
-                        child_stat->actual, child_stat->stop_time,
-                        child_stat->start_time,child_stat->fini_time,(char)*stop_flag,
-			(long long)CHILD_STATE_HOLD);
 	if(cpuutilflag)
 	{
-		child_stat->fini_time = time_so_far();
 		cputime = cputime_so_far() - cputime;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 		child_stat->cputime = cputime;
 		walltime = time_so_far() - walltime;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		child_stat->walltime = walltime;
 	}
+        if(distributed && client_iozone)
+                tell_master_stats(THREAD_REVERSE_READ_TEST, chid, child_stat->throughput,
+                        child_stat->actual,
+			child_stat->cputime, child_stat->walltime,
+			(char)*stop_flag,
+			(long long)CHILD_STATE_HOLD);
 	child_stat->flag = CHILD_STATE_HOLD;	/* Tell parent I'm done */
 	if(!include_close)
 	{
@@ -13445,7 +13336,6 @@ thread_stride_read_test(x)
 		if(mylockf((int) fd, (int) 1,  (int)1)!=0)
 			printf("File lock for write failed. %d\n",errno);
 	starttime2 = time_so_far();
-	child_stat->start_time = starttime2;
 	if(cpuutilflag)
 	{
 		walltime = starttime2;
@@ -13615,7 +13505,6 @@ thread_stride_read_test(x)
 		close(fd);
 	}
 	temp_time = time_so_far();
-	child_stat->stop_time = temp_time;
 	child_stat->throughput = ((temp_time - starttime2)-time_res)
 		-compute_val;
 	if(child_stat->throughput < (double).000001) 
@@ -13636,25 +13525,23 @@ thread_stride_read_test(x)
 		if(distributed && client_iozone)
 			send_stop();
 	}
-        if(distributed && client_iozone)
-        {
-                tell_master_stats(THREAD_STRIDE_TEST,chid, child_stat->throughput,
-                        child_stat->actual, child_stat->stop_time,
-                        child_stat->start_time,child_stat->fini_time,(char)*stop_flag,
-                        (long long)CHILD_STATE_HOLD);
-        }
 	if(cpuutilflag)
 	{
-		child_stat->fini_time = time_so_far();
 		cputime = cputime_so_far() - cputime;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 		child_stat->cputime = cputime;
 		walltime = time_so_far() - walltime;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		child_stat->walltime = walltime;
 	}
+        if(distributed && client_iozone)
+        {
+                tell_master_stats(THREAD_STRIDE_TEST,chid, child_stat->throughput,
+                        child_stat->actual,
+			child_stat->cputime, child_stat->walltime,
+			(char)*stop_flag,
+                        (long long)CHILD_STATE_HOLD);
+        }
 	child_stat->flag = CHILD_STATE_HOLD;	/* Tell parent I'm done */
 	if(!include_close)
 	{
@@ -13928,7 +13815,6 @@ thread_ranread_test(x)
                         Poll((long long)1);
         }
 	starttime1 = time_so_far();
-	child_stat->start_time = starttime1;
 	if(cpuutilflag)
 	{
 		walltime = starttime1;
@@ -14094,7 +13980,6 @@ thread_ranread_test(x)
 		close(fd);
 	}
 	temp_time = time_so_far();
-	child_stat->stop_time = temp_time;
 	child_stat=(struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = ((temp_time - starttime1)-time_res)
 		-compute_val;
@@ -14119,23 +14004,21 @@ thread_ranread_test(x)
         if(cdebug)
                 printf("Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
                         child_stat->actual);
-        if(distributed && client_iozone)
-                tell_master_stats(THREAD_RANDOM_READ_TEST, chid, child_stat->throughput,
-                        child_stat->actual, child_stat->stop_time,
-                        child_stat->start_time,child_stat->fini_time,(char)*stop_flag,
-                        (long long)CHILD_STATE_HOLD);
 	if(cpuutilflag)
 	{
-		child_stat->fini_time = time_so_far();
 		cputime = cputime_so_far() - cputime;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 		child_stat->cputime = cputime;
 		walltime = time_so_far() - walltime;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		child_stat->walltime = walltime;
 	}
+        if(distributed && client_iozone)
+                tell_master_stats(THREAD_RANDOM_READ_TEST, chid, child_stat->throughput,
+                        child_stat->actual,
+			child_stat->cputime, child_stat->walltime,
+			(char)*stop_flag,
+                        (long long)CHILD_STATE_HOLD);
 	child_stat->flag = CHILD_STATE_HOLD; 	/* Tell parent I'm done */
 	if(!include_close)
 	{
@@ -14380,7 +14263,6 @@ thread_ranwrite_test( x)
 	if(verify)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 	starttime1 = time_so_far();
-	child_stat->start_time = starttime1;
 	if(cpuutilflag)
 	{
 		walltime = starttime1;
@@ -14499,7 +14381,6 @@ again:
 						fsync(fd);
 				}
 				temp_time = time_so_far();
-				child_stat->stop_time = temp_time;
 				child_stat->throughput = 
 					(temp_time - starttime1)-time_res;
 				if(child_stat->throughput < (double).000001) 
@@ -14616,29 +14497,26 @@ again:
 		child_stat->throughput =
 			(double)written_so_far/child_stat->throughput;
 		child_stat->actual = (double)written_so_far;
-		child_stat->stop_time = temp_time;
 	}
 	child_stat->flag = CHILD_STATE_HOLD; /* Tell parent I'm done */
         if(cdebug)
                 printf("Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
                         child_stat->actual);
-        if(distributed && client_iozone)
-                tell_master_stats(THREAD_RANDOM_WRITE_TEST, chid, child_stat->throughput,
-                        child_stat->actual, child_stat->stop_time,
-                        child_stat->start_time,child_stat->fini_time,(char)*stop_flag,
-                        (long long)CHILD_STATE_HOLD);
 	if(cpuutilflag)
 	{
-		child_stat->fini_time = time_so_far();
 		cputime = cputime_so_far() - cputime;
 		if (cputime < cputime_res)
 			cputime = 0.0;
 		child_stat->cputime = cputime;
 		walltime = time_so_far() - walltime;
-		if (walltime < cputime_res)
-			walltime = 0.0;
 		child_stat->walltime = walltime;
 	}
+        if(distributed && client_iozone)
+                tell_master_stats(THREAD_RANDOM_WRITE_TEST, chid, child_stat->throughput,
+                        child_stat->actual,
+			child_stat->cputime, child_stat->walltime,
+			(char)*stop_flag,
+                        (long long)CHILD_STATE_HOLD);
 	stopped=0;
 	/*******************************************************************/
 	/* End random write performance test. ******************************/
@@ -14734,8 +14612,9 @@ thread_cleanup_test(x)
 		send_stop();
         if(distributed && client_iozone)
                 tell_master_stats(THREAD_CLEANUP_TEST, chid, child_stat->throughput,
-                        child_stat->actual, child_stat->stop_time,
-                        child_stat->start_time,child_stat->fini_time,(char)*stop_flag,
+                        child_stat->actual,
+			child_stat->cputime, child_stat->walltime,
+			(char)*stop_flag,
                         (long long)CHILD_STATE_HOLD);
 	child_stat->flag = CHILD_STATE_HOLD; 	/* Tell parent I'm done */
 	free(dummyfile[xx]);
@@ -15591,8 +15470,10 @@ double cputime, walltime;
 		cpu = (double)100.0;
 	else {
 		cpu = (((double)100.0 * cputime) / walltime);
+		/*
 		if (cpu > (double)100.0)
 			cpu = (double)99.99;
+		*/
 	}
 	return cpu;
 }
@@ -16544,9 +16425,8 @@ int send_size;
 	sprintf(outbuf.m_testnum,"%d",send_buffer->m_testnum);
 	sprintf(outbuf.m_version,"%d",send_buffer->m_version);
 	sprintf(outbuf.m_throughput,"%f",send_buffer->m_throughput);
-	sprintf(outbuf.m_stop_time,"%f",send_buffer->m_stop_time);
-	sprintf(outbuf.m_start_time,"%f",send_buffer->m_start_time);
-	sprintf(outbuf.m_fini_time,"%f",send_buffer->m_fini_time);
+	sprintf(outbuf.m_cputime,"%f", send_buffer->m_cputime);
+	sprintf(outbuf.m_walltime,"%f",send_buffer->m_walltime);
 	sprintf(outbuf.m_stop_flag,"%d",send_buffer->m_stop_flag);
 	sprintf(outbuf.m_actual,"%f",send_buffer->m_actual);
 #ifdef NO_PRINT_LLD
@@ -16632,6 +16512,7 @@ int send_size;
 	sprintf(outbuf.c_w_traj_flag,"%d",send_buffer->c_w_traj_flag);
 	sprintf(outbuf.c_r_traj_flag,"%d",send_buffer->c_r_traj_flag);
 	sprintf(outbuf.c_direct_flag,"%d",send_buffer->c_direct_flag);
+	sprintf(outbuf.c_cpuutilflag,"%d",send_buffer->c_cpuutilflag);
 	sprintf(outbuf.c_client_number,"%d",send_buffer->c_client_number);
 	sprintf(outbuf.c_command,"%d",send_buffer->c_command);
 	sprintf(outbuf.c_testnum,"%d",send_buffer->c_testnum);
@@ -17436,6 +17317,7 @@ long long numrecs64, reclen;
 	cc.c_read_sync = read_sync;
 	cc.c_jflag = jflag;
 	cc.c_direct_flag = direct_flag;
+	cc.c_cpuutilflag = cpuutilflag;
 	cc.c_async_flag = async_flag;
 	cc.c_k_flag = k_flag;
 	cc.c_h_flag = h_flag;
@@ -17667,6 +17549,7 @@ become_client()
 	sscanf(cnc->c_read_sync,"%d",&cc.c_read_sync);
 	sscanf(cnc->c_jflag,"%d",&cc.c_jflag);
 	sscanf(cnc->c_direct_flag,"%d",&cc.c_direct_flag);
+	sscanf(cnc->c_cpuutilflag,"%d",&cc.c_cpuutilflag);
 	sscanf(cnc->c_async_flag,"%d",&cc.c_async_flag);
 	sscanf(cnc->c_k_flag,"%d",&cc.c_k_flag);
 	sscanf(cnc->c_h_flag,"%d",&cc.c_h_flag);
@@ -17715,6 +17598,7 @@ become_client()
 	read_sync = cc.c_read_sync;
 	jflag = cc.c_jflag;
 	direct_flag = cc.c_direct_flag;
+	cpuutilflag = cc.c_cpuutilflag;
 	async_flag = cc.c_async_flag;
 	k_flag = cc.c_k_flag;
 	h_flag = cc.c_h_flag;
@@ -17896,27 +17780,29 @@ become_client()
  */
 #ifdef HAVE_ANSIC_C
 void
-tell_master_stats(testnum , chid, throughput, actual, stop_time, start_time,
-		 fini_time, stop_flag, child_flag)
+tell_master_stats(testnum , chid, throughput, actual, 
+		 cpu_time, wall_time, stop_flag, child_flag)
 int testnum; 
 long long chid; 
-double throughput, actual, stop_time, start_time, fini_time;
+double throughput, actual, wall_time;
+float cpu_time;
 char stop_flag;
 long long child_flag;
 /*
 void
 tell_master_stats(int testnum , long long chid, double tthroughput, 
-		double actual, double stop_time, double start_time,
-		double fini_time, char stop_flag, long long child_flag)
+		double actual, float cpu_time, float wall_time, 
+		char stop_flag, long long child_flag)
 */
 #else
 void
-tell_master_stats(testnum , chid, throughput, actual, stop_time, start_time,
-		 fini_time, stop_flag, child_flag)
+tell_master_stats(testnum , chid, throughput, actual, cpu_time, 
+	wall_time, stop_flag, child_flag)
 int testnum; 
 long long chid; 
-double throughput, actual, stop_time, start_time, fini_time;
+double throughput, actual, wall_time;
 char stop_flag;
+float cpu_time;
 long long child_flag;
 #endif
 {
@@ -17926,9 +17812,8 @@ long long child_flag;
 	mc.m_throughput= throughput;
 	mc.m_testnum = testnum;
 	mc.m_actual = actual;
-	mc.m_stop_time = stop_time;
-	mc.m_start_time = start_time;
-	mc.m_fini_time = fini_time;
+	mc.m_cputime = cpu_time;
+	mc.m_walltime = wall_time;
 	mc.m_stop_flag = stop_flag;
 	mc.m_child_flag = child_flag;
 	mc.m_command = R_STAT_DATA;
@@ -18073,8 +17958,8 @@ int num;
 #endif
 		sscanf(mnc->m_actual,"%f",&mc.m_actual);
 		sscanf(mnc->m_throughput,"%f",&mc.m_throughput);
-		sscanf(mnc->m_start_time,"%f",(float *)&mc.m_start_time);
-		sscanf(mnc->m_stop_time,"%f",(float *)&mc.m_stop_time);
+		sscanf(mnc->m_cputime,"%f",&mc.m_cputime);
+		sscanf(mnc->m_walltime,"%f",&mc.m_walltime);
 		sscanf(mnc->m_stop_flag,"%d",&temp);
 		mc.m_stop_flag = temp;
 
@@ -18087,8 +17972,8 @@ int num;
 			child_stat->flag = mc.m_child_flag;
 			child_stat->actual = mc.m_actual;
 			child_stat->throughput = mc.m_throughput;
-			child_stat->start_time = mc.m_start_time;
-			child_stat->stop_time = mc.m_stop_time;
+			child_stat->cputime = mc.m_cputime;
+			child_stat->walltime = mc.m_walltime;
 			*stop_flag = mc.m_stop_flag;
 			master_join_count--;
 			break;
