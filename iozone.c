@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.166 $"
+#define THISVERSION "        Version $Revision: 3.167 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -15267,26 +15267,36 @@ void
 get_resolution()
 #endif
 {
-	double starttime, finishtime;
-	long  j;
+        double starttime, finishtime, besttime;
+        long  j,delay;
+	int k;
 
-	finishtime=time_so_far1(); /* Warm up the instruction cache */
-	starttime=time_so_far1();  /* Warm up the instruction cache */
-	delay=j=0;		   /* Warm up the data cache */
-	while(1)
+        finishtime=time_so_far1(); /* Warm up the instruction cache */
+        starttime=time_so_far1();  /* Warm up the instruction cache */
+        delay=j=0;                 /* Warm up the data cache */
+	for(k=0;k<10;k++)
 	{
-		starttime=time_so_far1();
-		for(j=0;j< delay;j++)
-			;
-		finishtime=time_so_far1();
-		if(starttime==finishtime)
-			
-			delay++;
-		else
-			break;
-	}
-	time_res = (finishtime-starttime)/1000000.0;	
+	        while(1)
+       	 	{
+       	         	starttime=time_so_far1();
+       	         	for(j=0;j< delay;j++)
+       	                ;
+       	         	finishtime=time_so_far1();
+       	         	if(starttime==finishtime)
+       	                 	delay++;
+       	         	else
+			{
+				if(k==0)
+					besttime=(finishtime-starttime);
+				if((finishtime-starttime) < besttime)
+					besttime=(finishtime-starttime);
+                       	 	break;
+			}
+		}
+        }
+	time_res=besttime/1000000.0;	
 }
+
 /************************************************************************/
 /* Function that establishes the resolution 				*/
 /* of the getrusage() function.						*/

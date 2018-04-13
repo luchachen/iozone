@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.69 $
+# Version $Revision: 1.70 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -634,7 +634,7 @@ iozone_solaris7gcc.o:	iozone.c libasync.c libbif.c
 		-DBIG_ENDIAN libbif.c -o libbif7.o
 	gcc -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
-		iozone.c -o iozone_solaris7gcc.o
+		-DNAME='"Solaris7gcc"' iozone.c -o iozone_solaris7gcc.o
 
 #
 #		-DSHARED_MEM -Dsolaris libasync.c -o libasync.o
