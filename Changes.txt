@@ -1367,6 +1367,16 @@ Add support for AIX 5.2
 Revision 3.100 
 =============================================================================
 Fixes for socket ports. Needed to be in network format.
+=============================================================================
+Revision 3.101 
+=============================================================================
+Add support for RSH environment override.
+=============================================================================
+Revision 3.102 
+=============================================================================
+Improve O_DIRECT and VX_DIRECT so that testing is done
+on the correct file on the correct client.
+
 
 
 

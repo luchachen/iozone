@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.100 $"
+#define THISVERSION "        Version $Revision: 3.102 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -79,7 +79,7 @@ int close();
 int unlink();
 int main();
 void record_command_line();
-long wait();
+int wait();
 int fsync();
 void srand48();
 long lrand48();
@@ -809,6 +809,7 @@ void store_dvalue();		/* Store doubles array 		  */
 void dump_excel();
 void dump_throughput();
 #ifdef HAVE_ANSIC_C
+void find_remote_shell(char *);
 void end_async();
 void takeoff_cache();
 void del_cache();
@@ -850,6 +851,7 @@ void add_record_size(off64_t);
 void init_record_sizes( off64_t,  off64_t);
 void del_record_sizes( void );
 #else
+void find_remote_shell();
 void traj_vers();
 long long r_traj_size();
 long long w_traj_size();
@@ -1032,17 +1034,8 @@ char **argvsave;
 char splash[80][80];
 int splash_line;
 char client_filename[256];
+char remote_shell[256];
 
-#ifdef linux
-#define REMOTE_SHELL "rsh"
-#endif
-#ifdef _HPUX_SOURCE
-#define REMOTE_SHELL "remsh"
-#endif
-/* Default to rsh */
-#ifndef REMOTE_SHELL
-#define REMOTE_SHELL "rsh"
-#endif
 /* 
  * Host ports used to listen, and handle errors.
  */
@@ -1360,55 +1353,14 @@ char **argv;
 #endif
 			async_flag++;
 			break;
-		case 'I':	/* Use vxfs direct advisory or O_DIRECT from Linux */
-#ifdef VXFS
+		case 'I':	/* Use VXFS direct advisory or O_DIRECT from Linux */
 			direct_flag++;
-			test_fd=open("vxfstest",O_CREAT|O_RDWR,0660);
-			ioctl(test_fd,VX_SETCACHE,VX_DIRECT);
-			ioctl(test_fd,VX_GETCACHE,&test_foo);
-			unlink("vxfstest");
-			if(test_foo == 0)
-			{
-				printf("\tVxFS advanced setcache feature not available\n");
-				exit(3);
-			}
+#ifdef VXFS
 			sprintf(splash[splash_line++],"\tVxFS advanced feature SET_CACHE, VX_DIRECT enabled\n");
 			break;
 #endif
 #if defined(linux)
-			tbs=tb=(char *)malloc(2*page_size);
-#ifdef _64BIT_ARCH_
-	     	        tb = (char *) 
-			(((unsigned long long)tb + page_size ) 
-				& ~(page_size-1));
-#else
-	     		tb = (char *) 
-			(((long)tb + (long)page_size ) 
-				& ~((long)page_size-1));
-#endif
-			test_fd=open("dxfstest",O_CREAT|O_RDWR|O_DIRECT,0660);
-			if(test_fd <= 0)
-			{
-				printf("\tO_DIRECT feature not available\n");
-				exit(3);
-			}
-			retx=write(test_fd,tb,4096);
-			if(retx == 4096)
-			{
-				direct_flag++;
-			}
-			else
-				direct_flag=0;
-			free(tbs);
-			unlink("dxfstest");
-			if(direct_flag)
-				sprintf(splash[splash_line++],"\tO_DIRECT feature enabled\n");
-			else
-			{
-				sprintf(splash[splash_line++],"\tO_DIRECT feature not available\n");
-				exit(3);
-			}
-				
+			sprintf(splash[splash_line++],"\tO_DIRECT feature enabled\n");
 			break;
 #endif
 		case 'B':	/* Use mmap file for test file */
@@ -5061,6 +5013,7 @@ long long *data2;
 #else
 	long long *gc=0;
 #endif
+	int test_foo;
 
 	if(w_traj_flag)
 	{
@@ -5151,6 +5104,19 @@ long long *data2;
 			perror("open");
 			exit(45);
 	  	}
+#endif
+#ifdef VXFS
+		if(direct_flag)
+		{
+			ioctl(fd,VX_SETCACHE,VX_DIRECT);
+			ioctl(fd,VX_GETCACHE,&test_foo);
+			if(test_foo == 0)
+			{
+				if(!client_iozone)
+				  printf("\nVxFS advanced setcache feature not available.\n");
+				exit(3);
+			}
+		}
 #endif
 		if(file_lock)
 			if(mylockf((int) fd, (int) 1, (int)0)!=0)
@@ -5822,6 +5788,7 @@ long long *data1,*data2;
 	char *maddr;
 	char *wmaddr;
 	int fd,open_flags;
+	int test_foo;
 	double qtime_start,qtime_stop;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -5893,10 +5860,6 @@ long long *data1,*data2;
 			async_init(&gc,fd,0);
 #endif
 #endif
-#ifdef VXFS
-		if(direct_flag)
-			ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
 #else
 		if((fd = open(filename, open_flags))<0)
 		{
@@ -5913,11 +5876,19 @@ long long *data1,*data2;
 			async_init(&gc,fd,0);
 #endif
 #endif
+#endif
 #ifdef VXFS
 		if(direct_flag)
+		{
 			ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
-
+			ioctl(fd,VX_GETCACHE,&test_foo);
+			if(test_foo == 0)
+			{
+				if(!client_iozone)
+				  printf("\nVxFS advanced setcache feature not available.\n");
+				exit(3);
+			}
+		}
 #endif
 		if(file_lock)
 			if(mylockf((int) fd, (int) 1, (int)1) != 0)
@@ -6221,6 +6192,7 @@ long long *data1, *data2;
 	char *wmaddr;
 	char *maddr,*free_addr;
 	int fd,wval;
+	int test_foo;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -6264,10 +6236,6 @@ long long *data1, *data2;
 			async_init(&gc,fd,0);
 #endif
 #endif
-#ifdef VXFS
-		if(direct_flag)
-			ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
 
 #else
 	     if((fd = open(filename, (int)flags,0640))<0){
@@ -6284,11 +6252,20 @@ long long *data1, *data2;
 			async_init(&gc,fd,0);
 #endif
 #endif
-#ifdef VXFS
-	if(direct_flag)
-		ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
 
+#endif
+#ifdef VXFS
+		if(direct_flag)
+		{
+			ioctl(fd,VX_SETCACHE,VX_DIRECT);
+			ioctl(fd,VX_GETCACHE,&test_foo);
+			if(test_foo == 0)
+			{
+				if(!client_iozone)
+				  printf("\nVxFS advanced setcache feature not available.\n");
+				exit(3);
+			}
+		}
 #endif
 	     if(mmapflag)
 	     {
@@ -6591,6 +6568,7 @@ long long *data1,*data2;
 	unsigned long long revreadrate[2];
 	off64_t filebytes64;
 	int fd,open_flags;
+	int test_foo;
 	char *maddr,*wmaddr;
 	volatile char *buffer1;
 #ifdef ASYNC_IO
@@ -6633,10 +6611,6 @@ long long *data1,*data2;
 			async_init(&gc,fd,0);
 #endif
 #endif
-#ifdef VXFS
-		if(direct_flag)
-			ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
 
 #else
 	 	if((fd = open(filename, open_flags))<0){
@@ -6653,11 +6627,20 @@ long long *data1,*data2;
 			async_init(&gc,fd,0);
 #endif
 #endif
+
+#endif
 #ifdef VXFS
 		if(direct_flag)
+		{
 			ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
-
+			ioctl(fd,VX_GETCACHE,&test_foo);
+			if(test_foo == 0)
+			{
+				if(!client_iozone)
+				  printf("\nVxFS advanced setcache feature not available.\n");
+				exit(3);
+			}
+		}
 #endif
 		if(mmapflag)
 		{
@@ -6857,6 +6840,7 @@ long long *data1,*data2;
 	unsigned long long writeinrate;
 	off64_t filebytes64;
 	int fd,wval;
+	int test_foo;
 	char *maddr;
 	char *wmaddr,*free_addr;
 #ifdef ASYNC_IO
@@ -6897,7 +6881,16 @@ long long *data1,*data2;
 #endif
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 	if(mmapflag)
 	{
@@ -7102,6 +7095,7 @@ long long *data1, *data2;
 	off64_t internal_offset = 0;
 	off64_t stripewrap=0;
 	int fd,open_flags;
+	int test_foo;
 	volatile char *buffer1;
 	char *maddr;
 	char *wmaddr;
@@ -7139,10 +7133,6 @@ long long *data1, *data2;
 		async_init(&gc,fd,0);
 #endif
 #endif
-#ifdef VXFS
-	if(direct_flag)
-		ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
 #else
         if((fd = open(filename, open_flags, 0640))<0)
         {
@@ -7159,11 +7149,20 @@ long long *data1, *data2;
 		async_init(&gc,fd,0);
 #endif
 #endif
+
+#endif
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
-
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 	if(mmapflag)
 	{
@@ -7413,7 +7412,7 @@ long long *data1,*data2;
 	unsigned long long pwriterate[2];
 	off64_t filebytes64;
 	long long flags_here = 0;
-	int fd;
+	int fd,test_foo;
 
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
@@ -7467,10 +7466,6 @@ long long *data1,*data2;
 				perror("open");
 				exit(97);
 			}
-#ifdef VXFS
-			if(direct_flag)
-				ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
 #else
 			if((fd = open(filename, (int)flags_here))<0)
 			{
@@ -7479,38 +7474,52 @@ long long *data1,*data2;
 				perror("open");
 				exit(98);
 			}
+#endif
 #ifdef VXFS
 			if(direct_flag)
+			{
 				ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
+				ioctl(fd,VX_GETCACHE,&test_foo);
+				if(test_foo == 0)
+				{
+					if(!client_iozone)
+					  printf("\nVxFS advanced setcache feature not available.\n");
+					exit(3);
+				}
+			}
 #endif
 		}
 		else
 		{
 #ifdef _LARGEFILE64_SOURCE
-			  if((fd = open64(filename, (int)flags_here))<0)
-			  {
+			if((fd = open64(filename, (int)flags_here))<0)
+			{
 				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
 				exit(99);
-			  }
-#ifdef VXFS
-			  if(direct_flag)
-				ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
+			}
 #else
-			  if((fd = open(filename, (int)flags_here))<0)
-			  {
+			if((fd = open(filename, (int)flags_here))<0)
+			{
 				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
 				exit(100);
-			  }
-#ifdef VXFS
-			  if(direct_flag)
-				ioctl(fd,VX_SETCACHE,VX_DIRECT);
+			}
 #endif
+#ifdef VXFS
+			if(direct_flag)
+			{
+				ioctl(fd,VX_SETCACHE,VX_DIRECT);
+				ioctl(fd,VX_GETCACHE,&test_foo);
+				if(test_foo == 0)
+				{
+					if(!client_iozone)
+					  printf("\nVxFS advanced setcache feature not available.\n");
+					exit(3);
+				}
+			}
 #endif
 		}
 		buffer=mainbuffer;
@@ -7633,7 +7642,7 @@ long long *data1, *data2;
 	long long Index = 0;
 	unsigned long long preadrate[2];
 	off64_t filebytes64;
-	int fd,open_flags;
+	int fd,open_flags,test_foo;
 
 	open_flags=O_RDONLY;
 #if defined(linux)
@@ -7661,10 +7670,6 @@ long long *data1, *data2;
 			perror("open");
 			exit(101);
 		}
-#ifdef VXFS
-		if(direct_flag)
-			ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
 #else
 		if((fd = open(filename, open_flags))<0)
 		{
@@ -7672,10 +7677,19 @@ long long *data1, *data2;
 			perror("open");
 			exit(102);
 		}
+#endif
 #ifdef VXFS
 		if(direct_flag)
+		{
 			ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
+			ioctl(fd,VX_GETCACHE,&test_foo);
+			if(test_foo == 0)
+			{
+				if(!client_iozone)
+				  printf("\nVxFS advanced setcache feature not available.\n");
+				exit(3);
+			}
+		}
 #endif
 		buffer=mainbuffer;
 		mbuffer=mainbuffer;
@@ -7798,7 +7812,7 @@ long long *data1,*data2;
 	unsigned long long pwritevrate[2];
 	off64_t filebytes64,i;
 	off64_t numrecs64;
-	int fd;
+	int fd,test_foo;
 	long long flags_here;
 
 	numrecs64 = (kilos64*1024)/reclen;
@@ -7852,10 +7866,6 @@ long long *data1,*data2;
 				perror("open");
 				exit(109);
 			}
-#ifdef VXFS
-			if(direct_flag)
-				ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
 #else
 			if((fd = open(filename, (int)flags_here))<0)
 			{
@@ -7864,10 +7874,19 @@ long long *data1,*data2;
 				perror("open");
 				exit(110);
 			}
+#endif
 #ifdef VXFS
 			if(direct_flag)
+			{
 				ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
+				ioctl(fd,VX_GETCACHE,&test_foo);
+				if(test_foo == 0)
+				{
+					if(!client_iozone)
+					  printf("\nVxFS advanced setcache feature not available.\n");
+					exit(3);
+				}
+			}
 #endif
 		}
 		else
@@ -7880,10 +7899,6 @@ long long *data1,*data2;
 				perror("open");
 				exit(111);
 			}
-#ifdef VXFS
-			if(direct_flag)
-				ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
 #else
 			if((fd = open(filename, (int)flags_here))<0)
 			{
@@ -7892,10 +7907,19 @@ long long *data1,*data2;
 				perror("open");
 				exit(112);
 			}
+#endif
 #ifdef VXFS
 			if(direct_flag)
+			{
 				ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
+				ioctl(fd,VX_GETCACHE,&test_foo);
+				if(test_foo == 0)
+				{
+					if(!client_iozone)
+					  printf("\nVxFS advanced setcache feature not available.\n");
+					exit(3);
+				}
+			}
 #endif
 		}
 		buffer=mainbuffer;
@@ -8084,7 +8108,7 @@ long long *data1,*data2;
 	off64_t numrecs64;
 	unsigned long long preadvrate[2];
 	off64_t filebytes64;
-	int fd,open_flags;
+	int fd,open_flags,test_foo;
 
 	open_flags=O_RDONLY;
 #if defined(linux)
@@ -8114,10 +8138,6 @@ long long *data1,*data2;
 			perror("open");
 			exit(114);
 		}
-#ifdef VXFS
-		if(direct_flag)
-			ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
 #else
 		if((fd = open(filename, open_flags))<0)
 		{
@@ -8125,10 +8145,19 @@ long long *data1,*data2;
 			perror("open");
 			exit(115);
 		}
+#endif
 #ifdef VXFS
 		if(direct_flag)
+		{
 			ioctl(fd,VX_SETCACHE,VX_DIRECT);
-#endif
+			ioctl(fd,VX_GETCACHE,&test_foo);
+			if(test_foo == 0)
+			{
+				if(!client_iozone)
+				  printf("\nVxFS advanced setcache feature not available.\n");
+				exit(3);
+			}
+		}
 #endif
 		buffer=mainbuffer;
 		mbuffer=mainbuffer;
@@ -9160,7 +9189,7 @@ thread_write_test( x)
 	char *nbuff;
 	char *maddr;
 	char *wmaddr,*free_addr;
-	int anwser,bind_cpu,wval;
+	int anwser,bind_cpu,wval,test_foo;
 	off64_t filebytes64;
 	char tmpname[256];
 	FILE *thread_wqfd;
@@ -9279,7 +9308,16 @@ thread_write_test( x)
 #endif
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 #ifdef ASYNC_IO
 #ifdef _HPUX_SOURCE
@@ -9686,6 +9724,7 @@ thread_rwrite_test(x)
 	int anwser,bind_cpu,wval;
 	FILE *thread_rwqfd;
 	char tmpname[256];
+	int test_foo;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 
@@ -9789,7 +9828,16 @@ thread_rwrite_test(x)
 #endif
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 #ifdef ASYNC_IO
 #ifdef _HPUX_SOURCE
@@ -10103,6 +10151,7 @@ thread_read_test(x)
 	char tmpname[256];
 	volatile char *buffer1;
 	int anwser,bind_cpu;
+	int test_foo;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -10178,7 +10227,16 @@ thread_read_test(x)
 #endif
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 #else
 	if((fd = open(dummyfile[xx], (int)flags))<0)
@@ -10197,7 +10255,16 @@ thread_read_test(x)
 #endif
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 
 #endif
@@ -10530,6 +10597,7 @@ thread_rread_test(x)
 	volatile char *buffer1;
 	int anwser,bind_cpu;
 	char tmpname[256];
+	int test_foo;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -10622,7 +10690,16 @@ thread_rread_test(x)
 #endif
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 #else
 	if((fd = open(dummyfile[xx], (int)flags))<0)
@@ -10641,7 +10718,16 @@ thread_rread_test(x)
 #endif
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 #endif
 	if(mmapflag)
@@ -10952,6 +11038,7 @@ thread_reverse_read_test(x)
 	off64_t traj_offset;
 	char tmpname[256];
 	FILE *thread_revqfd;
+	int test_foo;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -11034,7 +11121,16 @@ thread_reverse_read_test(x)
 #endif
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 #else
 	if((fd = open(dummyfile[xx], (int)flags))<0)
@@ -11053,7 +11149,16 @@ thread_reverse_read_test(x)
 #endif
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 
 #endif
@@ -11373,6 +11478,7 @@ thread_stride_read_test(x)
 	off64_t traj_offset;
 	char tmpname[256];
 	FILE *thread_strqfd;
+	int test_foo;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -11455,7 +11561,16 @@ thread_stride_read_test(x)
 #endif
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 
 #else
@@ -11475,7 +11590,16 @@ thread_stride_read_test(x)
 #endif
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 
 #endif
@@ -11814,6 +11938,7 @@ thread_ranread_test(x)
 	off64_t traj_offset;
 	char tmpname[256];
 	FILE *thread_randrfd;
+	int test_foo;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -11879,7 +12004,16 @@ thread_ranread_test(x)
 
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 
 #else
@@ -11899,7 +12033,16 @@ thread_ranread_test(x)
 #endif
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 
 #endif
@@ -12237,6 +12380,7 @@ thread_ranwrite_test( x)
 	off64_t filebytes64;
 	char tmpname[256];
 	FILE *thread_randwqfd;
+	int test_foo;
 
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -12346,7 +12490,16 @@ thread_ranwrite_test( x)
 #endif
 #ifdef VXFS
 	if(direct_flag)
+	{
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+		ioctl(fd,VX_GETCACHE,&test_foo);
+		if(test_foo == 0)
+		{
+			if(!client_iozone)
+			  printf("\nVxFS advanced setcache feature not available.\n");
+			exit(3);
+		}
+	}
 #endif
 #ifdef ASYNC_IO
 #ifdef _HPUX_SOURCE
@@ -15174,7 +15327,8 @@ long long numrecs64, reclen;
 	child_idents[x-1].state = C_STATE_ZERO;
 	/* Step 1. Now start client going on remote node.	*/
 
-	sprintf(command,"%s ",REMOTE_SHELL);
+	find_remote_shell(remote_shell);
+	sprintf(command,"%s ",remote_shell);
 	strcat(command,child_idents[x-1].child_name);
 	strcat(command," '");
 	strcat(command,child_idents[x-1].execute_path);
@@ -16228,3 +16382,27 @@ cleanup_comm()
         	close(master_send_async_sockets[i]);
 	}
 }
+
+#ifdef HAVE_ANSIC_C
+void
+find_remote_shell(char *shell)
+#else
+void
+find_remote_shell(shell)
+char *shell;
+#endif
+{
+	char *value;
+	value=(char *)getenv("RSH");
+	if(value)
+	{
+		strcpy(shell,value);
+		return;
+	}
+#ifdef _HPUX_SOURCE
+	strcpy(shell,"remsh");
+#else
+	strcpy(shell,"rsh");
+#endif
+	return;
+}	
