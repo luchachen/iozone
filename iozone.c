@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.131 $"
+#define THISVERSION "        Version $Revision: 3.132 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -127,8 +127,8 @@ char *help[] = {
 "           -H #  Use POSIX async I/O with # async operations",
 "           -i #  Test to run (0=write/rewrite, 1=read/re-read, 2=random-read/write",
 "                 3=Read-backwards, 4=Re-write-record, 5=stride-read, 6=fwrite/re-fwrite",
-"                 7=fread/Re-fread, 8=pwrite/Re-pwrite, 9=pread/Re-pread",
-"                 10=pwritev/Re-pwritev, 11=preadv/Re-preadv)",
+"                 7=fread/Re-fread, 8=random_mix, 9=pwrite/Re-pwrite, 10=pread/Re-pread",
+"                 11=pwritev/Re-pwritev, 12=preadv/Re-preadv)",
 "           -I  Use VxFS VX_DIRECT, O_DIRECT,or O_DIRECTIO for all file operations",
 "           -j #  Set stride of file accesses to (# * record size)",
 "           -J #  milliseconds of compute cycle before each I/O operation",
@@ -728,16 +728,18 @@ struct master_neutral_command {
 #define STRIDE_READ_TEST	5
 #define FWRITER_TEST		6
 #define FREADER_TEST		7
+#define RANDOM_MIX_TEST		8
 #ifdef HAVE_PREAD
-#define PWRITER_TEST		8
-#define PREADER_TEST		9
-#define PWRITEV_TEST		10
-#define PREADV_TEST		11
+#define PWRITER_TEST		9
+#define PREADER_TEST		10	
+#define PWRITEV_TEST		11
+#define PREADV_TEST		12
 #endif /* HAVE_PREAD */
 
 #define WRITER_MASK		(1 << WRITER_TEST)
 #define READER_MASK		(1 << READER_TEST)
 #define RANDOM_RW_MASK		(1 << RANDOM_RW_TEST)
+#define RANDOM_MIX_MASK		(1 << RANDOM_MIX_TEST)
 #define REVERSE_MASK		(1 << REVERSE_TEST)
 #define REWRITE_REC_MASK	(1 << REWRITE_REC_TEST)
 #define STRIDE_READ_MASK	(1 << STRIDE_READ_TEST)
@@ -800,6 +802,7 @@ void write_perf_test();		/* write/rewrite test		  */
 void fwrite_perf_test();	/* fwrite/refwrite test		  */
 void fread_perf_test();		/* fread/refread test		  */
 void read_perf_test();		/* read/reread test		  */
+void mix_perf_test();		/* read/reread test		  */
 void random_perf_test();	/* random read/write test	  */
 void reverse_perf_test();	/* reverse read test		  */
 void rewriterec_perf_test();	/* rewrite record test		  */
@@ -854,6 +857,7 @@ void *(thread_read_test)(void*);
 void *(thread_cleanup_test)(void*);
 void *(thread_cleanup_quick)(void*);
 void *(thread_ranread_test)(void *);
+void *(thread_mix_test)(void *);
 void *(thread_ranwrite_test)(void *);
 void *(thread_rread_test)(void *);
 void *(thread_reverse_read_test)(void *);
@@ -912,6 +916,7 @@ void *(thread_write_test)();
 void *(thread_read_test)();
 void *(thread_cleanup_test)();
 void *(thread_ranread_test)();
+void *(thread_mix_test)();
 void *(thread_ranwrite_test)();
 void *(thread_rread_test)();
 void *(thread_reverse_read_test)();
@@ -954,7 +959,8 @@ void (*func[])() = {
 			rewriterec_perf_test,
 			read_stride_perf_test,
 			fwrite_perf_test,
-			fread_perf_test 
+			fread_perf_test,
+			mix_perf_test 
 #ifdef HAVE_PREAD
 			,
 			pwrite_perf_test,
@@ -1087,7 +1093,7 @@ long long orig_min_rec_size = RECLEN_START;
 long long orig_max_rec_size = RECLEN_END;
 long long xover = CROSSOVER;
 char *throughput_tests[] = {"Initial write","Rewrite","Read","Re-read",
-	"Reverse Read","Stride read","Random read","Random write"};
+	"Reverse Read","Stride read","Random read","Random mix","Random write"};
 char command_line[1024] = "\0";
 #ifdef unix
 double sc_clk_tck;
@@ -1124,7 +1130,8 @@ char remote_shell[256];
 #define THREAD_RANDOM_READ_TEST 6
 #define THREAD_RANDOM_WRITE_TEST 7
 #define THREAD_REVERSE_READ_TEST 8
-#define THREAD_CLEANUP_TEST 9
+#define THREAD_RANDOM_MIX_TEST 9
+#define THREAD_CLEANUP_TEST 10
 
 /*
  * Child states that the master is tracking.
@@ -1772,7 +1779,7 @@ char **argv;
 			tval=(long long)(atoi(optarg));
 			if(tval < 0) tval=0;
 #ifndef HAVE_PREAD
-			if(tval > 7)
+			if(tval > RANDOM_MIX_TEST)
 			{
 				printf("\tPread tests not available on this operating system.\n");
 				exit(183);
@@ -4467,16 +4474,234 @@ next3:
                 stop_master_listen(master_listen_socket);
 		cleanup_comm();
 	}
+	/**************************************************************/
+	/*** random mix throughput tests ***************************/
+	/**************************************************************/
 next4:
+	if(include_tflag)
+		if(!(include_mask & RANDOM_MIX_MASK))
+			goto next5;
+	
+	toutputindex++;
+	strcpy(&toutput[toutputindex][0],throughput_tests[7]);
+	time_begin = time_fini = 0.0;
+	walltime = 0.0;
+	cputime = 0.0;
+	jstarttime=0;
+	sync();
+	sleep(2);
+	*stop_flag=0;
+	total_kilos=0;
+        /* Hooks to start the distributed Iozone client/server code */
+        if(distributed)
+        {
+                use_thread=0;  /* Turn of any Posix threads */
+                if(master_iozone)
+                        master_listen_socket = start_master_listen();
+                else
+                        become_client();
+        }
+	if(!use_thread)
+	{
+	   for(xx = 0; xx< num_child ; xx++){
+		chid=xx;
+		childids[xx] = start_child_proc(THREAD_RANDOM_MIX_TEST,numrecs64,reclen);
+		if(childids[xx]==-1){
+			printf("\nFork failed\n");
+			for(xy = 0; xy< xx ; xy++){
+				Kill((long long)childids[xy],(long long)SIGTERM);
+			}
+			exit(38);
+		}
+		if(childids[xx]==0){
+#ifdef _64BIT_ARCH_
+			thread_mix_test((void *)xx);
+#else
+			thread_mix_test((void *)((long)xx));
+#endif
+		}	
+	   }
+	}
+#ifndef NO_THREADS
+	else
+	{
+	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
+		chid=xx;
+#ifdef _64BIT_ARCH_
+		childids[xx] = mythread_create( thread_mix_test,xx);
+#else
+		childids[xx] = mythread_create( thread_mix_test,(void *)(long)xx);
+#endif
+		if(childids[xx]==-1){
+			printf("\nThread create failed\n");
+			for(xy = 0; xy< xx ; xy++){
+				kill((pid_t)myid,(int)SIGTERM);
+			}
+			exit(39);
+		}
+	   }
+	}
+#endif
+	if(myid == (long long)getpid()){
+                if(distributed && master_iozone)
+                {
+                        start_master_listen_loop((int) num_child);
+                }
+		for(i=0;i<num_child; i++){ /* wait for children to start */
+			child_stat = (struct child_stats *)&shmaddr[i];
+			while(child_stat->flag==CHILD_STATE_HOLD)
+				Poll((long long)1);
+		}
+		for(i=0;i<num_child; i++){
+			child_stat = (struct child_stats *)&shmaddr[i];
+			child_stat->flag = CHILD_STATE_BEGIN;	/* tell children to go */
+			if(delay_start!=0)
+				Poll((long long)delay_start);
+                       if(distributed && master_iozone)
+                                tell_children_begin(i);
+		}
+		starttime1 = time_so_far();
+	}
+	
+	getout=0;
+	if(myid == (long long)getpid()){	 /* Parent here */
+		for( i = 0; i < num_child; i++){ /* wait for children to stop */
+			child_stat = (struct child_stats *)&shmaddr[i];
+                        if(distributed && master_iozone)
+                        {
+                                wait_dist_join();
+                                break;
+                        }
+                        else
+                        {
+                           if(use_thread)
+                           {
+                                thread_join(childids[i],(void *)&pstatus);
+                           }
+                           else
+                           {
+                                wait(0);
+                           }
+                        }
+			if(!jstarttime)
+				jstarttime = time_so_far(); 
+		}
+		jtime = (time_so_far()-jstarttime)-time_res;
+		if(jtime < (double).000001) 
+		{
+			jtime=time_res; 
+		}
+	}
+	total_time = (time_so_far() - starttime1)-time_res; /* Parents time */
+	if(total_time < (double).000001) 
+	{
+		total_time=time_res;
+		if(rec_prob < reclen)
+			rec_prob = reclen;
+		res_prob=1;
+	}
+#ifdef JTIME
+	total_time=total_time-jtime;/* Remove the join time */
+	if(!silent) printf("\nJoin time %10.2f\n",jtime);
+#endif
+	total_kilos=0;
+	ptotal=0;
+	min_throughput=max_throughput=min_xfer=0;
+	if(!silent) printf("\n");
+	for(xyz=0;xyz<num_child;xyz++){
+		child_stat = (struct child_stats *)&shmaddr[xyz];
+		total_kilos+=child_stat->throughput;
+		ptotal+=child_stat->actual;
+		if(!min_xfer)
+			min_xfer=child_stat->actual;
+		if(child_stat->actual < min_xfer)
+			min_xfer=child_stat->actual;
+		if(!min_throughput)
+			min_throughput=child_stat->throughput;
+		if(child_stat->throughput < min_throughput)
+			min_throughput=child_stat->throughput;
+		if(child_stat->throughput > max_throughput)
+			max_throughput=child_stat->throughput;
+		cputime += child_stat->cputime;
+		/* Get the earliest start time and latest fini time to calc. elapsed time. */
+		if (time_begin == 0.0)
+			time_begin = child_stat->start_time;
+		else
+			if (child_stat->start_time < time_begin)
+				time_begin = child_stat->start_time;
+		if (child_stat->fini_time > time_fini)
+			time_fini = child_stat->fini_time;
+	}
+	avg_throughput=total_kilos/num_child;
+	if(cpuutilflag)
+	{
+		walltime = time_fini - time_begin;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+	}
+	if(cpuutilflag)
+		store_times (walltime, cputime);	/* Must be Before store_dvalue(). */
+	store_dvalue(total_kilos);
+#ifdef NO_PRINT_LLD
+	if(!silent) printf("\tChildren see throughput for %ld random mix \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %ld random mix \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+#else
+	if(!silent) printf("\tChildren see throughput for %lld random mix \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %lld random mix \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+#endif
+	if(!silent) printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
+	if(!silent) printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
+	if(!silent) printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
+	if(!silent) printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n", min_xfer,unit);
+	/* CPU% can be > 100.0 for multiple CPUs */
+	if(cpuutilflag)
+	{
+		if(walltime == 0.0)
+		{
+			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 0.0);
+		}
+		else
+		{
+			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 100.0 * cputime / walltime);
+		}
+	}
+	if(Cflag)
+	{
+		for(xyz=0;xyz<num_child;xyz++)
+		{
+			child_stat = (struct child_stats *) &shmaddr[xyz];
+			if(cpuutilflag)
+			{
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
+					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			}
+			else
+			{
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
+			}
+		}
+	}
+        if(distributed && master_iozone)
+	{
+                stop_master_listen(master_listen_socket);
+		cleanup_comm();
+	}
+next5:
 	/**************************************************************/
 	/*** random writer throughput tests  **************************/
 	/**************************************************************/
 	if(include_tflag)
 		if(!(include_mask & RANDOM_RW_MASK))
-			goto next5;
+			goto next6;
 	
 	toutputindex++;
-	strcpy(&toutput[toutputindex][0],throughput_tests[7]);
+	strcpy(&toutput[toutputindex][0],throughput_tests[8]);
 	time_begin = time_fini = 0.0;
 	walltime = 0.0;
 	cputime = 0.0;
@@ -4685,7 +4910,7 @@ next4:
                 stop_master_listen(master_listen_socket);
 		cleanup_comm();
 	}
-next5:
+next6:
 	sleep(2); /* You need this. If you stop and restart the 
 		     master_listen it will fail on Linux */
 	if (!no_unlink) {
@@ -11674,6 +11899,35 @@ return(0);
 }
 
 /************************************************************************/
+/* Thread random test				        		*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+void *
+thread_mix_test(void *x)
+#else
+void *
+thread_mix_test(x)
+#endif
+{
+	int selector;
+	if(use_thread)
+		selector = (int)((long)x);
+	else
+		selector = (int)chid;
+	selector=selector%2;
+		
+	if(selector==0)
+	{
+		if(cdebug || mdebug) printf("Mix read %d\n",selector);
+		thread_ranread_test(x);
+	}
+	else
+	{
+		if(cdebug || mdebug) printf("Mix write %d\n",selector);
+		thread_ranwrite_test(x);
+	}
+}
+/************************************************************************/
 /* Thread random read test				        	*/
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
@@ -15538,6 +15792,14 @@ become_client()
 		}
 		thread_reverse_read_test((long)0);
 		break;
+	case THREAD_RANDOM_MIX_TEST : 
+		if(cdebug>=1)
+		{
+			printf("Child %d running random mix test\n",(int)chid);
+			fflush(stdout);
+		}
+		thread_mix_test((long)0);
+		break;
 	case THREAD_CLEANUP_TEST : 
 		if(cdebug>=1)
 		{
@@ -16198,3 +16460,18 @@ char *shell;
 #endif
 	return;
 }	
+#ifdef HAVE_ANSIC_C
+void 
+mix_perf_test(off64_t kilo64,long long reclen,long long *data1,long long *data2)
+#else
+void 
+mix_perf_test(kilo64,reclen,data1,data2)
+off64_t kilo64;
+long long reclen;
+long long *data1,*data2;
+#endif
+{
+	printf("\nMix mode test only valid in throughput mode.\n");
+	signal_handler();
+	exit(180);
+}

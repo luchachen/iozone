@@ -1494,5 +1494,9 @@ Add error checking for the client file contents.
 Revision 3.131 
 =============================================================================
 Use prealloc() for HP-UX to create file for use with mmap.
+=============================================================================
+Revision 3.132 
+=============================================================================
+Add random mix mode.
 
 
