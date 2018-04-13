@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.159 $"
+#define THISVERSION "        Version $Revision: 3.160 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -15006,6 +15006,7 @@ int flag, prot;
 		if(x < 1)
 		{
 			printf("Unable to write file\n");
+			exit(181);
 		}
 	 	I_LSEEK(fd,0,SEEK_SET);
 #endif
