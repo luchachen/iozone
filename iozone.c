@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.302 $"
+#define THISVERSION "        Version $Revision: 3.303 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -21881,7 +21881,7 @@ gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,
 	ip=(long *)&ibuf[w];
 	srand(chid+1);            /* set randdom seed 	*/
 	cseed = rand();		/* generate random value */
-	for(w=compress_size;w<interior_size;w+=sizeof(long))	
+	for(w=(interior_size-compress_size);w<interior_size;w+=sizeof(long))	
 	{
 		*op=*ip ^ cseed; /* do the xor op */
 		op++;
