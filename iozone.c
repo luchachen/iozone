@@ -20,11 +20,7 @@
 /* Its purpose is to provide automated filesystem characterization.	*/
 /* Enhancements have been made by:					*/
 /*									*/
-/* Don Capps	   (HP)	         capps@rsn.hp.com			*/ 
-/* Isom Crawford   (HP)	         isom@rsn.hp.com			*/
-/* Kirby Collins   (HP)	         kcollins@rsn.hp.com			*/
-/* Al Slater	   (HP)		aslater@jocko.bri.hp.com		*/
-/* Mark Kelly	   (HP)		mkelly@rsn.hp.com			*/
+/* Don Capps	   (HP)	         capps@iozone.org			*/ 
 /*									*/
 /* Iozone can perform single stream and multi stream I/O		*/
 /* also it now performs read, write, re-read, re-write, 		*/
@@ -51,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.267 $"
+#define THISVERSION "        Version $Revision: 3.271 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -450,14 +446,16 @@ struct runtime {
  * This is used when using the network distributed mode.
  */
 struct client_command {
-	char c_host_name[128];
-	char c_client_name[128];
-	char c_working_dir[256];
-	char c_path_dir[256];
-	char c_execute_name[256];
-	char c_write_traj_filename[256];
-	char c_read_traj_filename[256];
+	char c_host_name[100];
+	char c_client_name[100];
+	char c_working_dir[200];
+	char c_file_name[200];
+	char c_path_dir[200];
+	char c_execute_name[200];
+	char c_write_traj_filename[200];
+	char c_read_traj_filename[200];
 	int c_oflag;
+	int c_mfflag;
 	int c_unbuffered;
 	int c_noretest;
 	int c_read_sync;
@@ -537,13 +535,15 @@ struct client_command {
  */
 struct client_neutral_command {
 	char c_host_name[40];
-	char c_client_name[128];
+	char c_client_name[100];
 	char c_working_dir[100];
+	char c_file_name[100];
 	char c_path_dir[100];
 	char c_execute_name[100];
 	char c_write_traj_filename[100];
 	char c_read_traj_filename[100];
 	char c_oflag[2];
+	char c_mfflag[2];
 	char c_unbuffered[2];
 	char c_noretest[2];
 	char c_read_sync[2];
@@ -616,8 +616,8 @@ struct client_neutral_command {
  * This is used when using the network distributed mode.
  */
 struct master_command {
-	char m_host_name[128];
-	char m_client_name[128];
+	char m_host_name[100];
+	char m_client_name[100];
 	char m_stop_flag; 
 	int m_client_number;
 	int m_child_port;
@@ -639,8 +639,8 @@ struct master_command {
  * This is used when using the network distributed mode.
  */
 struct master_neutral_command {
-	char m_host_name[128];
-	char m_client_name[128];
+	char m_host_name[100];
+	char m_client_name[100];
 	char m_client_number[20];	/* int */
 	char m_stop_flag[4];		/* char +space */
 	char m_child_port[20];		/* int */
@@ -1371,18 +1371,19 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 18;
+int proto_version = 19;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
 /* using cluster mode. (-+m)                                                  */
 /* Do not touch these unless you have become one with the universe !!         */
 /******************************************************************************/
-char controlling_host_name[256];
+char controlling_host_name[100];
 struct child_ident {
 	char child_name[100];
-	char workdir[256];
-	char execute_path[256];
+	char workdir[200];
+	char execute_path[200];
+	char file_name[200];
 	int state;
 	int child_number;
 	int child_port;
@@ -1449,6 +1450,7 @@ void cleanup_comm();
 void master_send();
 int start_master_send();
 int start_master_listen();
+int check_filename();
 void master_listen();
 void stop_master_send();
 void stop_master_listen();
@@ -2772,7 +2774,10 @@ out:
 	if(w_traj_flag)
 		fclose(w_traj_fd);
 	if (!no_unlink)
-	      	unlink(dummyfile[0]);	/* delete the file */
+	{
+		if(check_filename(dummyfile[0]))
+	      	   unlink(dummyfile[0]);	/* delete the file */
+	}
 	if(!silent) printf("\niozone test complete.\n");
 	if(res_prob)
 	{
@@ -2950,7 +2955,10 @@ long long reclength;
 	   }
 	}
 	if (!no_unlink)
-    		unlink(filename);	/* delete the file */
+	{
+		if(check_filename(filename))
+    		  unlink(filename);	/* delete the file */
+	}
 					/*stop timer*/
 	return ;
 }
@@ -2994,11 +3002,20 @@ void signal_handler()
     		if(!silent) printf("\niozone: interrupted\n\n");
 #ifndef VMS
 		if (!no_unlink)
+		{
+		   if(check_filename(filename))
     			unlink(filename);	/* delete the file */
+		}
 		for(i=1;i<num_child;i++)
+		{
+		   if(check_filename(dummyfile[i]))
     			unlink(dummyfile[i]);	/* delete the file */
+		}
 		if (!no_unlink)
+		{
+		   if(check_filename(dummyfile[0]))
     			unlink(dummyfile[0]);	/* delete the file */
+		}
 		
 #endif
 		if(Rflag && !trflag){
@@ -6361,14 +6378,18 @@ long long *data2;
                 perror("open");
                 exit(44);
         }
-        wval=ftruncate(fd,0);
-        if(wval < 0)
+	if(check_filename(filename))
         {
-                printf("Sanity check failed. Do not deploy this filesystem in a production environment !\n");
+          wval=ftruncate(fd,0);
+          if(wval < 0)
+          {
+                printf("\n\nSanity check failed. Do not deploy this filesystem in a production environment !\n");
                 exit(44);
-        }
-	close(fd);
-        unlink(filename);
+          }
+	  close(fd);
+	}
+	if(check_filename(filename))
+           unlink(filename);
 /* Sanity check */
 
 	if(noretest)
@@ -6484,7 +6505,11 @@ long long *data2;
 			}
 			I_LSEEK(fd,0,SEEK_SET);
 		};
-		fsync(fd);
+		wval=fsync(fd);
+		if(wval==-1){
+			perror("fsync");
+			signal_handler();
+		}
 #ifdef ASYNC_IO
 		if(async_flag)
 			async_init(&gc,fd,direct_flag);
@@ -6664,10 +6689,17 @@ long long *data2;
 #endif
 		if(include_flush)
 		{
-			if(mmapflag)
+			if(mmapflag){
 				msync(maddr,(size_t)filebytes64,MS_SYNC);
+			}
 			else
-				fsync(fd);
+			{
+				wval=fsync(fd);
+				if(wval==-1){
+					perror("fsync");
+					signal_handler();
+				}
+			}
 		}
 		if(file_lock)
 			if(mylockf((int) fd,(int)0,(int)0))
@@ -6683,7 +6715,11 @@ long long *data2;
 				CloseHandle(hand);
 			else
 #endif
-			   close(fd);
+			   wval=close(fd);
+			   if(wval==-1){
+				perror("close");
+				signal_handler();
+			   }
 		}
 		writetime[j] = ((time_so_far() - starttime1)-time_res)
 			-compute_val;
@@ -6699,7 +6735,13 @@ long long *data2;
 			if(mmapflag)
 				msync(maddr,(size_t)filebytes64,MS_SYNC);/* Clean up before read starts */
 			else
-				fsync(fd);
+			{
+				wval=fsync(fd);
+				if(wval==-1){
+					perror("fsync");
+					signal_handler();
+				}
+			}
 			if(mmapflag)
 			{
 				mmap_end(maddr,(unsigned long long)filebytes64);
@@ -6709,7 +6751,11 @@ long long *data2;
 				CloseHandle(hand);
 			else
 #endif
-			close(fd);
+			wval=close(fd);
+			if(wval==-1){
+				perror("close");
+				signal_handler();
+			}
 		}
 		if(cpuutilflag)
 		{
@@ -6793,6 +6839,7 @@ long long *data2;
 	off64_t filebytes64;
 	FILE *stream = NULL;
 	int fd;
+	int wval;
 	int ltest;
 	char *how;
 	char *stdio_buf;
@@ -6885,11 +6932,19 @@ long long *data2;
 		if(include_flush)
 		{
 			fflush(stream);
-			fsync(fd);
+			wval=fsync(fd);
+			if(wval==-1){
+				perror("fsync");
+				signal_handler();
+			}
 		}
 		if(include_close)
 		{
-			fclose(stream);
+			wval=fclose(stream);
+			if(wval==-1){
+				perror("fclose");
+				signal_handler();
+			}
 		}
 		writetime[j] = ((time_so_far() - starttime1)-time_res)
 			-compute_val;
@@ -6902,11 +6957,27 @@ long long *data2;
 		}
 		if(!include_close)
 		{
-			fflush(stream);
-			fclose(stream);
+			wval=fflush(stream);
+			if(wval==-1){
+				perror("fflush");
+				signal_handler();
+			}
+			wval=fclose(stream);
+			if(wval==-1){
+				perror("fclose");
+				signal_handler();
+			}
 		}
-		fsync(fd);
-		close(fd);
+		wval=fsync(fd);
+		if(wval==-1){
+			perror("fsync");
+			signal_handler();
+		}
+		wval=close(fd);
+		if(wval==-1){
+			perror("close");
+			signal_handler();
+		}
 
 		if(cpuutilflag)
 		{
@@ -7981,7 +8052,13 @@ long long *data1, *data2;
 		if(mmapflag)
 			msync(maddr,(size_t)filebytes64,MS_SYNC);/* Clean up before read starts running */
 		else
-	     		fsync(fd);
+		{
+	     		wval=fsync(fd);
+			if(wval==-1){
+				perror("fsync");
+				signal_handler();
+			}
+		}
 	     }
 	     if(include_close)
 	     {
@@ -7989,7 +8066,11 @@ long long *data1, *data2;
 		{
 			mmap_end(maddr,(unsigned long long)filebytes64);
 		}
-		close(fd);
+		wval=close(fd);
+		if(wval==-1){
+			perror("close");
+			signal_handler();
+		}
 	     }
 	     randreadtime[j] = ((time_so_far() - starttime2)-time_res)-
 			compute_val;
@@ -8007,10 +8088,20 @@ long long *data1, *data2;
 			msync(maddr,(size_t)filebytes64,MS_SYNC);/* Clean up before read starts running */
 		}
 		else
-	     		fsync(fd);
+		{
+	     		wval=fsync(fd);
+			if(wval==-1){
+				perror("fsync");
+				signal_handler();
+			}
+		}
 		if(mmapflag)
 			mmap_end(maddr,(unsigned long long)filebytes64);
-		close(fd);
+		wval=close(fd);
+		if(wval==-1){
+			perror("close");
+			signal_handler();
+		}
  	    }
             if(cpuutilflag)
 	    {
@@ -8163,11 +8254,22 @@ long long *data1,*data2;
 		starttime2 = time_so_far();
 		if (!(h_flag || k_flag || mmapflag))
 		{
-		  if(I_LSEEK( fd, -reclen, SEEK_END )<0)
+		  if(check_filename(filename))
 		  {
-			perror("lseek");
-			exit(77);
-		  };
+		  	if(I_LSEEK( fd, -reclen, SEEK_END )<0)
+		  	{
+				perror("lseek");
+				exit(77);
+		  	};
+		  }
+		  else
+		  {
+		  	if(I_LSEEK( fd, filebytes64-reclen, SEEK_SET )<0)
+		  	{
+				perror("lseek");
+				exit(77);
+		  	};
+  		  }
 		}
 	        compute_val=(double)0;
 		for(i=0; i<numrecs64; i++) 
@@ -8364,7 +8466,8 @@ long long *data1,*data2;
 	maddr=wmaddr=free_addr=nbuff=0;
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
-	flags = O_RDWR|O_CREAT|O_TRUNC;
+/*	flags = O_RDWR|O_CREAT|O_TRUNC;*/
+	flags = O_RDWR|O_CREAT;
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
@@ -8385,15 +8488,20 @@ long long *data1,*data2;
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
 #endif
+/*
 	if (!no_unlink)
-		unlink(dummyfile[0]);
+	{
+	   if(check_filename(filename))
+		unlink(filename);
+	}
+*/
 	if(Uflag) /* Unmount and re-mount the mountpoint */
 	{
 		purge_buffer_cache();
 	}
-        if((fd = I_OPEN(dummyfile[0], (int)flags,0640))<0)
+        if((fd = I_OPEN(filename, (int)flags,0640))<0)
         {
-                    printf("\nCan not open temporary file %s for write.\n",dummyfile[0]);
+                    printf("\nCan not open temporary file %s for write.\n",filename);
 		    perror("open");
                     exit(84);
         }
@@ -8418,7 +8526,11 @@ long long *data1,*data2;
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
 #endif
-	fsync(fd);
+	wval=fsync(fd);
+	if(wval==-1){
+		perror("fsync");
+		signal_handler();
+	}
 	nbuff=mainbuffer;
 	mbuffer=mainbuffer;
 	if(fetchon)
@@ -8532,13 +8644,23 @@ long long *data1,*data2;
 		if(mmapflag)
 			msync(maddr,(size_t)filebytes64,MS_SYNC);/* Clean up before read starts running */
 		else
-			fsync(fd);
+		{
+			wval=fsync(fd);
+			if(wval==-1){
+				perror("fsync");
+				signal_handler();
+			}
+		}
 	}
 	if(include_close)
 	{
 		if(mmapflag)
 			mmap_end(maddr,(unsigned long long)filebytes64);
-		close(fd);
+		wval=close(fd);
+		if(wval==-1){
+			perror("close");
+			signal_handler();
+		}
 	}
 	writeintime = ((time_so_far() - starttime1)-time_res)-
 		compute_val;
@@ -8564,10 +8686,21 @@ long long *data1,*data2;
 		if(mmapflag)
 			msync(maddr,(size_t)filebytes64,MS_SYNC);/* Clean up before read starts running */
 		else
-			fsync(fd);
+		{
+			wval=fsync(fd);
+			if(wval==-1){
+				perror("fsync");
+				signal_handler();
+			}
+		}
 		if(mmapflag)
 			mmap_end(maddr,(unsigned long long)filebytes64);
-		close(fd);
+		wval=close(fd);
+		if(wval==-1){
+			perror("close");
+			signal_handler();
+		}
+
 	}
 
 	if(OPS_flag || MS_flag){
@@ -8922,7 +9055,7 @@ long long *data1,*data2;
 	unsigned long long pwriterate[2];
 	off64_t filebytes64;
 	long long flags_here = 0;
-	int fd,ltest;
+	int fd,ltest,wval;
 	off64_t numrecs64,traj_offset;
 	off64_t lock_offset=0;
 	long long traj_size;
@@ -8971,7 +9104,8 @@ long long *data1,*data2;
 		flags_here |=O_DIRECTIO;
 #endif
 #endif
-	unlink(filename);
+	if(check_filename(filename))
+		unlink(filename);
 	if(noretest)
 		ltest=1;
 	else
@@ -9101,11 +9235,19 @@ long long *data1,*data2;
 		}
 		if(include_flush)
 		{
-			fsync(fd);
+			wval=fsync(fd);
+			if(wval==-1){
+				perror("fsync");
+				signal_handler();
+			}
 		}
 		if(include_close)
 		{
-			close(fd);
+			wval=close(fd);
+			if(wval==-1){
+				perror("close");
+				signal_handler();
+			}
 		}
 		pwritetime[j] = ((time_so_far() - starttime1)-time_res)
 			-compute_val;
@@ -9118,8 +9260,16 @@ long long *data1,*data2;
 		}
 		if(!include_close)
 		{
-			fsync(fd);
-			close(fd);
+			wval=fsync(fd);
+			if(wval==-1){
+				perror("fsync");
+				signal_handler();
+			}
+			wval=close(fd);
+			if(wval==-1){
+				perror("close");
+				signal_handler();
+			}
 		}
 
 		if(cpuutilflag)
@@ -9592,9 +9742,21 @@ long long *data1,*data2;
 		}
 
 		if(include_flush)
-			fsync(fd);
+		{
+			wval=fsync(fd);
+			if(wval==-1){
+				perror("fsync");
+				signal_handler();
+			}
+		}
 		if(include_close)
-			close(fd);
+		{
+			wval=close(fd);
+			if(wval==-1){
+				perror("close");
+				signal_handler();
+			}
+		}
 		pwritevtime[j] = ((time_so_far() - starttime1)-time_res)
 			-compute_val;
 		if(pwritevtime[j] < (double).000001) 
@@ -9606,8 +9768,16 @@ long long *data1,*data2;
 		}
 		if(!include_close)
 		{
-			fsync(fd);
-			close(fd);
+			wval=fsync(fd);
+			if(wval==-1){
+				perror("fsync");
+				signal_handler();
+			}
+			wval=close(fd);
+			if(wval==-1){
+				perror("close");
+				signal_handler();
+			}
 		}
 
 		if(cpuutilflag)
@@ -10986,11 +11156,22 @@ thread_write_test( x)
 	xx2=xx;
 	if(share_file)
 		xx2=(long long)0;
+	if(mfflag)
+	{
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #endif
+	}
+	else
+	{
+#ifdef NO_PRINT_LLD
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+#else
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+#endif
+	}
 	/*****************/
 	/* Children only */
 	/*******************************************************************/
@@ -11334,7 +11515,10 @@ again:
 			if(wval==-1)
 				perror("write");
 			if (!no_unlink)
+			{
+			   if(check_filename(dummyfile[xx]))
 				unlink(dummyfile[xx]);
+			}
 			child_stat->flag = CHILD_STATE_HOLD;
 		    	exit(127);
 		      }
@@ -11618,11 +11802,22 @@ thread_pwrite_test( x)
 	xx2=xx;
 	if(share_file)
 		xx2=(long long)0;
+	if(mfflag)
+	{
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+	   sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+	   sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #endif
+	}
+	else
+	{
+#ifdef NO_PRINT_LLD
+	   sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+#else
+	   sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+#endif
+	}
 	/*****************/
 	/* Children only */
 	/*******************************************************************/
@@ -11900,7 +12095,10 @@ again:
 			if(wval==-1)
 				perror("pwrite");
 			if (!no_unlink)
+			{
+			   if(check_filename(dummyfile[xx]))
 				unlink(dummyfile[xx]);
+			}
 			child_stat->flag = CHILD_STATE_HOLD;
 		    	exit(127);
 		      }
@@ -12174,11 +12372,22 @@ thread_rwrite_test(x)
 	xx2=xx;
 	if(share_file)
 		xx2=(long long)0;
+	if(mfflag)
+	{
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #endif
+	}
+	else
+	{
+#ifdef NO_PRINT_LLD
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+#else
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+#endif
+	}
 	flags = O_RDWR;
 	if(oflag)
 		flags|= O_SYNC;
@@ -12414,7 +12623,10 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 				if(wval==-1)
 					perror("write");
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				signal_handler();
 			   }
@@ -12663,11 +12875,22 @@ thread_read_test(x)
 	xx2=xx;
 	if(share_file)
 		xx2=(long long)0;
+	if(mfflag)
+	{
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #endif
+	}
+	else
+	{
+#ifdef NO_PRINT_LLD
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+#else
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+#endif
+	}
 	if(oflag)
 		flags=O_RDONLY|O_SYNC;
 	else
@@ -12902,7 +13125,10 @@ thread_read_test(x)
 #endif
 				perror("read");
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 		    		exit(132);
 			      }
@@ -12913,7 +13139,10 @@ thread_read_test(x)
 		   {
 			   if(verify_buffer(buffer1,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				exit(133);
 			   }
@@ -12922,7 +13151,10 @@ thread_read_test(x)
 		   {
 			   if(verify_buffer(nbuff,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				exit(134);
 			   }
@@ -13171,11 +13403,22 @@ thread_pread_test(x)
 	xx2=xx;
 	if(share_file)
 		xx2=(long long)0;
+	if(mfflag)
+	{
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #endif
+	}
+	else
+	{
+#ifdef NO_PRINT_LLD
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+#else
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+#endif
+	}
 	if(oflag)
 		flags=O_RDONLY|O_SYNC;
 	else
@@ -13367,7 +13610,10 @@ thread_pread_test(x)
 #endif
 				perror("pread");
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 		    		exit(132);
 			      }
@@ -13378,7 +13624,10 @@ thread_pread_test(x)
 		   {
 			   if(verify_buffer(buffer1,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				exit(133);
 			   }
@@ -13387,7 +13636,10 @@ thread_pread_test(x)
 		   {
 			   if(verify_buffer(nbuff,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				exit(134);
 			   }
@@ -13646,11 +13898,22 @@ thread_rread_test(x)
 	xx2=xx;
 	if(share_file)
 		xx2=(long long)0;
+	if(mfflag)
+	{
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #endif
+	}
+	else
+	{
+#ifdef NO_PRINT_LLD
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+#else
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+#endif
+	}
 	if(oflag)
 		flags=O_RDONLY|O_SYNC;
 	else
@@ -13866,7 +14129,10 @@ thread_rread_test(x)
 #endif
 				perror("read");
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 		    		exit(137);
 			      }
@@ -13877,7 +14143,10 @@ thread_rread_test(x)
 		   {
 			if(verify_buffer(buffer1,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				exit(138);
 			}
@@ -13886,7 +14155,10 @@ thread_rread_test(x)
 		   {
 			if(verify_buffer(nbuff,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				exit(139);
 			}
@@ -14138,11 +14410,22 @@ thread_reverse_read_test(x)
 	xx2=xx;
 	if(share_file)
 		xx2=(long long)0;
+	if(mfflag)
+	{
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #endif
+	}
+	else
+	{
+#ifdef NO_PRINT_LLD
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+#else
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+#endif
+	}
 	if(oflag)
 		flags=O_RDONLY|O_SYNC;
 	else
@@ -14249,11 +14532,22 @@ thread_reverse_read_test(x)
 	t_offset = (off64_t)reclen;
 	if (!(h_flag || k_flag || mmapflag))
 	{
-	  if((I_LSEEK( fd, -t_offset, SEEK_END ))<0)
+	  if(check_filename(dummyfile[xx]))
 	  {
-		perror("lseek");
-		exit(142);
-	  };
+	  	if((I_LSEEK( fd, -t_offset, SEEK_END ))<0)
+	  	{
+			perror("lseek");
+			exit(142);
+	  	}
+	  }
+	  else
+	  {
+		if(I_LSEEK( fd, (numrecs64*reclen)-t_offset, SEEK_SET )<0)
+		{
+			perror("lseek");
+			exit(77);
+		}
+	  }
 	}
 	current_position=(reclen*numrecs64)-reclen;
 	if(file_lock)
@@ -14322,7 +14616,10 @@ thread_reverse_read_test(x)
 #endif
 				perror("read");
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				exit(144);
 			      }
@@ -14333,7 +14630,10 @@ thread_reverse_read_test(x)
 		   {
 			if(verify_buffer(buffer1,reclen,(off64_t)(current_position/reclen),reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				exit(145);
 			}
@@ -14342,7 +14642,10 @@ thread_reverse_read_test(x)
 		   {
 			if(verify_buffer(nbuff,reclen,(off64_t)(current_position/reclen),reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				exit(146);
 			}
@@ -14581,11 +14884,22 @@ thread_stride_read_test(x)
 	xx2=xx;
 	if(share_file)
 		xx2=(long long)0;
+	if(mfflag)
+	{
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #endif
+	}
+	else
+	{
+#ifdef NO_PRINT_LLD
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+#else
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+#endif
+	}
 	if(oflag)
 		flags=O_RDONLY|O_SYNC;
 	else
@@ -14756,7 +15070,10 @@ thread_stride_read_test(x)
 #endif
 				perror("read");
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 		    		exit(149);
 			  }
@@ -14773,7 +15090,10 @@ thread_stride_read_test(x)
 		   {
 			if(verify_buffer(buffer1,reclen,(off64_t)savepos64,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				exit(150);
 			}
@@ -14782,7 +15102,10 @@ thread_stride_read_test(x)
 		   {
 			if(verify_buffer(nbuff,reclen,(off64_t)savepos64,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				exit(151);
 			}
@@ -15100,11 +15423,22 @@ thread_ranread_test(x)
 	xx2=xx;
 	if(share_file)
 		xx2=(long long)0;
+	if(mfflag)
+	{
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #endif
+	}
+	else
+	{
+#ifdef NO_PRINT_LLD
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+#else
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+#endif
+	}
 	if(oflag)
 	{
 		flags=O_RDONLY|O_SYNC;
@@ -15328,7 +15662,10 @@ thread_ranread_test(x)
 #endif
 				perror("ranread");
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				exit(160);
 	 		  }
@@ -15346,7 +15683,10 @@ thread_ranread_test(x)
 		   {
 			if(verify_buffer(buffer1,reclen,(off64_t)save_pos,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				exit(161);
 			}
@@ -15355,7 +15695,10 @@ thread_ranread_test(x)
 		   {
 			if(verify_buffer(nbuff,reclen,(off64_t)save_pos,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
+				{
+				   if(check_filename(dummyfile[xx]))
 					unlink(dummyfile[xx]);
+				}
 				child_stat->flag = CHILD_STATE_HOLD;
 				exit(162);
 			}
@@ -15596,11 +15939,22 @@ thread_ranwrite_test( x)
 	xx2=xx;
 	if(share_file)
 		xx2=(long long)0;
+	if(mfflag)
+	{
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s",filearray[xx2]);
 #endif
+	}
+	else
+	{
+#ifdef NO_PRINT_LLD
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+#else
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+#endif
+	}
 	/*****************/
 	/* Children only */
 	/*******************************************************************/
@@ -15899,7 +16253,10 @@ again:
 			if(wval==-1)
 				perror("write");
 			if (!no_unlink)
+			{
+		            if(check_filename(dummyfile[xx]))
 				unlink(dummyfile[xx]);
+			}
 			child_stat->flag = CHILD_STATE_HOLD;
 		    	exit(127);
 		      }
@@ -16075,13 +16432,27 @@ thread_cleanup_test(x)
 	}
 #endif
 	dummyfile[xx]=(char *)malloc((size_t)MAXNAMESIZE);
+	if(mfflag)
+	{
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],xx);
+		sprintf(dummyfile[xx],"%s",filearray[xx]);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
+		sprintf(dummyfile[xx],"%s",filearray[xx]);
 #endif
+	}
+	else
+	{
+#ifdef NO_PRINT_LLD
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],xx);
+#else
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
+#endif
+	}
 	if(!no_unlink)
+	{
+	    if(check_filename(dummyfile[xx]))
 		unlink(dummyfile[xx]);
+	}
 
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	/*****************/
@@ -18083,11 +18454,13 @@ int send_size;
 	strcpy(outbuf.c_host_name,send_buffer->c_host_name);
 	strcpy(outbuf.c_client_name,send_buffer->c_client_name);
 	strcpy(outbuf.c_working_dir,send_buffer->c_working_dir);
+	strcpy(outbuf.c_file_name,send_buffer->c_file_name);
 	strcpy(outbuf.c_path_dir,send_buffer->c_path_dir);
 	strcpy(outbuf.c_execute_name,send_buffer->c_execute_name);
 	strcpy(outbuf.c_write_traj_filename,send_buffer->c_write_traj_filename);
 	strcpy(outbuf.c_read_traj_filename,send_buffer->c_read_traj_filename);
 	sprintf(outbuf.c_oflag,"%d",send_buffer->c_oflag);
+	sprintf(outbuf.c_mfflag,"%d",send_buffer->c_mfflag);
 	sprintf(outbuf.c_unbuffered,"%d",send_buffer->c_unbuffered);
 	sprintf(outbuf.c_noretest,"%d",send_buffer->c_noretest);
 	sprintf(outbuf.c_read_sync,"%d",send_buffer->c_read_sync);
@@ -18948,6 +19321,7 @@ long long numrecs64, reclen;
 	strcpy(cc.c_host_name ,controlling_host_name);
 	strcpy(cc.c_client_name ,child_idents[x-1].child_name);
 	strcpy(cc.c_working_dir ,child_idents[x-1].workdir);
+	strcpy(cc.c_file_name ,child_idents[x-1].file_name);
 	strcpy(cc.c_write_traj_filename ,write_traj_filename);
 	strcpy(cc.c_read_traj_filename ,read_traj_filename);
 	cc.c_command = R_JOIN_ACK;
@@ -18956,6 +19330,7 @@ long long numrecs64, reclen;
 	cc.c_numrecs64 = numrecs64;
 	cc.c_reclen = reclen;
 	cc.c_oflag = oflag;
+	cc.c_mfflag = mfflag;
 	cc.c_unbuffered = unbuffered;
 	cc.c_noretest = noretest;
 	cc.c_read_sync = read_sync;
@@ -19199,6 +19574,7 @@ become_client()
 	sscanf(cnc->c_testnum,"%d",&cc.c_testnum);
 	sscanf(cnc->c_client_number,"%d",&cc.c_client_number);
 	sscanf(cnc->c_working_dir,"%s",cc.c_working_dir);
+	sscanf(cnc->c_file_name,"%s",cc.c_file_name);
 	sscanf(cnc->c_write_traj_filename,"%s",cc.c_write_traj_filename);
 	sscanf(cnc->c_read_traj_filename,"%s",cc.c_read_traj_filename);
 	sscanf(cnc->c_noretest,"%d",&cc.c_noretest);
@@ -19231,6 +19607,7 @@ become_client()
 	sscanf(cnc->c_advise_flag,"%d",&cc.c_advise_flag);
 	sscanf(cnc->c_restf,"%d",&cc.c_restf);
 	sscanf(cnc->c_oflag,"%d",&cc.c_oflag);
+	sscanf(cnc->c_mfflag,"%d",&cc.c_mfflag);
 	sscanf(cnc->c_unbuffered,"%d",&cc.c_unbuffered);
 	sscanf(cnc->c_Q_flag,"%d",&cc.c_Q_flag);
 	sscanf(cnc->c_L_flag,"%d",&cc.c_L_flag);
@@ -19261,6 +19638,12 @@ become_client()
 	chid = cc.c_client_number;
 	workdir=cc.c_working_dir;
 	oflag = cc.c_oflag;
+	/* Child's absolute filename to use is provided */
+	mfflag = cc.c_mfflag;
+	if(mfflag)
+		strcpy(filearray[chid],cc.c_file_name);
+	if(cdebug)
+		printf("File name given %s\n",cc.c_file_name);
 	unbuffered = cc.c_unbuffered;
 	noretest = cc.c_noretest;
 	read_sync = cc.c_read_sync;
@@ -19872,11 +20255,12 @@ int line_num;
 
 	if(buffer[0]=='#')
 		return(0);
-	num=sscanf(buffer,"%s %s %s\n",
+	num=sscanf(buffer,"%s %s %s %s\n",
 		child_idents[line_num].child_name,
 		child_idents[line_num].workdir,
-		child_idents[line_num].execute_path);
-	if((num > 0) && (num !=3))
+		child_idents[line_num].execute_path,
+		child_idents[line_num].file_name);
+	if((num > 0) && (num !=3) && (num !=4))
 	{
 		printf("Bad Client Identity at entry %d\n",line_num);
 		printf("Client: -> %s  Workdir: -> %s  Execute_path: -> %s \n",
@@ -19885,6 +20269,8 @@ int line_num;
 		child_idents[line_num].execute_path);
 		exit(203);
 	}
+	if(num == 4)
+		mfflag++;
 
 	return(1);
 }
@@ -19905,12 +20291,20 @@ int i;
 
 	char *dummyfile[MAXSTREAMS];           /* name of dummy file     */
 	dummyfile[i]=(char *)malloc((size_t)MAXNAMESIZE);
-	sprintf(dummyfile[i],"%s.DUMMY.%d",filearray[i],i);
+	if(mfflag)
+	{
+		sprintf(dummyfile[i],"%s",filearray[i]);
+	}
+	else
+	{
+		sprintf(dummyfile[i],"%s.DUMMY.%d",filearray[i],i);
+	}
 	if(cdebug)
 	{
 		printf("Child %d remove: %s \n",(int)chid, dummyfile[i]);
 	}
-	unlink(dummyfile[i]);
+	if(check_filename(dummyfile[i]))
+		unlink(dummyfile[i]);
 }
 
 	
@@ -20915,3 +21309,26 @@ alloc_pbuf(void)
 		& ~((long)cache_size-1));
 #endif
 }
+
+/* 
+ * Check to see if the file descriptor points at a file
+ * or a device.
+ */
+int
+check_filename(char *name)
+{
+	struct stat mystat;
+	int x;
+	if(strlen(name)==0)
+		return(0);
+	x=stat(name,&mystat);
+	if(x<0)
+		return(0);
+	if(mystat.st_mode & S_IFREG)
+	{
+		/*printf("Is a regular file\n");*/
+		return(1);
+	}
+	return(0);
+}
+

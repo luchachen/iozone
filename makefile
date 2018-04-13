@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.112 $
+# Version $Revision: 1.114 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -196,6 +196,7 @@ linux-powerpc64: iozone_linux-powerpc64.o  libbif.o libasync.o fileop_linux-ppc6
 linux-arm:	iozone_linux-arm.o  libbif.o libasync.o
 	$(CC) -O3 $(LDFLAGS) iozone_linux-arm.o libbif.o libasync.o \
 		-lrt -lpthread -o iozone
+	$(CC) -O3 -Dlinux fileop_linux-arm.o -o fileop
 
 #
 # GNU 'C' compiler Linux build with threads, largefiles, async I/O 
@@ -750,6 +751,12 @@ fileop_linux-AMD64.o:	fileop.c
 	@echo "Building fileop for Linux-AMD64"
 	@echo ""
 	$(CC) -Wall -c -O3 $(CFLAGS) fileop.c -o fileop_linux-AMD64.o
+
+fileop_linux-arm.o:  fileop.c
+	@echo ""
+	@echo "Building fileop for Linux-arm"
+	@echo ""
+	$(GCC) -Wall -c -O3 $(CFLAGS) fileop.c -o fileop_linux-arm.o
 
 fileop_windows.o: fileop.c
 	@echo ""

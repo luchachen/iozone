@@ -2036,3 +2036,22 @@ Fix compiler warning messages
 Revision 3.267
 =============================================================================
 Enforce minimum file size of page_size
+=============================================================================
+Revision 3.268
+=============================================================================
+Minor fixes.
+=============================================================================
+Revision 3.269
+=============================================================================
+Check fsync and close for errors.
+=============================================================================
+Revision 3.270
+=============================================================================
+Adding support for testing block devices. Will be done is phases. This is 
+phase 1. (Single threaded mode only)
+=============================================================================
+Revision 3.271
+=============================================================================
+Adding 4 token support to client_list. Each entry may now contain 4 tokens
+and the new one is the absolute path to the temp file for testing.
+

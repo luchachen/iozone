@@ -3,7 +3,7 @@
  * Microsoft BIFF format. The Excel version is set to 2.0 so that it 
  * will work with all versions of Excel.
  *
- * Author: Don Capps 1999 (Hewlett Packard)
+ * Author: Don Capps 
  */
 
 /* 
@@ -84,7 +84,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.17 $";
+char libbif_version[] = "Libbif Version $Revision: 3.18 $";
 void do_eof(int );		/* Used internally */
 void do_header(int );		/* Used internally */
 int endian(void);

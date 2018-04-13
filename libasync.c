@@ -3,7 +3,7 @@
 /* 
  * Library for Posix async read operations with hints.
  * Author: Don Capps
- * Company: Hewlett Packard
+ * Company: Iozone
  * Date: 4/24/1998
  *
  * Two models are supported.  First model is a replacement for read() where the async
@@ -150,7 +150,7 @@ extern int one;
  * cache, pointed to by async_init(gc) will be of
  * this structure type.
  */
-char version[] = "Libasync Version $Revision: 3.20 $";
+char version[] = "Libasync Version $Revision: 3.21 $";
 struct cache_ent {
 	struct aiocb myaiocb;			/* For use in small file mode */
 #ifdef _LARGEFILE64_SOURCE 
