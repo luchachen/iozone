@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.207 $"
+#define THISVERSION "        Version $Revision: 3.210 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -195,6 +195,9 @@ char *help[] = {
 "           -+n No retests selected.",
 "           -+k Use constant aggregate data set size.",
 "           -+q Delay in seconds between tests.",
+#if defined(O_DSYNC)
+"           -+D Enable O_DSYNC mode.",
+#endif
 #ifndef NO_MADVISE
 "           -+A #  Enable madvise. 0 = normal, 1=random, 2=sequential",
 "                                  3=dontneed, 4=willneed",
@@ -434,6 +437,7 @@ struct client_command {
 	int c_stride_flag;
 	int c_verify;
 	int c_sverify;
+	int c_odsync;
 	int c_diag_v;
 	int c_Q_flag;
 	int c_OPS_flag;
@@ -512,6 +516,7 @@ struct client_neutral_command {
 	char c_stride_flag[2];
 	char c_verify[2];
 	char c_sverify[2];
+	char c_odsync[2];
 	char c_diag_v[2];
 	char c_Q_flag[2];
 	char c_OPS_flag[2];
@@ -1303,7 +1308,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 13;
+int proto_version = 14;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1330,6 +1335,7 @@ char async_flag,stride_flag,mmapflag,mmapasflag,mmapssflag,mmapnsflag,mmap_mix;
 char verify = 1;
 int restf;
 char sverify = 1;
+char odsync = 0;
 char Q_flag,OPS_flag;
 char no_copy_flag,include_close,include_flush;
 char disrupt_flag,compute_flag,xflag;
@@ -2229,6 +2235,12 @@ char **argv;
 					restf=1;
 					sprintf(splash[splash_line++],"\tDelay %d seconds between tests enabled.\n",atoi(subarg));
 					break;
+#if defined(O_DSYNC)
+				case 'D':  /* O_DSYNC mode */
+					sprintf(splash[splash_line++],"\t>>> O_DSYNC mode enabled. <<<\n");
+					odsync=1;
+					break;
+#endif
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
 					exit(0);
@@ -6146,7 +6158,10 @@ long long *data2;
 		file_flags = O_RDWR|O_SYNC;
 	else
 		file_flags = O_RDWR;
-
+#if defined(O_DSYNC)
+	if(odsync)
+		file_flags |= O_DSYNC;
+#endif
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		file_flags |=O_RSYNC|O_SYNC;
@@ -7331,6 +7346,10 @@ long long *data1, *data2;
 	fd=0;
 	if(oflag)
 		flags |= O_SYNC;
+#if defined(O_DSYNC)
+	if(odsync)
+		flags |= O_DSYNC;
+#endif
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
@@ -7964,6 +7983,10 @@ long long *data1,*data2;
 #endif
 	if(oflag)
 		flags |= O_SYNC;
+#if defined(O_DSYNC)
+	if(odsync)
+		flags |= O_DSYNC;
+#endif
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
@@ -8499,6 +8522,11 @@ long long *data1,*data2;
 	{
 		flags_here = O_RDWR;
 	}
+#if defined(O_DSYNC)
+	if(odsync)
+		flags_here |= O_DSYNC;
+#endif
+
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags_here |=O_RSYNC|O_SYNC;
@@ -8932,6 +8960,10 @@ long long *data1,*data2;
 		flags_here = O_SYNC|O_RDWR;
 	else
 		flags_here = O_RDWR;
+#if defined(O_DSYNC)
+	if(odsync)
+		flags_here |= O_DSYNC;
+#endif
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags_here |=O_RSYNC|O_SYNC;
@@ -10102,6 +10134,9 @@ int shared_flag;
 	int shmid;
 	int tfd;
 	long long tmp;
+#if defined(solaris) 
+        char mmapFileName[64];
+#endif
 
 	tmp = 0;
 	dumb = (char *)0;
@@ -10176,7 +10211,6 @@ int shared_flag;
 
 
 #if defined(solaris) 
-        char mmapFileName[64];
 	if(distributed)
 		tmp=(long long)getpid();
 	else
@@ -10483,6 +10517,10 @@ thread_write_test( x)
 		flags=O_RDWR|O_SYNC;
 	else
 		flags=O_RDWR;
+#if defined(O_DSYNC)
+	if(odsync)
+		flags |= O_DSYNC;
+#endif
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
@@ -11002,6 +11040,10 @@ thread_pwrite_test( x)
 		flags=O_RDWR|O_SYNC;
 	else
 		flags=O_RDWR;
+#if defined(O_DSYNC)
+	if(odsync)
+		flags |= O_DSYNC;
+#endif
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
@@ -11510,6 +11552,10 @@ thread_rwrite_test(x)
 	flags = O_RDWR;
 	if(oflag)
 		flags|= O_SYNC;
+#if defined(O_DSYNC)
+	if(odsync)
+		flags|= O_DSYNC;
+#endif
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
@@ -14483,6 +14529,10 @@ thread_ranwrite_test( x)
 		flags=O_RDWR|O_SYNC;
 	else
 		flags=O_RDWR;
+#if defined(O_DSYNC)
+	if(odsync)
+		flags |= O_DSYNC;
+#endif
 #if defined(_HPUX_SOURCE) || defined(linux)
 	if(read_sync)
 		flags |=O_RSYNC|O_SYNC;
@@ -16811,6 +16861,7 @@ int send_size;
 	sprintf(outbuf.c_stride_flag,"%d",send_buffer->c_stride_flag);
 	sprintf(outbuf.c_verify,"%d",send_buffer->c_verify);
 	sprintf(outbuf.c_sverify,"%d",send_buffer->c_sverify);
+	sprintf(outbuf.c_odsync,"%d",send_buffer->c_odsync);
 	sprintf(outbuf.c_diag_v,"%d",send_buffer->c_diag_v);
 	sprintf(outbuf.c_Q_flag,"%d",send_buffer->c_Q_flag);
 	sprintf(outbuf.c_include_flush,"%d",send_buffer->c_include_flush);
@@ -17648,6 +17699,7 @@ long long numrecs64, reclen;
 	cc.c_fetchon = fetchon;
 	cc.c_verify = verify;
 	cc.c_sverify = sverify;
+	cc.c_odsync = odsync;
 	cc.c_diag_v = diag_v;
 	cc.c_file_lock = file_lock;
 	cc.c_multiplier = multiplier;
@@ -17884,6 +17936,7 @@ become_client()
 	sscanf(cnc->c_stride_flag,"%d",&cc.c_stride_flag);
 	sscanf(cnc->c_verify,"%d",&cc.c_verify);
 	sscanf(cnc->c_sverify,"%d",&cc.c_sverify);
+	sscanf(cnc->c_odsync,"%d",&cc.c_odsync);
 	sscanf(cnc->c_diag_v,"%d",&cc.c_diag_v);
 	sscanf(cnc->c_file_lock,"%d",&cc.c_file_lock);
 	sscanf(cnc->c_multiplier,"%d",&cc.c_multiplier);

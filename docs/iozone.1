@@ -61,6 +61,7 @@ Iozone \- Filesystem Benchmark
 [\fB\-+p\fP \fIpercent_read\fP]
 [\fB\-+r\fP]
 [\fB\-+t\fP]
+[\fB\-+D\fP]
 [\fB\-+A\fP \fImadvise_selector\fP]
 
 .hy
@@ -483,6 +484,9 @@ testing.
 .TP
 .BI \-+r
 Enable O_RSYNC | O_SYNC on all testing. 
+.TP
+.BI \-+D
+Enable O_DSYNC on all testing. 
 .TP
 .BI \-+t
 Enable network performance test. Use with -+m
