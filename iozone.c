@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.424 $"
+#define THISVERSION "        Version $Revision: 3.428 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -851,21 +851,18 @@ struct master_neutral_command {
 #ifdef HAVE_PREAD
 #include <sys/times.h>
 #if defined(HAVE_PREAD) && defined(HAVE_PREADV)
-#define CONTROL_STRING1 "%16ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld %8ld %8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld%9ld%10ld%10ld%9ld\n"
-#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s%8s%9s%7s%10s%10s%10s%9s%9s\n"
-#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s\n"
-#define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
+#define CONTROL_STRING2 "%16s%8s%9s%9s%8s%10s%8s %9s%9s %9s %9s%9s%9s%9s%9s%8s%9s%8s%10s%10s%10s%9s%9s\n"
+#define CONTROL_STRING3 "%16s%8s%9s%9s%8s%10s%8s %9s%9s %9s %9s%9s%9s%9s%9s\n"
+#define CONTROL_STRING4 "%16s%8s%9s%9s%8s%10s\n"
 #else
-#define CONTROL_STRING1 "%16ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld %8ld %8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld\n"
-#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s%8s%9s%7s%10s\n"
-#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s\n"
-#define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
+#define CONTROL_STRING2 "%16s%8s%9s%9s%8s%10s%8s %9s%9s %9s %9s%9s%9s%9s%9s%8s%9s%8s%10s\n"
+#define CONTROL_STRING3 "%16s%8s%9s%9s%8s%10s%8s %9s%9s %9s %9s\n"
+#define CONTROL_STRING4 "%16s%8s%9s%9s%8s%10s\n"
 #endif
 #else
-#define CONTROL_STRING1 "%16ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld %8ld %8ld%8ld%8ld%9ld%9ld\n"
-#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s\n"
-#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s\n"
-#define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
+#define CONTROL_STRING2 "%16s%8s%9s%9s%8s%10s%8s %9s%9s %9s %9s%9s%9s%9s%9s\n"
+#define CONTROL_STRING3 "%16s%8s%9s%9s%8s%10s%8s %9s%9s %9s %9s%9s%9s%9s%9s\n"
+#define CONTROL_STRING4 "%16s%8s%9s%9s%8s%10s\n"
 #endif
 #endif
 
@@ -873,21 +870,18 @@ struct master_neutral_command {
 #ifdef HAVE_PREAD
 #include <sys/times.h>
 #if defined(HAVE_PREAD) && defined(HAVE_PREADV)
-#define CONTROL_STRING1 "%16lld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld %8ld %8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld%9ld%10ld%10ld%9ld\n"
-#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s%8s%9s%7s%10s%10s%10s%9s%9s\n"
-#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s\n"
-#define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
+#define CONTROL_STRING2 "%16s%8s%9s%9s%8s%10s%8s %9s%9s %9s %9s%9s%9s%9s%9s%8s%9s%8s%10s%10s%10s%9s%9s\n"
+#define CONTROL_STRING3 "%16s%8s%9s%9s%8s%10s%8s %9s%9s %9s %9s%9s%9s%9s%9s\n"
+#define CONTROL_STRING4 "%16s%8s%9s%9s%8s%10s\n"
 #else
-#define CONTROL_STRING1 "%16lld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld %8ld %8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld\n"
-#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s%8s%9s%7s%10s\n"
-#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s\n"
-#define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
+#define CONTROL_STRING2 "%16s%8s%9s%9s%8s%10s%8s %9s%9s %9s %9s%9s%9s%9s%9s%8s%9s%8s%10s\n"
+#define CONTROL_STRING3 "%16s%8s%9s%9s%8s%10s%8s %9s%9s %9s %9s%9s%9s%9s%9s\n"
+#define CONTROL_STRING4 "%16s%8s%9s%9s%8s%10s\n"
 #endif
 #else
-#define CONTROL_STRING1 "%16lld%8ld%8ld%8ld%8ld%8ld%8ld%8ld %8ld %8ld%8ld%8ld%8ld%9ld%9ld\n"
-#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s\n"
-#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s\n"
-#define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
+#define CONTROL_STRING2 "%16s%8s%9s%9s%8s%10s%8s %9s%9s %9s %9s%9s%9s%8s%9s\n"
+#define CONTROL_STRING3 "%16s%8s%9s%9s%8s%10s%8s %9s%9s %9s %9s%9s%9s%9s%9s\n"
+#define CONTROL_STRING4 "%16s%8s%9s%9s%8s%10s\n"
 #endif
 #endif
 
@@ -2651,7 +2645,7 @@ char **argv;
 						dedup_interior = 0;
 					if(dedup_interior >100)
 						dedup_interior = 100;
-					sprintf(splash[splash_line++],"\tDedupe within & across %d percent.\n",dedup_interior);
+					sprintf(splash[splash_line++],"\tDedup within & across %d percent.\n",dedup_interior);
 					break;
 				case 'C':  /* Argument is the percent of dedupe within & !across */
 					   /* Sets size of dedup region within and !across files */
@@ -2666,7 +2660,7 @@ char **argv;
 						dedup_compress = 0;
 					if(dedup_compress >100)
 						dedup_compress = 100;
-					sprintf(splash[splash_line++],"\tDedupe within %d percent.\n",dedup_compress);
+					sprintf(splash[splash_line++],"\tDedup within %d percent.\n",dedup_compress);
 					break;
 				case 'S':  /* Argument is the seed for dedup */
 					subarg=argv[optind++];
@@ -7888,12 +7882,12 @@ long long *data2;
 		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)writerate[1]);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%8ld",writerate[0]);
-	if(!silent) printf("%8ld",writerate[1]);
+	if(!silent) printf("%9ld",writerate[0]);
+	if(!silent) printf("%9ld",writerate[1]);
 	if(!silent) fflush(stdout);
 #else
-	if(!silent) printf("%8lld",writerate[0]);
-	if(!silent) printf("%8lld",writerate[1]);
+	if(!silent) printf("%9lld",writerate[0]);
+	if(!silent) printf("%9lld",writerate[1]);
 	if(!silent) fflush(stdout);
 #endif
 }
@@ -8315,11 +8309,11 @@ long long *data1,*data2;
 		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)readrate[1]);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%8ld",readrate[0]);
+	if(!silent) printf("%9ld",readrate[0]);
 	if(!silent) printf("%9ld",readrate[1]);
 	if(!silent) fflush(stdout);
 #else
-	if(!silent) printf("%8lld",readrate[0]);
+	if(!silent) printf("%9lld",readrate[0]);
 	if(!silent) printf("%9lld",readrate[1]);
 	if(!silent) fflush(stdout);
 #endif
@@ -9364,12 +9358,12 @@ long long *data1, *data2;
 		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)randreadrate[1]);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%8ld",randreadrate[0]);
-	if(!silent) printf("%8ld",randreadrate[1]);
+	if(!silent) printf("%9ld",randreadrate[0]);
+	if(!silent) printf("%9ld",randreadrate[1]);
 	if(!silent) fflush(stdout);
 #else
-	if(!silent) printf("%8lld",randreadrate[0]);
-	if(!silent) printf("%8lld",randreadrate[1]);
+	if(!silent) printf("%9lld",randreadrate[0]);
+	if(!silent) printf("%9lld",randreadrate[1]);
 	if(!silent) fflush(stdout);
 #endif
 	if(recnum)
@@ -9665,9 +9659,9 @@ long long *data1,*data2;
 		store_times(walltime[0], cputime[0]);
 	store_value((off64_t)revreadrate[0]);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%8ld",revreadrate[0]);
+	if(!silent) printf("%9ld",revreadrate[0]);
 #else
-	if(!silent) printf("%8lld",revreadrate[0]);
+	if(!silent) printf("%9lld",revreadrate[0]);
 #endif
 	if(!silent) fflush(stdout);
 }
@@ -9984,9 +9978,9 @@ long long *data1,*data2;
 		store_times(walltime, cputime);
 	store_value((off64_t)writeinrate);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf(" %8ld",writeinrate);
+	if(!silent) printf(" %9ld",writeinrate);
 #else
-	if(!silent) printf(" %8lld",writeinrate);
+	if(!silent) printf(" %9lld",writeinrate);
 #endif
 	if(!silent) fflush(stdout);
 	if(restf)
@@ -10307,9 +10301,9 @@ long long *data1, *data2;
 		store_times(walltime, cputime);
 	store_value((off64_t)strideinrate);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf(" %8ld",strideinrate);
+	if(!silent) printf(" %9ld",strideinrate);
 #else
-	if(!silent) printf(" %8lld",strideinrate);
+	if(!silent) printf(" %9lld",strideinrate);
 #endif
 	if(!silent) fflush(stdout);
 	if(restf)
@@ -10589,7 +10583,7 @@ long long *data1,*data2;
 	if(!silent) printf("%9ld",pwriterate[1]);
 	if(!silent) fflush(stdout);
 #else
-	if(!silent) printf("%8lld",pwriterate[0]);
+	if(!silent) printf("%9lld",pwriterate[0]);
 	if(!silent) printf("%9lld",pwriterate[1]);
 	if(!silent) fflush(stdout);
 #endif
@@ -23883,10 +23877,10 @@ int
 gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,
 	int percent_interior, int percent_compress, int all)
 {
-	register long *ip, *op; /* Register for speed 	*/
-	register long iseed; 	/* Register for speed 	*/
-	register long isize; 	/* Register for speed 	*/
-	register long cseed;	/* seed for dedupable for within & ! across */
+	register int *ip, *op; /* Register for speed 	*/
+	register int iseed; 	/* Register for speed 	*/
+	register int isize; 	/* Register for speed 	*/
+	register int cseed;	/* seed for dedupable for within & ! across */
 	register int x,w; 	/* Register for speed 	*/
 	register int value; 	/* Register for speed 	*/
 	register int interior_size; 	/* size of interior dedup region */
@@ -23902,14 +23896,14 @@ gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,
 	srand(seed+1+(((int)numrecs64)*dedup_mseed)); /* set random seed */
 	iseed = rand();		/* generate random value */
 	isize = (size * percent)/100; /* percent that is dedupable */
-	interior_size = ((isize * percent_interior)/100);/* /sizeof(long) */
+	interior_size = ((isize * percent_interior)/100);/* /sizeof(int) */
 	compress_size =((interior_size * percent_compress)/100);
-	ip = (long *)ibuf;	/* pointer to input buf */
-	op = (long *)obuf;	/* pointer to output buf */
+	ip = (int *)ibuf;	/* pointer to input buf */
+	op = (int *)obuf;	/* pointer to output buf */
 	if(all == 0)		/* Special case for verify only */
-		isize = sizeof(long);
+		isize = sizeof(int);
 	/* interior_size = dedup_within + dedup_across */
-	for(w=0;w<interior_size;w+=sizeof(long))	
+	for(w=0;w<interior_size;w+=sizeof(int))	
 	{
 		*op=0xdeadbeef+dedup_mseed;
 		*ip=0xdeadbeef+dedup_mseed;
@@ -23918,18 +23912,18 @@ gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,
 	}	
 	/* Prepare for dedup within but not across */
 	w=interior_size - compress_size;
-	op=(long *)&obuf[w];
-	ip=(long *)&ibuf[w];
+	op=(int *)&obuf[w];
+	ip=(int *)&ibuf[w];
 	srand(chid+chid_skew+1+dedup_mseed);            /* set randdom seed 	*/
 	cseed = rand();		/* generate random value */
-	for(w=(interior_size-compress_size);w<interior_size;w+=sizeof(long))	
+	for(w=(interior_size-compress_size);w<interior_size;w+=sizeof(int))	
 	{
 		*op=*ip ^ cseed; /* do the xor op */
 		op++;
 		ip++;
 	}	
  	/* isize = dedup across only */
-	for(x=interior_size;x<isize;x+=sizeof(long))	/* tight loop for transformation */
+	for(x=interior_size;x<isize;x+=sizeof(int))	/* tight loop for transformation */
 	{
 		*op=*ip ^ iseed; /* do the xor op */
 		op++;
@@ -23943,7 +23937,7 @@ gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,
 		srand(1+seed+((chid+chid_skew+1)*(int)numrecs64)*dedup_mseed);
 		value=rand();
 /* printf("Non-dedup value %x seed %x\n",value,seed);*/
-		for( ; x<size;x+=sizeof(long))
+		for( ; x<size;x+=sizeof(int))
 			*op++=(*ip++)^value; /* randomize the remainder */
 	}
 	return(0);
