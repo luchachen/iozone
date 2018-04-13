@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.428 $"
+#define THISVERSION "        Version $Revision: 3.429 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -21464,7 +21464,7 @@ long long numrecs64, reclen;
 	struct master_neutral_command *mnc;
 	char command[512];
 	struct in_addr my_s_addr;
-	char my_port_num[10];
+	char my_port_num[12];
 
 
 	bzero(&cc,sizeof(struct client_command));

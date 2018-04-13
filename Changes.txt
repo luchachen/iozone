@@ -2508,4 +2508,7 @@ Adjust formatting so fields don't run together.
 Revision 3.428
 Adjust formatting so fields don't run together.
 =============================================================================
+Revision 3.429
+Add two more characters to array my_port_num.
+=============================================================================
 
