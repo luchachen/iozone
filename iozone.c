@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.160 $"
+#define THISVERSION "        Version $Revision: 3.161 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -14993,25 +14993,65 @@ int flag, prot;
 	 char *pa;
 	 int mflags=0;
 	 long long x;
-	 char *tmp;
-	 tmp=(char *)malloc((int)page_size);
+	 char *tmp,*stmp;
+	 int file_flags;
+	 long long recs;
+	 long long i;
+
 	 if(flag)
 	 {
 
 #ifdef _HPUX_SOURCE
+		/* 
+		 * Save time, just have the operating system prealloc 
+		 * the file 
+		 */
 		prealloc(fd,filebytes);
 #else
-	 	I_LSEEK(fd,(filebytes-page_size),SEEK_SET);
-		x=write(fd,tmp,(int)page_size);
-		if(x < 1)
+	 	/* 
+		  * Allocate a temporary buffer to meet any alignment 
+		  * contraints of any method.
+		  */
+		 tmp=(char *)malloc((size_t)reclen * 2);
+		 stmp=tmp;
+		 /* 
+		  * Align to a reclen boundary.
+		  */
+		 tmp = (char *)((((long)tmp + (long)reclen))& ~(((long)reclen-1)));
+		/* 
+		 * Special case.. Open O_DIRECT, and going to be mmap() 
+		 * Under Linux, one can not create a sparse file using 
+		 * a file that is opened with O_DIRECT 
+		 */
+	 	file_flags=fcntl(fd,F_GETFL);
+	 	if((file_flags & O_DIRECT) !=0)
+	 	{
+	 		recs=filebytes/reclen;
+			for (i =0; i<recs ;i++)
+			{
+				x=write(fd,tmp,(size_t)reclen);
+				if(x < 1)
+				{
+					printf("Unable to write file\n");
+					exit(182);
+				}
+			}
+	 	}
+		else
 		{
-			printf("Unable to write file\n");
-			exit(181);
+			/* Save time, just seek out and touch at the end */
+		 	I_LSEEK(fd,(filebytes-reclen),SEEK_SET);
+			x=write(fd,tmp,(size_t)reclen);
+			if(x < 1)
+			{
+				printf("Unable to write file\n");
+				exit(181);
+			}
 		}
+	 	free(stmp);
 	 	I_LSEEK(fd,0,SEEK_SET);
 #endif
 	 }
-	 free(tmp);
 
 #ifdef IRIX64
 	if((prot & PROT_WRITE)==PROT_WRITE)

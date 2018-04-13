@@ -1614,4 +1614,8 @@ Make initial write in initfile() a page size request.
 Revision 3.160 
 =============================================================================
 Stop test if file can not be written.
+=============================================================================
+Revision 3.161 
+=============================================================================
+Special handling for mmap of a file that is opened (O_DIRECT)
 
