@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.195 $"
+#define THISVERSION "        Version $Revision: 3.196 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -7207,7 +7207,7 @@ long long *data1, *data2;
 	double walltime[2], cputime[2];
 	double compute_val = (double)0;
 #if defined (bsd4_2) || defined(Windows)
-	long big_rand;
+	long long big_rand;
 	long long rand1,rand2,rand3;
 #endif
 	long long j;
@@ -9061,7 +9061,7 @@ off64_t numrecs64;
 	long long numvecs;
 #if defined (bsd4_2) || defined(Windows)
 	long long rand1,rand2,rand3;
-	long big_rand;
+	long long big_rand;
 #endif
 
 	numvecs = PVECMAX;
@@ -13819,7 +13819,7 @@ thread_ranread_test(x)
 	long long save_pos;
 #if defined (bsd4_2) || defined(Windows)
 	long long rand1,rand2,rand3;
-	long big_rand;
+	long long big_rand;
 #endif
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -14241,7 +14241,7 @@ thread_ranwrite_test( x)
 #endif
 #if defined (bsd4_2) || defined(Windows)
 	long long rand1,rand2,rand3;
-	long big_rand;
+	long long big_rand;
 #endif
 
 #ifdef ASYNC_IO
