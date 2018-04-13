@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.303 $"
+#define THISVERSION "        Version $Revision: 3.308 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -789,20 +789,20 @@ struct master_neutral_command {
 #ifdef HAVE_PREAD
 #include <sys/times.h>
 #if defined(HAVE_PREAD) && defined(HAVE_PREADV)
-#define CONTROL_STRING1 "%16ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld%9ld%10ld%10ld%9ld\n"
-#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s%8s%9s%7s%10s%10s%10s%9s%9s\n"
-#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s\n"
+#define CONTROL_STRING1 "%16ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld %8ld %8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld%9ld%10ld%10ld%9ld\n"
+#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s%8s%9s%7s%10s%10s%10s%9s%9s\n"
+#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s\n"
 #define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
 #else
-#define CONTROL_STRING1 "%16ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld\n"
-#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s%8s%9s%7s%10s\n"
-#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s\n"
+#define CONTROL_STRING1 "%16ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld %8ld %8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld\n"
+#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s%8s%9s%7s%10s\n"
+#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s\n"
 #define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
 #endif
 #else
-#define CONTROL_STRING1 "%16ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%9ld%9ld\n"
-#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s\n"
-#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s\n"
+#define CONTROL_STRING1 "%16ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld %8ld %8ld%8ld%8ld%9ld%9ld\n"
+#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s\n"
+#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s\n"
 #define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
 #endif
 #endif
@@ -811,20 +811,20 @@ struct master_neutral_command {
 #ifdef HAVE_PREAD
 #include <sys/times.h>
 #if defined(HAVE_PREAD) && defined(HAVE_PREADV)
-#define CONTROL_STRING1 "%16lld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld%9ld%10ld%10ld%9ld\n"
-#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s%8s%9s%7s%10s%10s%10s%9s%9s\n"
-#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s\n"
+#define CONTROL_STRING1 "%16lld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld %8ld %8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld%9ld%10ld%10ld%9ld\n"
+#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s%8s%9s%7s%10s%10s%10s%9s%9s\n"
+#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s\n"
 #define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
 #else
-#define CONTROL_STRING1 "%16lld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld\n"
-#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s%8s%9s%7s%10s\n"
-#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s\n"
+#define CONTROL_STRING1 "%16lld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld %8ld %8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld\n"
+#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s%8s%9s%7s%10s\n"
+#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s\n"
 #define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
 #endif
 #else
-#define CONTROL_STRING1 "%16lld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%9ld%9ld\n"
-#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s\n"
-#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s\n"
+#define CONTROL_STRING1 "%16lld%8ld%8ld%8ld%8ld%8ld%8ld%8ld %8ld %8ld%8ld%8ld%8ld%9ld%9ld\n"
+#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s\n"
+#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s %8s %8s%9s%9s%8s%9s\n"
 #define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
 #endif
 #endif
@@ -1570,7 +1570,7 @@ char **argv;
     	sprintf(splash[splash_line++],"\tContributors:William Norcott, Don Capps, Isom Crawford, Kirby Collins\n");
 	sprintf(splash[splash_line++],"\t             Al Slater, Scott Rhine, Mike Wisner, Ken Goss\n");
     	sprintf(splash[splash_line++],"\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR,\n");
-    	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million, \n");
+    	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million, Gavin Brebner,\n");
     	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg, Benny Halevy,\n");
     	sprintf(splash[splash_line++],"\t             Erik Habbinga, Kris Strecker, Walter Wong, Joshua Root.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
@@ -2360,7 +2360,7 @@ char **argv;
 				case 't':  /* Speed code activated */
 					speed_code=1;
 					break;
-#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(solaris)
 				case 'r':  /* Read sync too */
 					read_sync=1;
     					sprintf(splash[splash_line++],"\tRead & Write sync mode active.\n");
@@ -8992,9 +8992,9 @@ long long *data1,*data2;
 		store_times(walltime, cputime);
 	store_value((off64_t)writeinrate);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("% 7ld",writeinrate);
+	if(!silent) printf(" %8ld",writeinrate);
 #else
-	if(!silent) printf("% 7lld",writeinrate);
+	if(!silent) printf(" %8lld",writeinrate);
 #endif
 	if(!silent) fflush(stdout);
 	if(restf)
@@ -9300,9 +9300,9 @@ long long *data1, *data2;
 		store_times(walltime, cputime);
 	store_value((off64_t)strideinrate);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%8ld",strideinrate);
+	if(!silent) printf(" %8ld",strideinrate);
 #else
-	if(!silent) printf("%8lld",strideinrate);
+	if(!silent) printf(" %8lld",strideinrate);
 #endif
 	if(!silent) fflush(stdout);
 	if(restf)
@@ -20634,6 +20634,11 @@ get_client_info()
 	}
 	while(1)
 	{
+          	if (count >= MAXSTREAMS) {                                                                           
+            	  printf("Too many lines in client file - max of %d supported\n",
+			MAXSTREAMS);
+            	  exit(7);
+          	}
 		ret1=fgets(buffer,200,fd);
 		if(ret1== (char *)NULL)
 			break;

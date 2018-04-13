@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.121 $
+# Version $Revision: 1.122 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -329,6 +329,15 @@ Solaris10:	iozone_solaris10.o libasync10.o libbif10.o fileop_Solaris10.o
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
 	$(CC)  -O fileop_Solaris10.o -o fileop
+
+#
+# Solaris 32 bit build with threads, largefiles, and async I/O
+#
+Solaris10cc:	iozone_solaris10cc.o libasync10cc.o libbif10cc.o fileop_Solaris10cc.o
+	$(CC)  -O $(LDFLAGS) iozone_solaris10cc.o libasync10cc.o libbif10cc.o \
+		-lthread -lpthread -lposix4 -lnsl -laio \
+		-lsocket -o iozone
+	$(CC)  -O fileop_Solaris10cc.o -o fileop
 
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
@@ -931,6 +940,20 @@ iozone_solaris10.o:  iozone.c libbif.c
 	$(CC) -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO -Dstudio11 \
 	        -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
 	        -DNAME='"Solaris10"' $(CFLAGS) iozone.c -o iozone_solaris10.o
+
+iozone_solaris10cc.o:  iozone.c libbif.c
+	@echo ""
+	@echo "Building iozone for Solaris10cc"
+	@echo ""
+	$(CC) -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
+	        -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+	        $(CFLAGS) libbif.c -o libbif10cc.o
+	$(CC) -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
+	        -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+	        -DNAME='"Solaris10"' $(CFLAGS) libasync.c -o libasync10cc.o
+	$(CC) -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO -Dstudio11 \
+	        -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+	        -DNAME='"Solaris10"' $(CFLAGS) iozone.c -o iozone_solaris10cc.o
 
 iozone_solaris10gcc.o:  iozone.c libbif.c
 	@echo ""

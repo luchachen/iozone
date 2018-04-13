@@ -2139,3 +2139,19 @@ Adding -+C to set percent of dedupable within a file.
 Revision 3.303
 bug fix
 =============================================================================
+Revision 3.304
+Add solaris to read sync O_RSYNC
+=============================================================================
+Revision 3.305
+Add space to avoid field output touching each other.
+=============================================================================
+Revision 3.306
+Add check for config file exceeding MAXSTREAMS.
+=============================================================================
+Revision 3.307
+Add new contributor's name.
+=============================================================================
+Revision 3.308
+Fix type-oh
+=============================================================================
+
