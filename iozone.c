@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.331 $"
+#define THISVERSION "        Version $Revision: 3.336 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -211,6 +211,7 @@ char *help[] = {
 "                                  3=dontneed, 4=willneed",
 #endif
 "           -+N Do not truncate existing files on sequential writes.",
+"           -+S # Dedup file set number.",
 "           -+V Enable shared file. No locking.",
 #if defined(Windows)
 "           -+U Windows Unbufferd I/O API (Very Experimental)",
@@ -496,6 +497,7 @@ struct client_command {
 	int c_dedup;
 	int c_dedup_interior;
 	int c_dedup_compress;
+	int c_dedup_mseed;
 	int c_Q_flag;
 	int c_L_flag;
 	int c_OPS_flag;
@@ -589,6 +591,7 @@ struct client_neutral_command {
 	char c_dedup[4];
 	char c_dedup_interior[4];
 	char c_dedup_compress[4];
+	char c_dedup_mseed[4];
 	char c_Q_flag[2];
 	char c_L_flag[2];
 	char c_OPS_flag[2];
@@ -1242,7 +1245,7 @@ long long res_prob,rec_prob;
 char silent,read_sync;
 char master_iozone, client_iozone,distributed;
 int bif_fd,s_count;
-int bif_row,bif_column;
+int bif_row,bif_column,dedup_mseed;
 char aflag, Eflag, hflag, Rflag, rflag, sflag;
 char diag_v,sent_stop,dedup,dedup_interior,dedup_compress;
 char *dedup_ibuf;
@@ -1418,7 +1421,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 22;
+int proto_version = 23;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -2548,6 +2551,16 @@ char **argv;
 					if(dedup_compress >100)
 						dedup_compress = 100;
 					sprintf(splash[splash_line++],"\tDedupe within %d percent.\n",dedup_compress);
+					break;
+				case 'S':  /* Argument is the seed for dedup */
+					subarg=argv[optind++];
+					if(subarg==(char *)0)
+					{
+					     printf("-+S takes an operand !!\n");
+					     exit(200);
+					}
+					dedup_mseed = atoi(subarg);
+					sprintf(splash[splash_line++],"\tDedup manual seed %d .\n",dedup_mseed);
 					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
@@ -19433,6 +19446,8 @@ int send_size;
 	sprintf(outbuf.c_diag_v,"%d",send_buffer->c_diag_v);
 	sprintf(outbuf.c_dedup,"%d",send_buffer->c_dedup);
 	sprintf(outbuf.c_dedup_interior,"%d",send_buffer->c_dedup_interior);
+	sprintf(outbuf.c_dedup_compress,"%d",send_buffer->c_dedup_compress);
+	sprintf(outbuf.c_dedup_mseed,"%d",send_buffer->c_dedup_mseed);
 	sprintf(outbuf.c_Q_flag,"%d",send_buffer->c_Q_flag);
 	sprintf(outbuf.c_L_flag,"%d",send_buffer->c_L_flag);
 	sprintf(outbuf.c_include_flush,"%d",send_buffer->c_include_flush);
@@ -20325,6 +20340,8 @@ long long numrecs64, reclen;
 	cc.c_diag_v = diag_v;
 	cc.c_dedup = dedup;
 	cc.c_dedup_interior = dedup_interior;
+	cc.c_dedup_compress = dedup_compress;
+	cc.c_dedup_mseed = dedup_mseed;
 	cc.c_file_lock = file_lock;
 	cc.c_rec_lock = rlocking;
 	cc.c_Kplus_readers = Kplus_readers;
@@ -20573,6 +20590,8 @@ become_client()
 	sscanf(cnc->c_diag_v,"%d",&cc.c_diag_v);
 	sscanf(cnc->c_dedup,"%d",&cc.c_dedup);
 	sscanf(cnc->c_dedup_interior,"%d",&cc.c_dedup_interior);
+	sscanf(cnc->c_dedup_compress,"%d",&cc.c_dedup_compress);
+	sscanf(cnc->c_dedup_mseed,"%d",&cc.c_dedup_mseed);
 	sscanf(cnc->c_file_lock,"%d",&cc.c_file_lock);
 	sscanf(cnc->c_rec_lock,"%d",&cc.c_rec_lock);
 	sscanf(cnc->c_Kplus_readers,"%d",&cc.c_Kplus_readers);
@@ -20644,6 +20663,8 @@ become_client()
 	diag_v = cc.c_diag_v;
 	dedup = cc.c_dedup;
 	dedup_interior = cc.c_dedup_interior;
+	dedup_compress = cc.c_dedup_compress;
+	dedup_mseed = cc.c_dedup_mseed;
 	if(diag_v)
 		sverify = 0;
 	else
@@ -22465,7 +22486,7 @@ gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,
 		return(-1);
 	if(size == 0)		/* size check 		*/
 		return(-1);
-	srand(seed+1);            /* set randdom seed 	*/
+	srand(seed+1+(((int)numrecs64)*dedup_mseed)); /* set random seed */
 	iseed = rand();		/* generate random value */
 	isize = (size * percent)/100; /* percent that is dedupable */
 	interior_size = ((isize * percent_interior)/100);/* /sizeof(long) */
@@ -22477,8 +22498,8 @@ gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,
 	/* interior_size = dedup_within + dedup_across */
 	for(w=0;w<interior_size;w+=sizeof(long))	
 	{
-		*op=0xdeadbeef;
-		*ip=0xdeadbeef;
+		*op=0xdeadbeef+dedup_mseed;
+		*ip=0xdeadbeef+dedup_mseed;
 		op++;
 		ip++;
 	}	
@@ -22486,7 +22507,7 @@ gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,
 	w=interior_size - compress_size;
 	op=(long *)&obuf[w];
 	ip=(long *)&ibuf[w];
-	srand(chid+1);            /* set randdom seed 	*/
+	srand(chid+1+dedup_mseed);            /* set randdom seed 	*/
 	cseed = rand();		/* generate random value */
 	for(w=(interior_size-compress_size);w<interior_size;w+=sizeof(long))	
 	{
@@ -22506,7 +22527,7 @@ gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,
 	/* make the rest of the buffer non-dedupable */
 	if(100-percent > 0)
 	{
-		srand(chid+1+seed+(chid*(int)numrecs64));
+		srand(1+seed+((chid+1)*(int)numrecs64)*dedup_mseed);
 		value=rand();
 /* printf("Non-dedup value %x seed %x\n",value,seed);*/
 		for( ; x<size;x+=sizeof(long))

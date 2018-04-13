@@ -2231,5 +2231,19 @@ Bug fix for Dave's code.
 Revision 3.331
 Add multi -t ops. Fabrice 
 =============================================================================
-
+Revision 3.332
+Added Li Qin's multi dedup set support. -+S #
+=============================================================================
+Revision 3.333
+Bug fix for -+S dedup_mseed needs to be an integer
+=============================================================================
+Revision 3.334
+Make -+S generate more uniqueness
+=============================================================================
+Revision 3.335
+Make -+S generate more uniqueness
+=============================================================================
+Revision 3.336
+Make -+S generate more uniqueness
+=============================================================================
 
