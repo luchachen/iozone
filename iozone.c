@@ -52,7 +52,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.27 $"
+#define THISVERSION "        Version $Revision: 3.28 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -118,6 +118,7 @@ char *help[] = {
 "           -A auto2 mode",
 "           -m multi buffer",
 "           -M uname -a output",
+"           -W Lock file when reading or writing",
 "           -t # throughput test",
 "           -h help",
 "           -o Writes are synch (O_SYNC)",
@@ -617,6 +618,7 @@ long long include_test[50];
 long long include_mask;
 char RWONLYflag, NOCROSSflag;		/*auto mode 2 - kcollins 8-21-96*/
 char mfflag;
+int file_lock;
 long long status, x, y, childids[MAXSTREAMS+1], myid, num_child,delay_start,delay;
 #ifndef NO_THREADS
 pthread_t p_childids[MAXSTREAMS+1];
@@ -735,7 +737,7 @@ char **argv;
 	auto_mode = 0;
 	inp_pat = PATTERN;
 	pattern = ((inp_pat << 24) | (inp_pat << 16) | (inp_pat << 8) | inp_pat);
-	while((cret = getopt(argc,argv,"ZQNIBDGCTOMREovAxamphcej:k:V:r:t:s:f:F:d:l:u:U:S:L:H:P:i:b:w ")) != EOF){
+	while((cret = getopt(argc,argv,"ZQNIBDGCTOMREWovAxamphcej:k:V:r:t:s:f:F:d:l:u:U:S:L:H:P:i:b:w ")) != EOF){
 		switch(cret){
 		case 'k':	/* Async I/O with no bcopys */
 			depth = (long long)(atoi(optarg));
@@ -1155,6 +1157,10 @@ char **argv;
 		case 'Z':	/* Turn on the mmap and file I/O mixing */
 			printf("\tEnable mmap & file I/O mixing.\n");
 			mmap_mix = 1;
+			break;
+		case 'W':	/* Read/Write with file locked */
+			file_lock=1;
+			printf("\tLock file when reading/writing.\n");
 			break;
 		}
 	}
@@ -3099,6 +3105,9 @@ long long *data2;
 			exit(45);
 	  	}
 #endif
+		if(file_lock)
+			if(lockf((int) fd, (int) 1, (off_t) 0)!=0)
+				printf("File lock for write failed.\n");
 		if(mmapflag)
 		{
 			maddr=(char *)initfile(fd,filebytes64,1,PROT_READ|PROT_WRITE);
@@ -3247,6 +3256,8 @@ long long *data2;
 			else
 				fsync(fd);
 		}
+		if(file_lock)
+			lockf((int) fd, (int) 0, (off_t) 0);
 		if(include_close)
 		{
 			if(mmapflag)
@@ -3731,6 +3742,11 @@ long long *data1,*data2;
 			perror("open");
 			exit(59);
 		}
+		if(file_lock)
+		{
+			if(lockf((int) fd, (int) 1, (off_t) 0) != 0)
+				printf("File lock for read failed\n");
+		}
 #ifdef ASYNC_IO
 #ifdef _HPUX_SOURCE
 		if(async_flag)
@@ -3873,6 +3889,8 @@ long long *data1,*data2;
 #endif
 			}
 		}
+		if(file_lock)
+			lockf((int) fd, (int) 0, (off_t) 0);
 #ifdef unix
 		if(Q_flag)
 		{
