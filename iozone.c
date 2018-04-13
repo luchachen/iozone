@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.104 $"
+#define THISVERSION "        Version $Revision: 3.108 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -107,7 +107,7 @@ char *help[] = {
 "                  [-n minfilesize_Kb] [-N] [-Q] [-P start_cpu] [-e] [-c] [-b Excel.xls]",
 "                  [-J milliseconds] [-X write_telemetry_filename] [-w] [-W]",
 "                  [-Y read_telemetry_filename] [-y minrecsize_Kb] [-q maxrecsize_Kb]",
-"                  [-+u] [-+m cluster_filename]",
+"                  [-+u] [-+m cluster_filename] [-+d]",
 " ",
 "           -a  Auto mode",
 "           -A  Auto2 mode",
@@ -161,7 +161,7 @@ char *help[] = {
 "           -u #  Upper limit on number of processes to run",
 "           -U  Mount point to remount between tests",
 "           -v  version information",
-"           -V  Verify data pattern write/read",
+"           -V #  Verify data pattern write/read",
 "           -w  Do not unlink temporary file",
 "           -W  Lock file when reading or writing",
 "           -x  Turn off stone-walling",
@@ -171,6 +171,7 @@ char *help[] = {
 "           -z  Used in conjunction with -a to test all possible record sizes",
 "           -Z  Enable mixing of mmap I/O and file I/O",
 "           -+m  Cluster_filename   Enable Cluster testing",
+"           -+d  File I/O diagnostic mode. (To troubleshoot a broken file I/O subsystem)",
 "           -+u  Enable CPU utilization output (Experimental)",
 "" };
 
@@ -408,6 +409,7 @@ struct client_command {
 	char c_stride_flag;
 	char c_verify;
 	char c_sverify;
+	char c_diag_v;
 	char c_Q_flag;
 	char c_OPS_flag;
 	char c_mmapflag;
@@ -433,6 +435,7 @@ struct client_command {
 	int c_file_lock;
 	int c_pattern;
 	int c_version;
+	int c_base_time;
 	long long c_stride;
 	long long c_delay;
 	long long c_purge;
@@ -472,6 +475,7 @@ struct client_neutral_command {
 	char c_stride_flag;
 	char c_verify;
 	char c_sverify;
+	char c_diag_v;
 	char c_Q_flag;
 	char c_OPS_flag;
 	char c_mmapflag;
@@ -497,6 +501,7 @@ struct client_neutral_command {
 	char c_file_lock[20]; 		/* int */
 	char c_pattern[20]; 		/* int */
 	char c_version[20]; 		/* int */
+	char c_base_time[20]; 		/* int */
 	char c_stride[80]; 		/* long long */
 	char c_delay[80]; 		/* long long */
 	char c_purge[80]; 		/* long long */
@@ -816,7 +821,7 @@ void takeoff_cache();
 void del_cache();
 void async_init();
 void fill_area(long long *, long long *, long long);
-void fill_buffer(char *,long long ,long long ,char );
+void fill_buffer(char *,long long ,long long ,char, long long );
 void store_value(off64_t);
 void store_times(double, double);
 static double cpu_util(double, double);
@@ -973,11 +978,13 @@ char master_iozone, client_iozone,distributed;
 int bif_fd;
 int bif_row,bif_column;
 char aflag, Eflag, hflag, Rflag, rflag, sflag;
+char diag_v;
 char bif_flag;
 char gflag,nflag;
 char yflag,qflag;
 char trflag; 
 char cpuutilflag;
+long base_time;
 long long mint, maxt; 
 long long w_traj_ops, r_traj_ops, w_traj_fsize,r_traj_fsize;
 long long r_traj_ops_completed,r_traj_bytes_completed;
@@ -1114,11 +1121,12 @@ char toutput[20][20]; /* Used to help format the output */
 int toutputindex; /* Index to the current output line */
 int cdebug = 0; /* Use to turn on child/client debugging in cluster mode. */
 int mdebug = 0; /* Use to turn on master debug in cluster mode */
+struct sockaddr_in child_sync_sock, child_async_sock;
 
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 1;
+int proto_version = 2;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1267,6 +1275,7 @@ char **argv;
 	for(ind=0;ind<MAXSTREAMS;ind++)
 		filearray[ind]=(char *)tfile;
 
+	base_time=(long)time_so_far();
 	myid=(long long)getpid(); 	/* save the master's PID */
 	get_resolution(); 		/* Get clock resolution */
 	time_run = time(0);		/* Start a timer */
@@ -1962,6 +1971,12 @@ char **argv;
 					   /* Does not have an argument */
 					silent=1;
 					break;
+				case 'd':  /* Diagnostics mode */
+					sprintf(splash[splash_line++],"\t>>> I/O Diagnostic mode enabled. <<<\n");
+    					sprintf(splash[splash_line++],"\tPerformance measurements are invalid in this mode.\n");
+					diag_v=1;
+					sverify=0;
+					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
 					exit(0);
@@ -2269,11 +2284,11 @@ char **argv;
 	/* Only bzero or fill that which you will use. The buffer is very large */
 	if(verify )	
 	{
-		fill_buffer((char *)buffer,l_min(reclen,(long long)cache_size),(long long)pattern,(char)sverify);
+		fill_buffer((char *)buffer,l_min(reclen,(long long)cache_size),(long long)pattern,(char)sverify,(long long)0);
 		if(pflag)
-			fill_buffer((char *)pbuffer,l_min(reclen,(long long)cache_size),(long long)pattern,(char)sverify);
+			fill_buffer((char *)pbuffer,l_min(reclen,(long long)cache_size),(long long)pattern,(char)sverify,(long long)0);
 		if(mflag)
-			fill_buffer((char *)mbuffer,l_min(reclen,(long long)cache_size),(long long)pattern,(char)sverify);
+			fill_buffer((char *)mbuffer,l_min(reclen,(long long)cache_size),(long long)pattern,(char)sverify,(long long)0);
 	}
 	else
 	{
@@ -2412,9 +2427,13 @@ long long reclength;
 #ifdef NO_PRINT_LLD
 	if(!silent) printf("%16ld",kilobytes64);
 	if(r_traj_flag || w_traj_flag)
+	{
 		if(!silent) printf("%8ld",0);
+	}
 	else
+	{
 		if(!silent) printf("%8ld",reclen/1024);
+	}
 #else
 	if(!silent) printf("%16lld",kilobytes64);
 	if(r_traj_flag || w_traj_flag)
@@ -2997,10 +3016,10 @@ waitout:
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	if(!silent) printf("\n\n\tChildren see throughput for %2ld initial writers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %2ld initial writers \t= %10.2f %s/sec\n",num_child,((double)(ptotal)/total_time),unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %2ld initial writers \t= %10.2f %s/sec\n",num_child,((double)(ptotal)/total_time),unit);
 #else
 	if(!silent) printf("\n\n\tChildren see throughput for %2lld initial writers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %2lld initial writers \t= %10.2f %s/sec\n",num_child,((double)(ptotal)/total_time),unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %2lld initial writers \t= %10.2f %s/sec\n",num_child,((double)(ptotal)/total_time),unit);
 #endif
 	if(!silent) printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	if(!silent) printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
@@ -3227,10 +3246,10 @@ jump3:
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	if(!silent) printf("\tChildren see throughput for %2ld rewriters \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %2ld rewriters \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %2ld rewriters \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #else
 	if(!silent) printf("\tChildren see throughput for %2lld rewriters \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %2lld rewriters \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %2lld rewriters \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #endif
 	if(!silent) printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	if(!silent) printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
@@ -3448,10 +3467,10 @@ jumpend:
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	if(!silent) printf("\tChildren see throughput for %2ld readers \t\t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %2ld readers \t\t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %2ld readers \t\t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #else
 	if(!silent) printf("\tChildren see throughput for %2lld readers \t\t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %2lld readers \t\t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %2lld readers \t\t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #endif
 	if(!silent) printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	if(!silent) printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
@@ -3670,10 +3689,10 @@ jumpend2:
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	if(!silent) printf("\tChildren see throughput for %ld re-readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %ld re-readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %ld re-readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #else
 	if(!silent) printf("\tChildren see throughput for %lld re-readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %lld re-readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %lld re-readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #endif
 	if(!silent) printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	if(!silent) printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
@@ -3893,10 +3912,10 @@ next1:
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	if(!silent) printf("\tChildren see throughput for %ld reverse readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %ld reverse readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %ld reverse readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #else
 	if(!silent) printf("\tChildren see throughput for %lld reverse readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %lld reverse readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %lld reverse readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #endif
 	if(!silent) printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	if(!silent) printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
@@ -4111,10 +4130,10 @@ next2:
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	if(!silent) printf("\tChildren see throughput for %ld stride readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %ld stride readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %ld stride readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #else
 	if(!silent) printf("\tChildren see throughput for %lld stride readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %lld stride readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %lld stride readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #endif
 	if(!silent) printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	if(!silent) printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
@@ -4329,10 +4348,10 @@ next3:
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	if(!silent) printf("\tChildren see throughput for %ld random readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %ld random readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %ld random readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #else
 	if(!silent) printf("\tChildren see throughput for %lld random readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %lld random readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %lld random readers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #endif
 	if(!silent) printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	if(!silent) printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
@@ -4547,10 +4566,10 @@ next4:
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	if(!silent) printf("\tChildren see throughput for %ld random writers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %ld random writers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %ld random writers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #else
 	if(!silent) printf("\tChildren see throughput for %lld random writers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent) printf("\tParent sees throughput for %lld random writers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %lld random writers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #endif
 	if(!silent) printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	if(!silent) printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
@@ -4820,6 +4839,22 @@ char sverify;
 	off64_t file_position=0;
 	off64_t i;
 	char *where2;
+	long long mpattern;
+	unsigned int seed;
+	unsigned long x;
+
+	/* printf("Verify Sverify %d verify %d diag_v %d\n",sverify,verify,diag_v); */
+	x=0;
+	mpattern=patt;
+	if(diag_v)
+	{
+		seed= (unsigned int)(base_time+chid+recnum);
+	        srand(seed);
+		mpattern=(long long)rand();
+		mpattern=(mpattern<<48) | (mpattern<<32) | (mpattern<<16) | mpattern;
+	}
+	/* printf("verify patt %llx CHid %d\n",mpattern,chid);*/
+
 	where=(unsigned long long *)buffer;
 
 	if(!verify)
@@ -4863,7 +4898,16 @@ char sverify;
 	  {
 	   for(j=0;j<(cache_line_size/sizeof(long long));j++)
 	   {
-	      if(*where != (unsigned long long)(patt<<32 | patt))
+	      x=x+1;
+              if(diag_v)
+	      {
+		patt=mpattern+x;
+	      }
+	      else
+              {
+		patt= mpattern<<32 | mpattern;
+	      }
+	      if(*where != (unsigned long long)patt)
 	      {
 		   file_position = (off64_t)( (recnum * recsize))+
 			((i*cache_line_size)+j);
@@ -4898,19 +4942,37 @@ char sverify;
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 void 
-fill_buffer(char *buffer,long long length,long long pattern,char sverify)
+fill_buffer(char *buffer,long long length,long long pattern,char sverify,long long recnum)
 #else
 void 
-fill_buffer(buffer,length,pattern,sverify)
+fill_buffer(buffer,length,pattern,sverify,recnum)
 char *buffer;
 long long length;
 long long pattern;
+long long recnum;
 char sverify;
 #endif
 {
 	unsigned long long *where;
 	long long i,j;
+	long long mpattern;
+	long time1;
+	unsigned int seed;
+	unsigned long x;
 
+	x=0;
+	mpattern=pattern;
+	/* printf("Fill: Sverify %d verify %d diag_v %d\n",sverify,verify,diag_v);*/
+	if(diag_v)
+	{
+		/*if(client_iozone)
+			base_time=0;
+		*/
+		seed= (unsigned int)(base_time+chid+recnum);
+	        srand(seed);
+		mpattern=(long long)rand();
+		mpattern=(mpattern<<48) | (mpattern<<32) | (mpattern<<16) | mpattern;
+	}
 	where=(unsigned long long *)buffer;
 	if(sverify == 1)
 	{
@@ -4927,7 +4989,13 @@ char sverify;
 		{
 			for(j=0;j<(cache_line_size/sizeof(long long));j++)
 			{
-				*where = (long long)((pattern<<32) | pattern);
+				x=x+1;
+				if(diag_v)
+				{
+					*where = (long long)(mpattern+x);
+				}
+				else
+					*where = (long long)((pattern<<32) | pattern);
 				where++;
 			}	
 		}
@@ -5027,6 +5095,8 @@ long long *data2;
 	off64_t filebytes64;
 	char *maddr;
 	char *wmaddr,*free_addr;
+	char *pbuff;
+	char *nbuff;
 	int fd,returnval,foo,wval;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -5035,6 +5105,7 @@ long long *data2;
 #endif
 	int test_foo;
 
+	pbuff=mainbuffer;
 	if(w_traj_flag)
 	{
 		filebytes64 = w_traj_fsize;
@@ -5131,7 +5202,7 @@ long long *data2;
 		}
 		if(mmap_mix)
 		{
-			wval=write(fd, buffer, (size_t) page_size);
+			wval=write(fd, pbuff, (size_t) page_size);
 			if(wval != page_size)
 			{
 #ifdef NO_PRINT_LLD
@@ -5150,9 +5221,11 @@ long long *data2;
 		if(async_flag)
 			async_init(&gc,fd,direct_flag);
 #endif
-		buffer=mainbuffer;
+		pbuff=mainbuffer;
 		if(fetchon)
-			fetchit(buffer,reclen);
+			fetchit(pbuff,reclen);
+		if(verify)
+			fill_buffer(pbuff,reclen,(long long)pattern,sverify,(long long)0);
 		starttime1 = time_so_far();
 #ifdef unix
 		if(Q_flag)
@@ -5179,6 +5252,8 @@ long long *data2;
 			{
 				traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 			}
+			if(verify & diag_v)
+				fill_buffer(pbuff,reclen,(long long)pattern,sverify,i);
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
 			if(multi_buffer)
@@ -5186,17 +5261,19 @@ long long *data2;
 				Index +=reclen;
 				if(Index > (MAXBUFFERSIZE-reclen))
 					Index=0;
-				buffer = mbuffer + Index;	
+				pbuff = mbuffer + Index;	
 			}
 			if(async_flag && no_copy_flag)
 			{
-				free_addr=buffer=(char *)malloc((size_t)reclen+page_size);
-				buffer=(char *)(((long)buffer+(long)page_size) & (long)(~page_size-1));
+				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
+				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
+				if(verify)
+					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
+				if(purge)
+					purgeit(nbuff,reclen);
 			}
-			if(verify)
-				fill_buffer(buffer,reclen,(long long)pattern,sverify);
 			if(purge)
-				purgeit(buffer,reclen);
+				purgeit(pbuff,reclen);
 			if(Q_flag)
 			{
 				qtime_start=time_so_far();
@@ -5204,7 +5281,7 @@ long long *data2;
 			if(mmapflag)
 			{
 				wmaddr = &maddr[i*reclen];
-				fill_area((long long*)buffer,(long long*)wmaddr,(long long)reclen);
+				fill_area((long long*)pbuff,(long long*)wmaddr,(long long)reclen);
 				if(!mmapnsflag)
 				{
 				  if(mmapasflag)
@@ -5218,13 +5295,13 @@ long long *data2;
 			  if(async_flag)
 			  {
 			     if(no_copy_flag)
-			       async_write_no_copy(gc, (long long)fd, buffer, reclen, (i*reclen), depth,free_addr);
+			       async_write_no_copy(gc, (long long)fd, nbuff, reclen, (i*reclen), depth,free_addr);
 			     else
-			       async_write(gc, (long long)fd, buffer, reclen, (i*reclen), depth);
+			       async_write(gc, (long long)fd, pbuff, reclen, (i*reclen), depth);
 			  }
 			  else
 			  {
-			    wval=write(fd, buffer, (size_t ) reclen);
+			    wval=write(fd, pbuff, (size_t ) reclen);
 			    if(wval != reclen)
 			    {
 #ifdef NO_PRINT_LLD
@@ -5442,6 +5519,8 @@ long long *data2;
 		buffer=mainbuffer;
 		if(fetchon)
 			fetchit(buffer,reclen);
+		if(verify)
+			fill_buffer(buffer,reclen,(long long)pattern,sverify,(long long)0);
 		starttime1 = time_so_far();
 		compute_val=(double)0;
 		for(i=0; i<numrecs64; i++){
@@ -5454,8 +5533,8 @@ long long *data2;
 					Index=0;
 				buffer = mbuffer + Index;	
 			}
-			if(verify)
-				fill_buffer(buffer,reclen,(long long)pattern,sverify);
+			if(verify & diag_v)
+				fill_buffer(buffer,reclen,(long long)pattern,sverify,i);
 			if(purge)
 				purgeit(buffer,reclen);
 			if(fwrite(buffer, (size_t) reclen, 1, stream) != 1)
@@ -5749,6 +5828,7 @@ long long *data1,*data2;
 	unsigned long long readrate[2];
 	off64_t filebytes64;
 	volatile char *buffer1;
+	char *nbuff;
 	char *maddr;
 	char *wmaddr;
 	int fd,open_flags;
@@ -5847,26 +5927,26 @@ long long *data1,*data2;
 		/* 
 		 *  Need to prime the instruction cache & TLB
 		 */
-		buffer=mainbuffer;
+		nbuff=mainbuffer;
 		if(fetchon)
-			fetchit(buffer,reclen);
-		if(read(fd, (void *)buffer, (size_t) page_size) != page_size)
+			fetchit(nbuff,reclen);
+		if(read(fd, (void *)nbuff, (size_t) page_size) != page_size)
 		{
 #ifdef _64BIT_ARCH_
 			printf("\nError reading block %d %x\n", 0,
-				(unsigned long long)buffer);
+				(unsigned long long)nbuff);
 #else
 			printf("\nError reading block %d %x\n", 0,
-				(long)buffer);
+				(long)nbuff);
 #endif
 			perror("read");
 			exit(60);
 		}
 		I_LSEEK(fd,0,SEEK_SET);
-		buffer=mainbuffer;
+		nbuff=mainbuffer;
 
 		if(fetchon)
-			fetchit(buffer,reclen);
+			fetchit(nbuff,reclen);
 		starttime2 = time_so_far();
 #ifdef unix
 		if(Q_flag)
@@ -5905,16 +5985,16 @@ long long *data1,*data2;
                                 Index +=reclen;
                                 if(Index > (MAXBUFFERSIZE-reclen))
                                         Index=0;
-                                buffer = mbuffer + Index;
+                                nbuff = mbuffer + Index;
                         }
 			if(purge)
-				purgeit(buffer,reclen);
+				purgeit(nbuff,reclen);
 			if(Q_flag)
 				qtime_start=time_so_far();
 			if(mmapflag)
 			{
 				wmaddr=&maddr[i*reclen];
-				fill_area((long long*)wmaddr,(long long*)buffer,(long long)reclen);
+				fill_area((long long*)wmaddr,(long long*)nbuff,(long long)reclen);
 			}
 			else
 			{
@@ -5924,28 +6004,28 @@ long long *data1,*data2;
 			      async_read_no_copy(gc, (long long)fd, &buffer1, (i*reclen), reclen,
 			    	1LL,(numrecs64*reclen),depth);
 			    else
-			      async_read(gc, (long long)fd, buffer, (i*reclen),reclen,
+			      async_read(gc, (long long)fd, nbuff, (i*reclen),reclen,
 			    	1LL,(numrecs64*reclen),depth);
 			  }
 			  else
 			  {
-			    if(read((int)fd, (void*)buffer, (size_t) reclen) != reclen)
+			    if(read((int)fd, (void*)nbuff, (size_t) reclen) != reclen)
 			    {
 #ifdef _64BIT_ARCH_
 #ifdef NO_PRINT_LLD
 				printf("\nError reading block %ld %lx\n", i,
-					(unsigned long long)buffer);
+					(unsigned long long)nbuff);
 #else
 				printf("\nError reading block %lld %llx\n", i,
-					(unsigned long long)buffer);
+					(unsigned long long)nbuff);
 #endif
 #else
 #ifdef NO_PRINT_LLD
 				printf("\nError reading block %lld %x\n", i,
-					(long)buffer);
+					(long)nbuff);
 #else
 				printf("\nError reading block %ld %x\n", i,
-					(long)buffer);
+					(long)nbuff);
 #endif
 #endif
 				perror("read");
@@ -5962,7 +6042,7 @@ long long *data1,*data2;
 			  }
 			  else
 			  {
-				if(verify_buffer(buffer,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
+				if(verify_buffer(nbuff,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 					exit(63);
 				}
 			  }
@@ -6123,7 +6203,7 @@ long long *data1, *data2;
 	unsigned long long randreadrate[2];
 	off64_t filebytes64;
 	volatile char *buffer1;
-	char *wmaddr;
+	char *wmaddr,*nbuff;
 	char *maddr,*free_addr;
 	int fd,wval;
 	int test_foo;
@@ -6186,14 +6266,14 @@ long long *data1, *data2;
 	     {
 			maddr=(char *)initfile(fd,filebytes64,0,PROT_READ|PROT_WRITE);
 	     }
-	     buffer=mainbuffer;
+	     nbuff=mainbuffer;
 	     if(fetchon)
-		   fetchit(buffer,reclen);
+		   fetchit(nbuff,reclen);
 #ifdef bsd4_2
-	     srand();
+	     srand(0);
 #else
 #ifdef Windows
-             srand();
+             srand(0);
 #else
              srand48(0);
 #endif
@@ -6209,10 +6289,10 @@ long long *data1, *data2;
                                 Index +=reclen;
                                 if(Index > (MAXBUFFERSIZE-reclen))
                                         Index=0;
-                                buffer = mbuffer + Index;
+                                nbuff = mbuffer + Index;
                         }
 			if(purge)
-				purgeit(buffer,reclen);
+				purgeit(nbuff,reclen);
 #ifdef bsd4_2
                         offset64 = reclen * (rand()%numrecs64);
 #else
@@ -6234,7 +6314,7 @@ long long *data1, *data2;
 			if(mmapflag)
 			{
 				wmaddr=&maddr[offset64];
-				fill_area((long long*)wmaddr,(long long*)buffer,(long long)reclen);
+				fill_area((long long*)wmaddr,(long long*)nbuff,(long long)reclen);
 			}
 			else
 			{
@@ -6244,12 +6324,12 @@ long long *data1, *data2;
 			        async_read_no_copy(gc, (long long)fd, &buffer1, offset64,reclen,
 			    	  0LL,(numrecs64*reclen),depth);
 			     else
-				 async_read(gc, (long long)fd, buffer, (offset64),reclen,
+				 async_read(gc, (long long)fd, nbuff, (offset64),reclen,
 					    	0LL,(numrecs64*reclen),0LL);
 			  }
 			  else
 			  {
-		  	     if(read(fd, (void *)buffer, (size_t)reclen) != reclen)
+		  	     if(read(fd, (void *)nbuff, (size_t)reclen) != reclen)
 		  	     {
 #ifdef NO_PRINT_LLD
 				 printf("\nError reading block at %ld\n",
@@ -6266,13 +6346,13 @@ long long *data1, *data2;
 			if(verify){
 			  if(async_flag && no_copy_flag)
 			  {
-				if(verify_buffer(buffer1,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
+				if(verify_buffer(buffer1,reclen,(off64_t)offset64/reclen,reclen,(long long)pattern,sverify)){
 					exit(71);
 				}
 			  }
 			  else
 			  {
-				if(verify_buffer(buffer,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
+				if(verify_buffer(nbuff,reclen,(off64_t)offset64/reclen,reclen,(long long)pattern,sverify)){
 					exit(72);
 				}
 			  }
@@ -6283,6 +6363,8 @@ long long *data1, *data2;
 	     }
 	     else
 	     {
+			if(verify)
+				fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 			for(i=0; i<numrecs64; i++) 
 			{
 				if(compute_flag)
@@ -6292,17 +6374,8 @@ long long *data1, *data2;
                                	    Index +=reclen;
                                	    if(Index > (MAXBUFFERSIZE-reclen))
                                	         Index=0;
-                               	    buffer = mbuffer + Index;
+                               	    nbuff = mbuffer + Index;
                         	}
-				if(async_flag && no_copy_flag)
-				{
-					free_addr=buffer=(char *)malloc((size_t)reclen+page_size);
-					buffer=(char *)(((long)buffer+(long)page_size) & (long)(~page_size-1));
-				}
-				if(verify)
-					fill_buffer(buffer,reclen,(long long)pattern,sverify);
-				if(purge)
-					purgeit(buffer,reclen);
 #ifdef bsd4_2
 				offset64 = reclen * (rand()%numrecs64);
 #else
@@ -6312,6 +6385,18 @@ long long *data1, *data2;
 				offset64 = reclen * (lrand48()%numrecs64);
 #endif
 #endif
+				if(async_flag && no_copy_flag)
+				{
+					free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
+					nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
+					if(verify)
+						fill_buffer(nbuff,reclen,(long long)pattern,sverify,offset64/reclen);
+				}
+				if(purge)
+					purgeit(nbuff,reclen);
+
+				if(verify & diag_v)
+					fill_buffer(nbuff,reclen,(long long)pattern,sverify,offset64/reclen);
 
 				if (!(h_flag || k_flag || mmapflag))
 				{
@@ -6320,7 +6405,7 @@ long long *data1, *data2;
 				if(mmapflag)
 				{
 					wmaddr=&maddr[offset64];
-					fill_area((long long*)buffer,(long long*)wmaddr,(long long)reclen);
+					fill_area((long long*)nbuff,(long long*)wmaddr,(long long)reclen);
 					if(!mmapnsflag)
 					{
 					  	if(mmapasflag)
@@ -6334,14 +6419,14 @@ long long *data1, *data2;
 			  		if(async_flag)
 					{
 			     		   if(no_copy_flag)
-			       		      async_write_no_copy(gc, (long long)fd, buffer, reclen, offset64, 
+			       		      async_write_no_copy(gc, (long long)fd, nbuff, reclen, offset64, 
 					   	depth,free_addr);
 					   else
-			      			async_write(gc, (long long)fd, buffer, reclen, offset64, depth);
+			      			async_write(gc, (long long)fd, nbuff, reclen, offset64, depth);
 			  		}
 			  		else
 			  		{
-			  		  wval=write(fd, buffer,(size_t)reclen);
+			  		  wval=write(fd, nbuff,(size_t)reclen);
 			  		  if(wval != reclen)
 			  		  {
 #ifdef NO_PRINT_LLD
@@ -6471,6 +6556,7 @@ long long *data1,*data2;
 	int test_foo;
 	char *maddr,*wmaddr;
 	volatile char *buffer1;
+	char *nbuff;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -6528,10 +6614,10 @@ long long *data1,*data2;
 			maddr=(char *)initfile(fd,filebytes64,0,PROT_READ);
 		}
 		fsync(fd);
-		buffer=mainbuffer;
+		nbuff=mainbuffer;
 		mbuffer=mainbuffer;
 		if(fetchon)
-			fetchit(buffer,reclen);
+			fetchit(nbuff,reclen);
 		starttime2 = time_so_far();
 		if (!(h_flag || k_flag || mmapflag))
 		{
@@ -6550,15 +6636,15 @@ long long *data1,*data2;
                                 Index +=reclen;
                                 if(Index > (MAXBUFFERSIZE-reclen))
                                         Index=0;
-                                buffer = mbuffer + Index;
+                                nbuff = mbuffer + Index;
                         }
 
 			if(purge)
-				purgeit(buffer,reclen);
+				purgeit(nbuff,reclen);
 			if(mmapflag)
 			{
 				wmaddr = &maddr[((numrecs64-1)-i)*reclen];
-				fill_area((long long*)wmaddr,(long long*)buffer,(long long)reclen);
+				fill_area((long long*)wmaddr,(long long*)nbuff,(long long)reclen);
 			}
 			else
 			if(async_flag)
@@ -6567,11 +6653,11 @@ long long *data1,*data2;
 			       async_read_no_copy(gc, (long long)fd, &buffer1, ((((numrecs64-1)-i)*reclen)),
 			          reclen, -1LL,(numrecs64*reclen),depth);
 			    else
-			       async_read(gc, (long long)fd, buffer, (((numrecs64-1)-i)*reclen),
+			       async_read(gc, (long long)fd, nbuff, (((numrecs64-1)-i)*reclen),
 			       	  reclen,-1LL,(numrecs64*reclen),depth);
 			}else
 			{
-				if(read((int)fd, (void*)buffer, (size_t) reclen) != reclen)
+				if(read((int)fd, (void*)nbuff, (size_t) reclen) != reclen)
 				{
 #ifdef NO_PRINT_LLD
 					printf("\nError reading block %ld\n", i); 
@@ -6585,13 +6671,13 @@ long long *data1,*data2;
 			if(verify){
 			   if(async_flag && no_copy_flag)
 			   {
-				if(verify_buffer(buffer1,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
+				if(verify_buffer(buffer1,reclen,(off64_t)(numrecs64-1)-i,reclen,(long long)pattern,sverify)){
 					exit(80);
 				}
 			   }
 			   else
 			   {
-				if(verify_buffer(buffer,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
+				if(verify_buffer(nbuff,reclen,(off64_t)(numrecs64-1)-i,reclen,(long long)pattern,sverify)){
 					exit(81);
 				}
 			   }
@@ -6708,7 +6794,7 @@ long long *data1,*data2;
 	int fd,wval;
 	int test_foo;
 	char *maddr;
-	char *wmaddr,*free_addr;
+	char *wmaddr,*free_addr,*nbuff;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -6762,12 +6848,12 @@ long long *data1,*data2;
 		async_init(&gc,fd,direct_flag);
 #endif
 	fsync(fd);
-	buffer=mainbuffer;
+	nbuff=mainbuffer;
 	mbuffer=mainbuffer;
 	if(fetchon)
-		fetchit(buffer,reclen);
+		fetchit(nbuff,reclen);
 	/*
-	wval=write(fd, buffer, (size_t) reclen);
+	wval=write(fd, nbuff, (size_t) reclen);
 	if(wval != reclen)
 	{
 #ifdef NO_PRINT_LLD
@@ -6780,6 +6866,8 @@ long long *data1,*data2;
 		signal_handler();
 	}
 	*/
+	if(verify)
+		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 	starttime1 = time_so_far();
 	if(cpuutilflag)
 	{
@@ -6794,21 +6882,23 @@ long long *data1,*data2;
                 	Index +=reclen;
                         if(Index > (MAXBUFFERSIZE-reclen))
                                 Index=0;
-                        buffer = mbuffer + Index;
+                        nbuff = mbuffer + Index;
                 }
 		if(async_flag && no_copy_flag)
 		{
-			free_addr=buffer=(char *)malloc((size_t)reclen+page_size);
-			buffer=(char *)(((long)buffer+(long)page_size) & (long)(~page_size-1));
+			free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
+			nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
+			if(verify)
+				fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 		}
-		if(verify)
-			fill_buffer(buffer,reclen,(long long)pattern,sverify);
+		if(verify & diag_v)
+			fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 		if(purge)
-			purgeit(buffer,reclen);
+			purgeit(nbuff,reclen);
 		if(mmapflag)
 		{
 			wmaddr = &maddr[0];
-			fill_area((long long*)buffer,(long long*)wmaddr,(long long)reclen);
+			fill_area((long long*)nbuff,(long long*)wmaddr,(long long)reclen);
 			if(!mmapnsflag)
 			{
 			  if(mmapasflag)
@@ -6822,13 +6912,13 @@ long long *data1,*data2;
 			  if(async_flag)
 			  {
 			     if(no_copy_flag)
-			       async_write_no_copy(gc, (long long)fd, buffer, reclen, (i*reclen), depth,free_addr);
+			       async_write_no_copy(gc, (long long)fd, nbuff, reclen, (i*reclen), depth,free_addr);
 			     else
-			       async_write(gc, (long long)fd, buffer, reclen, (i*reclen), depth);
+			       async_write(gc, (long long)fd, nbuff, reclen, (i*reclen), depth);
 			  }
 			  else
 			  {
-			       wval=write(fd, buffer, (size_t) reclen);
+			       wval=write(fd, nbuff, (size_t) reclen);
 			       if(wval != reclen)
 			       {
 #ifdef NO_PRINT_LLD
@@ -6949,6 +7039,7 @@ long long *data1, *data2;
 	int fd,open_flags;
 	int test_foo;
 	volatile char *buffer1;
+	char *nbuff;
 	char *maddr;
 	char *wmaddr;
 #ifdef ASYNC_IO
@@ -7003,10 +7094,10 @@ long long *data1, *data2;
 	}
 	fsync(fd);
 	current_position=0;
-	buffer=mainbuffer;
+	nbuff=mainbuffer;
 	mbuffer=mainbuffer;
 	if(fetchon)
-		fetchit(buffer,reclen);
+		fetchit(nbuff,reclen);
 	starttime1 = time_so_far();
 	if(cpuutilflag)
 	{
@@ -7021,10 +7112,10 @@ long long *data1, *data2;
                        Index +=reclen;
                        if(Index > (MAXBUFFERSIZE-reclen))
                                 Index=0;
-                       buffer = mbuffer + Index;
+                       nbuff = mbuffer + Index;
                 }
 		if(purge)
-			purgeit(buffer,reclen);
+			purgeit(nbuff,reclen);
 		if(verify)
 		{
 			savepos64=current_position/reclen;
@@ -7032,7 +7123,7 @@ long long *data1, *data2;
 		if(mmapflag)
 		{
 			wmaddr = &maddr[current_position];
-			fill_area((long long*)wmaddr,(long long*)buffer,(long long)reclen);
+			fill_area((long long*)wmaddr,(long long*)nbuff,(long long)reclen);
 		}
 		else
 		{
@@ -7042,12 +7133,12 @@ long long *data1, *data2;
 			      async_read_no_copy(gc, (long long)fd, &buffer1, current_position,
 			      	reclen, stride,(numrecs64*reclen),depth);
 			    else
-			       async_read(gc, (long long)fd, buffer, current_position, reclen,
+			       async_read(gc, (long long)fd, nbuff, current_position, reclen,
 			    	 stride,(numrecs64*reclen),depth);
 		   	}
 			else
 			{
-		   	  if((uu=read((int)fd, (void*)buffer, (size_t) reclen)) != reclen)
+		   	  if((uu=read((int)fd, (void*)nbuff, (size_t) reclen)) != reclen)
 		   	  {
 #ifdef NO_PRINT_LLD
 		    		printf("\nError reading block %ld, fd= %d Filename %s Read returned %ld\n", i, fd,filename,uu);
@@ -7071,7 +7162,7 @@ long long *data1, *data2;
 			}
 			else
 			{
-			   if(verify_buffer(buffer,reclen, (off64_t)savepos64 ,reclen,(long long)pattern,sverify)){
+			   if(verify_buffer(nbuff,reclen, (off64_t)savepos64 ,reclen,(long long)pattern,sverify)){
 				exit(90);
 			   }
 			}
@@ -7226,7 +7317,9 @@ long long *data1,*data2;
 	off64_t filebytes64;
 	long long flags_here = 0;
 	int fd,test_foo;
+	char *nbuff;
 
+	nbuff=mainbuffer;
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	fd = 0;
@@ -7309,10 +7402,12 @@ long long *data1,*data2;
 			}
 #endif
 		}
-		buffer=mainbuffer;
+		nbuff=mainbuffer;
 		mbuffer=mainbuffer;
 		if(fetchon)
-			fetchit(buffer,reclen);
+			fetchit(nbuff,reclen);
+		if(verify)
+			fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 		starttime1 = time_so_far();
 		for(i=0; i<numrecs64; i++){
 			if(compute_flag)
@@ -7322,13 +7417,13 @@ long long *data1,*data2;
                                 Index +=reclen;
                                 if(Index > (MAXBUFFERSIZE-reclen))
                                         Index=0;
-                                buffer = mbuffer + Index;
+                                nbuff = mbuffer + Index;
                         }
-			if(verify)
-				fill_buffer(buffer,reclen,(long long)pattern,sverify);
+			if(verify && diag_v)
+				fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			if(purge)
-				purgeit(buffer,reclen);
-			if(pwrite(fd, buffer, (size_t) reclen,
+				purgeit(nbuff,reclen);
+			if(pwrite(fd, nbuff, (size_t) reclen,
 				(i * reclen )) != reclen)
 			{
 #ifdef NO_PRINT_LLD
@@ -7430,7 +7525,9 @@ long long *data1, *data2;
 	unsigned long long preadrate[2];
 	off64_t filebytes64;
 	int fd,open_flags,test_foo;
+	char *nbuff
 
+	nbuff=mainbuffer;
 	open_flags=O_RDONLY;
 #if defined(linux)
 	if(direct_flag)
@@ -7473,10 +7570,10 @@ long long *data1, *data2;
 			}
 		}
 #endif
-		buffer=mainbuffer;
+		nbuff=mainbuffer;
 		mbuffer=mainbuffer;
 		if(fetchon)
-			fetchit(buffer,reclen);
+			fetchit(nbuff,reclen);
 		starttime2 = time_so_far();
 		for(i=0; i<numrecs64; i++) 
 		{
@@ -7487,24 +7584,24 @@ long long *data1, *data2;
                                 Index +=reclen;
                                 if(Index > (MAXBUFFERSIZE-reclen))
                                         Index=0;
-                                buffer = mbuffer + Index;
+                                nbuff = mbuffer + Index;
                         }
 
 			if(purge)
-				purgeit(buffer,reclen);
-			if(pread((int)fd, (void*)buffer, (size_t) reclen,(i * reclen) ) 
+				purgeit(nbuff,reclen);
+			if(pread((int)fd, (void*)nbuff, (size_t) reclen,(i * reclen) ) 
 					!= reclen)
 			{
 #ifdef NO_PRINT_LLD
-				printf("\nError reading block %ld %x\n", i,buffer);
+				printf("\nError reading block %ld %x\n", i,nbuff);
 #else
-				printf("\nError reading block %lld %x\n", i,buffer);
+				printf("\nError reading block %lld %x\n", i,nbuff);
 #endif
 				perror("pread");
 				exit(103);
 			}
 			if(verify){
-				if(verify_buffer(buffer,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
+				if(verify_buffer(nbuff,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 					exit(104);
 				}
 			}
@@ -7596,10 +7693,11 @@ long long *data1,*data2;
 	off64_t numrecs64;
 	int fd,test_foo;
 	long long flags_here;
+	char *nbuff;
 
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
-	buffer = mainbuffer;
+	nbuff = mainbuffer;
 	fd = 0;
 	if(oflag)
 		flags_here = O_SYNC|O_RDWR;
@@ -7678,10 +7776,10 @@ long long *data1,*data2;
 			}
 #endif
 		}
-		buffer=mainbuffer;
+		nbuff=mainbuffer;
 		mbuffer=mainbuffer;
 		if(fetchon)
-			fetchit(buffer,reclen);
+			fetchit(nbuff,reclen);
 		numvecs=PVECMAX;
                 if(numrecs64 < numvecs) numvecs=numrecs64;
                 if(MAXBUFFERSIZE/reclen < PVECMAX) numvecs=MAXBUFFERSIZE/reclen;
@@ -7705,9 +7803,9 @@ long long *data1,*data2;
 			for(xx=0;xx<numvecs;xx++)
 			{
 				piov[xx].piov_base = 
-					(caddr_t)(buffer+(xx * reclen));
+					(caddr_t)(nbuff+(xx * reclen));
 				if(verify)
-					fill_buffer(piov[xx].piov_base,reclen,(long long)pattern,sverify);
+					fill_buffer(piov[xx].piov_base,reclen,(long long)pattern,sverify,i);
 				piov[xx].piov_len = reclen;
 				piov[xx].piov_offset = list_off[xx];
 				if(purge)
@@ -7865,6 +7963,7 @@ long long *data1,*data2;
 	unsigned long long preadvrate[2];
 	off64_t filebytes64;
 	int fd,open_flags,test_foo;
+	char *nbuff;
 
 	open_flags=O_RDONLY;
 #if defined(linux)
@@ -7877,7 +7976,7 @@ long long *data1,*data2;
 #endif
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
-	buffer = mainbuffer;
+	nbuff = mainbuffer;
 	fd = 0;
 	for( j=0; j<2; j++ )
 	{
@@ -7910,19 +8009,19 @@ long long *data1,*data2;
 			}
 		}
 #endif
-		buffer=mainbuffer;
+		nbuff=mainbuffer;
 		mbuffer=mainbuffer;
 		if(fetchon)
-			fetchit(buffer,reclen);
+			fetchit(nbuff,reclen);
 		numvecs=PVECMAX;
                 if(numrecs64 < numvecs) numvecs=numrecs64;
                 if(MAXBUFFERSIZE/reclen < PVECMAX) numvecs=MAXBUFFERSIZE/reclen;
 
 #ifdef bsd4_2
-	        srand();
+	        srand(0);
 #else
 #ifdef Windows
-                 srand();
+                srand(0);
 #else
 	        srand48(0);
 #endif
@@ -7938,7 +8037,7 @@ long long *data1,*data2;
 			for(xx=0;xx<numvecs;xx++)
 			{
 				piov[xx].piov_base = 
-					(caddr_t)(buffer+(xx * reclen));
+					(caddr_t)(nbuff+(xx * reclen));
 				piov[xx].piov_len = reclen;
 				piov[xx].piov_offset = list_off[xx];
 				if(purge)
@@ -8324,7 +8423,6 @@ void dump_excel(void)
 void dump_excel()
 #endif
 {
-	printf("include_mask = %llx\n",include_mask);
 	if(bif_flag)
 	{
 		bif_fd=create_xls(bif_filename);
@@ -9072,7 +9170,7 @@ thread_write_test( x)
 	if(fetchon)			/* Prefetch into processor cache */
 		fetchit(nbuff,reclen);
 	if(verify)
-		fill_buffer(nbuff,reclen,(long long)pattern,sverify);
+		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 
 	if(w_traj_flag)
 		w_traj_fd=open_w_traj();
@@ -9142,6 +9240,8 @@ thread_write_test( x)
 		{
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 		}
+		if(verify && diag_v)
+			fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 		if(compute_flag)
 			compute_val+=do_compute(delay);
 		if(*stop_flag && !stopped){
@@ -9186,6 +9286,7 @@ again:
 		{
 			wmaddr = &maddr[i*reclen];
 			fill_area((long long*)nbuff,(long long*)wmaddr,(long long)reclen);
+			/*printf("CHid: %lld  Writing offset %lld for length of %lld\n",chid,i*reclen,reclen);*/
 			if(!mmapnsflag)
 			{
 			  if(mmapasflag)
@@ -9203,7 +9304,7 @@ again:
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
 				if(verify)
-					fill_buffer(nbuff,reclen,(long long)pattern,sverify);
+					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (i*reclen), depth,free_addr);
 			     }
 			     else
@@ -9611,6 +9712,8 @@ thread_rwrite_test(x)
 	}
 	if(w_traj_flag)
 		rewind(w_traj_fd);
+	if(verify)
+		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 	for(i=0; i<numrecs64; i++){
 		if(w_traj_flag)
 		{
@@ -9624,19 +9727,23 @@ thread_rwrite_test(x)
 		}
 		if(compute_flag)
 			compute_val+=do_compute(delay);
-		if(*stop_flag)
+		if(*stop_flag && !mmapflag)
 		{
 			if(debug1)
 				printf("\nStop_flag 1\n");
 			break;
 		}
+		if(verify && diag_v)
+		{
+			fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
+		}
 		if(async_flag && no_copy_flag)
 		{
 			free_addr=buffer=(char *)malloc((size_t)reclen+page_size);
 			nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
+			if(verify)
+				fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 		}
-		if(verify)
-			fill_buffer(nbuff,reclen,(long long)pattern,sverify);
 		if(purge)
 			purgeit(nbuff,reclen);
 		if(Q_flag)
@@ -9646,6 +9753,7 @@ thread_rwrite_test(x)
 		if(mmapflag)
 		{
 			wmaddr = &maddr[i*reclen];
+printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,reclen);
 			fill_area((long long*)nbuff,(long long*)wmaddr,(long long)reclen);
 			if(!mmapnsflag)
 			{
@@ -10870,11 +10978,10 @@ thread_reverse_read_test(x)
 			      }
 			  }
 		}
-		current_position+=reclen;
 		if(verify){
 		   if(async_flag && no_copy_flag)
 		   {
-			if(verify_buffer(buffer1,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
+			if(verify_buffer(buffer1,reclen,(off64_t)(current_position/reclen),reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
 				child_stat->flag = CHILD_STATE_HOLD;
@@ -10883,7 +10990,7 @@ thread_reverse_read_test(x)
 		   }
 		   else
 		   {
-			if(verify_buffer(nbuff,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
+			if(verify_buffer(nbuff,reclen,(off64_t)(current_position/reclen),reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
 				child_stat->flag = CHILD_STATE_HOLD;
@@ -10891,6 +10998,7 @@ thread_reverse_read_test(x)
 			}
 		   }
 		}
+		current_position+=reclen;
 		if(async_flag && no_copy_flag)
 			async_release(gc);
 		t_offset = (off64_t)reclen*2;
@@ -11455,6 +11563,7 @@ thread_ranread_test(x)
 	char tmpname[256];
 	FILE *thread_randrfd;
 	int test_foo;
+	long long save_pos;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -11591,10 +11700,10 @@ thread_ranread_test(x)
 	}
 
 #ifdef bsd4_2
-        srand();
+        srand(0);
 #else
 #ifdef Windows
-        srand();
+        srand(0);
 #else
 	srand48(0);
 #endif
@@ -11677,11 +11786,12 @@ thread_ranread_test(x)
 	 		  }
 			}
 		}
+		save_pos=current_offset/reclen;
 		current_offset+=reclen;
 		if(verify){
 		   if(async_flag && no_copy_flag)
 		   {
-			if(verify_buffer(buffer1,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
+			if(verify_buffer(buffer1,reclen,(off64_t)save_pos,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
 				child_stat->flag = CHILD_STATE_HOLD;
@@ -11690,7 +11800,7 @@ thread_ranread_test(x)
 		   }
 		   else
 		   {
-			if(verify_buffer(nbuff,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
+			if(verify_buffer(nbuff,reclen,(off64_t)save_pos,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
 				child_stat->flag = CHILD_STATE_HOLD;
@@ -11975,8 +12085,6 @@ thread_ranwrite_test( x)
 	}
 	if(fetchon)			/* Prefetch into processor cache */
 		fetchit(nbuff,reclen);
-	if(verify)
-		fill_buffer(nbuff,reclen,(long long)pattern,sverify);
 
 	child_stat = (struct child_stats *)&shmaddr[xx];	
 	child_stat->throughput = 0;
@@ -12011,6 +12119,8 @@ thread_ranwrite_test( x)
 		}
 		fprintf(thread_randwqfd,"Offset in Kbytes   Latency in microseconds\n");
 	}
+	if(verify)
+		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 	starttime1 = time_so_far();
 	child_stat->start_time = starttime1;
 	if(cpuutilflag)
@@ -12044,6 +12154,8 @@ thread_ranwrite_test( x)
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
                         thread_qtime_start=time_so_far();
 		}
+		if(verify & diag_v)
+			fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)(current_offset/reclen));
 		if(*stop_flag && !stopped){
 			if(include_flush)
 			{
@@ -12103,11 +12215,11 @@ again:
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
 				if(verify)
-					fill_buffer(nbuff,reclen,(long long)pattern,sverify);
+					fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)(current_offset/reclen));
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (current_offset), depth,free_addr);
 			     }
 			     else
-				async_write(gc, (long long)fd, nbuff, reclen, (current_offset), depth);
+				async_write(gc, (long long)fd, nbuff, reclen, current_offset, depth);
 		   }
 		   else
 		   {
@@ -12822,6 +12934,7 @@ long long *dest_buffer;
 long long length;
 #endif
 {
+	/*printf("Fill area %d\n",(size_t)length);*/
 	bcopy((void *)src_buffer,(void *)dest_buffer,(size_t)length);
 }
 
@@ -14068,6 +14181,7 @@ int send_size;
 	sprintf(&outbuf.c_stride_flag,"%c",send_buffer->c_stride_flag);
 	sprintf(&outbuf.c_verify,"%c",send_buffer->c_verify);
 	sprintf(&outbuf.c_sverify,"%c",send_buffer->c_sverify);
+	sprintf(&outbuf.c_diag_v,"%c",send_buffer->c_diag_v);
 	sprintf(&outbuf.c_Q_flag,"%c",send_buffer->c_Q_flag);
 	sprintf(&outbuf.c_include_flush,"%c",send_buffer->c_include_flush);
 	sprintf(&outbuf.c_OPS_flag,"%c",send_buffer->c_OPS_flag);
@@ -14091,6 +14205,7 @@ int send_size;
 	sprintf(outbuf.c_file_lock,"%d",send_buffer->c_file_lock);
 	sprintf(outbuf.c_pattern,"%d",send_buffer->c_pattern);
 	sprintf(outbuf.c_version,"%d",send_buffer->c_version);
+	sprintf(outbuf.c_base_time,"%d",send_buffer->c_base_time);
 #ifdef NO_PRINT_LLD
 	sprintf(outbuf.c_stride,"%ld",send_buffer->c_stride);
 	sprintf(outbuf.c_delay,"%ld",send_buffer->c_delay);
@@ -14117,7 +14232,8 @@ int send_size;
 
 	if(mdebug >= 1)
 		printf("Master sending message to %s \n",host_name);
-        rc = send(child_socket_val, (char *)&outbuf, sizeof(struct client_neutral_command), 0);
+        /*rc = send(child_socket_val, (char *)&outbuf, sizeof(struct client_neutral_command), 0);*/
+        rc = write(child_socket_val, (char *)&outbuf, sizeof(struct client_neutral_command));
         if (rc < 0)
         {
                 perror("write failed\n");
@@ -14294,37 +14410,36 @@ int size_of_message;
 {
 	int tsize;
 	int rcvd;
-	int s;
+	int s,ns;
 	int rc;
-	int xx;
+	int xx,me;
 	int tmp_port;
-	struct sockaddr_in addr, raddr;
 	xx = 0;
 	tsize=size_of_message; /* Number of messages to receive */
-        s = socket(AF_INET, SOCK_DGRAM, 0);
+        s = socket(AF_INET, SOCK_STREAM, 0);
         if (s < 0)
         {
                 perror("socket failed:");
                 exit(19);
         }
-        bzero(&addr, sizeof(struct sockaddr_in));
+        bzero(&child_sync_sock, sizeof(struct sockaddr_in));
 	tmp_port=CHILD_LIST_PORT+chid;
-        addr.sin_port = htons(tmp_port);
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = INADDR_ANY;
+        child_sync_sock.sin_port = htons(tmp_port);
+        child_sync_sock.sin_family = AF_INET;
+        child_sync_sock.sin_addr.s_addr = INADDR_ANY;
         rc = -1;
         while (rc < 0)
         {
-                rc = bind(s, (struct sockaddr *)&addr,
+                rc = bind(s, (struct sockaddr *)&child_sync_sock,
                                 sizeof(struct sockaddr_in));
 		if(rc < 0)
 		{
 			tmp_port++;
-                	addr.sin_port=htons(tmp_port);
+                	child_sync_sock.sin_port=htons(tmp_port);
 			continue;
 		}
         }
-	child_port = ntohs(addr.sin_port);
+	child_port = ntohs(child_sync_sock.sin_port);
 	if(cdebug ==1)
 	{
 		fprintf(newstdout,"Child: Listen: Bound at port %d\n",tmp_port);
@@ -14337,6 +14452,50 @@ int size_of_message;
 	}
 	return(s);
 }
+int
+child_attach(int s, int flag)
+{
+	int me,ns;
+	struct sockaddr_in *addr;
+	if(flag)
+	{
+		addr=&child_async_sock;
+		if(cdebug)
+		{
+			fprintf(newstdout,"Child attach async\n");
+			fflush(newstdout);
+		}
+	}
+	else
+	{
+		addr=&child_sync_sock;
+		if(cdebug)
+		{
+			fprintf(newstdout,"Child attach sync\n");
+			fflush(newstdout);
+		}
+	}
+	me=sizeof(struct sockaddr_in);
+	if(cdebug)
+	{
+		fprintf(newstdout,"Child enters listen\n");
+		fflush(newstdout);
+	}
+	listen(s,10);
+	if(cdebug)
+	{
+		fprintf(newstdout,"Child enters accept\n");
+		fflush(newstdout);
+	}
+	ns=accept(s,addr,&me);
+	if(cdebug)
+	{
+		fprintf(newstdout,"Child attached for receive. Sock %d  %d\n",ns,errno);
+		fflush(newstdout);
+	}
+	return(ns);
+}
+	
 
 /*
  * The clients use this to block waiting for a message from
@@ -14355,7 +14514,6 @@ int sock, size_of_message;
 	int rcvd;
 	int s;
 	int rc;
-	struct sockaddr_in addr, raddr;
 	s = sock;
 	tsize=size_of_message; /* Number of messages to receive */
 	rcvd = 0;
@@ -14366,7 +14524,8 @@ int sock, size_of_message;
 			fprintf(newstdout,"Child In recieve \n");
 			fflush(newstdout);
 		}
-		rc=recv(s,child_rcv_buf,size_of_message,0);
+		/*rc=recv(s,child_rcv_buf,size_of_message,0);*/
+		rc=read(s,child_rcv_buf,size_of_message);
 		if(rc < 0)
 		{
 			perror("Read failed\n");
@@ -14399,37 +14558,36 @@ int size_of_message;
 {
 	int tsize;
 	int rcvd;
-	int s;
+	int s,ns;
 	int rc;
 	int xx;
 	int tmp_port;
-	struct sockaddr_in addr, raddr;
 	xx = 0;
 	tsize=size_of_message; /* Number of messages to receive */
-        s = socket(AF_INET, SOCK_DGRAM, 0);
+        s = socket(AF_INET, SOCK_STREAM, 0);
         if (s < 0)
         {
                 perror("socket failed:");
                 exit(19);
         }
-        bzero(&addr, sizeof(struct sockaddr_in));
+        bzero(&child_async_sock, sizeof(struct sockaddr_in));
 	tmp_port=CHILD_ALIST_PORT;
-        addr.sin_port = htons(tmp_port);
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = INADDR_ANY;
+        child_async_sock.sin_port = htons(tmp_port);
+        child_async_sock.sin_family = AF_INET;
+        child_async_sock.sin_addr.s_addr = INADDR_ANY;
         rc = -1;
         while (rc < 0)
         {
-                rc = bind(s, (struct sockaddr *)&addr,
+                rc = bind(s, (struct sockaddr *)&child_async_sock,
                                 sizeof(struct sockaddr_in));
 		if(rc < 0)
 		{
 			tmp_port++;
-                	addr.sin_port=htons(tmp_port);
+                	child_async_sock.sin_port=htons(tmp_port);
 			continue;
 		}
         }
-	child_async_port = ntohs(addr.sin_port);
+	child_async_port = ntohs(child_async_sock.sin_port);
 	if(cdebug ==1)
 	{
 		fprintf(newstdout,"Child: Async Listen: Bound at port %d\n",tmp_port);
@@ -14459,7 +14617,6 @@ int sock, size_of_message;
 	int rcvd;
 	int s;
 	int rc;
-	struct sockaddr_in addr, raddr;
 	s = sock;
 	tsize=size_of_message; /* Number of messages to receive */
 	rcvd = 0;
@@ -14470,7 +14627,8 @@ int sock, size_of_message;
 			fprintf(newstdout,"Child In async recieve \n");
 			fflush(newstdout);
 		}
-		rc=recv(s,child_async_rcv_buf,size_of_message,0);
+		/*rc=recv(s,child_async_rcv_buf,size_of_message,0);*/
+		rc=read(s,child_async_rcv_buf,size_of_message);
 		if(rc < 0)
 		{
 			perror("Read failed\n");
@@ -14540,7 +14698,7 @@ struct in_addr *my_s_addr;
         raddr.sin_family = AF_INET;
         raddr.sin_port = htons(port);
         raddr.sin_addr.s_addr = ip->s_addr;
-        master_socket_val = socket(AF_INET, SOCK_DGRAM, 0);
+        master_socket_val = socket(AF_INET, SOCK_STREAM, 0);
         if (master_socket_val < 0)
         {
                 perror("Master: socket failed:");
@@ -14570,14 +14728,16 @@ struct in_addr *my_s_addr;
 	}
         if (rc < 0)
         {
-                perror("Master: bind failed\n");
+                perror("Master: bind failed for sync channel to child.\n");
                 exit(24);
         }
+	sleep(1);
         rc = connect(master_socket_val, (struct sockaddr *)&raddr, 
 			sizeof(struct sockaddr_in));
 	if (rc < 0)
         {
                 perror("Master: connect failed\n");
+		printf("Error %d\n",errno);
                 exit(25);
         }
 	if(mdebug ==1)
@@ -14617,7 +14777,7 @@ struct in_addr my_s_addr;
         raddr.sin_family = AF_INET;
         raddr.sin_port = htons(port);
         raddr.sin_addr.s_addr = my_s_addr.s_addr;
-        master_socket_val = socket(AF_INET, SOCK_DGRAM, 0);
+        master_socket_val = socket(AF_INET, SOCK_STREAM, 0);
         if (master_socket_val < 0)
         {
                 perror("Master: async socket failed:");
@@ -14650,6 +14810,7 @@ struct in_addr my_s_addr;
                 perror("Master: bind async failed\n");
                 exit(24);
         }
+	sleep(1);
         rc = connect(master_socket_val, (struct sockaddr *)&raddr, 
 			sizeof(struct sockaddr_in));
 	if (rc < 0)
@@ -14755,7 +14916,7 @@ long long numrecs64, reclen;
 	child_idents[x-1].state = C_STATE_WAIT_WHO;
 
 	if(mdebug>=1)
-		printf("Master listening for child to send join message.\n");
+		printf("\nMaster listening for child to send join message.\n");
 	master_listen(master_listen_socket,sizeof(struct master_neutral_command));
 	mnc = (struct master_neutral_command *)&master_rcv_buf;
 
@@ -14822,9 +14983,11 @@ long long numrecs64, reclen;
 	cc.c_fetchon = fetchon;
 	cc.c_verify = verify;
 	cc.c_sverify = sverify;
+	cc.c_diag_v = diag_v;
 	cc.c_file_lock = file_lock;
 	cc.c_pattern = pattern;
 	cc.c_version = proto_version;
+	cc.c_base_time = base_time;
 	cc.c_Q_flag = Q_flag;
 	cc.c_xflag = xflag;
 	cc.c_w_traj_flag = w_traj_flag;
@@ -14958,6 +15121,9 @@ become_client()
 	}
 	child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
 
+	l_sock=child_attach(l_sock,0);
+	l_async_sock=child_attach(l_async_sock,1);
+	
 	/* 4. Go into a loop and get all instructions from 			*/
         /*    the controlling process. 						*/
 
@@ -15035,9 +15201,11 @@ become_client()
 	sscanf(&cnc->c_stride_flag,"%c",&cc.c_stride_flag);
 	sscanf(&cnc->c_verify,"%c",&cc.c_verify);
 	sscanf(&cnc->c_sverify,"%c",&cc.c_sverify);
+	sscanf(&cnc->c_diag_v,"%c",&cc.c_diag_v);
 	sscanf(cnc->c_file_lock,"%d",&cc.c_file_lock);
 	sscanf(cnc->c_pattern,"%d",&cc.c_pattern);
 	sscanf(cnc->c_version,"%d",&cc.c_version);
+	sscanf(cnc->c_base_time,"%d",&cc.c_base_time);
 	sscanf(&cnc->c_Q_flag,"%c",&cc.c_Q_flag);
 	sscanf(&cnc->c_xflag,"%c",&cc.c_xflag);
 	sscanf(&cnc->c_w_traj_flag,"%c",&cc.c_w_traj_flag);
@@ -15075,10 +15243,15 @@ become_client()
 	stride_flag = cc.c_stride_flag;
 	fetchon = cc.c_fetchon;
 	verify = cc.c_verify;
-	sverify = cc.c_sverify;
+	diag_v = cc.c_diag_v;
+	if(diag_v)
+		sverify = 0;
+	else
+		sverify = cc.c_sverify;
 	file_lock = cc.c_file_lock;
 	pattern = cc.c_pattern;
 	/* proto_version = cc.c_version; Don't copy it back. */
+	base_time=cc.c_base_time;
 	Q_flag = cc.c_Q_flag;
 	xflag = cc.c_xflag;
 	w_traj_flag = cc.c_w_traj_flag;
