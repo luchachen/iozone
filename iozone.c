@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.287 $"
+#define THISVERSION "        Version $Revision: 3.288 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -105,6 +105,8 @@ void Kill();
 long long l_min();
 long long l_max();
 long long mythread_create();
+int gen_new_buf();
+void touch_dedup();
 #endif
 
 #include <fcntl.h>
@@ -213,6 +215,7 @@ char *help[] = {
 "           -+Z Enable old data set compatibility mode. WARNING.. Published",
 "               hacks may invalidate these results and generate bogus, high",
 "               values for results.",
+"           -+w ## Percent of non-dedup-able data in buffers.",
 "" };
 
 char *head1[] = {
@@ -411,6 +414,8 @@ struct iovec piov[PVECMAX];
 #endif
 #endif
 
+#define DEDUPSEED 0x2719362
+
 
 /*
  * In multi thread/process throughput mode each child keeps track of
@@ -474,6 +479,7 @@ struct client_command {
 	int c_sverify;
 	int c_odsync;
 	int c_diag_v;
+	int c_dedup;
 	int c_Q_flag;
 	int c_L_flag;
 	int c_OPS_flag;
@@ -562,6 +568,7 @@ struct client_neutral_command {
 	char c_sverify[2];
 	char c_odsync[2];
 	char c_diag_v[2];
+	char c_dedup[2];
 	char c_Q_flag[2];
 	char c_L_flag[2];
 	char c_OPS_flag[2];
@@ -1209,7 +1216,9 @@ char master_iozone, client_iozone,distributed;
 int bif_fd,s_count;
 int bif_row,bif_column;
 char aflag, Eflag, hflag, Rflag, rflag, sflag;
-char diag_v,sent_stop;
+char diag_v,sent_stop,dedup;
+char *dedup_ibuf;
+char *dedup_temp;
 char bif_flag;
 int rlocking;
 int share_file;
@@ -1267,7 +1276,7 @@ char dummyfile [MAXSTREAMS][MAXNAMESIZE];  /* name of dummy file     */
 char dummyfile1 [MAXNAMESIZE];             /* name of dummy file     */
 char *filearray[MAXSTREAMS];		   /* array of file names    */
 char tfile[] = "iozone";
-char *buffer, *mbuffer,*mainbuffer;
+char *buffer,*buffer1, *mbuffer,*mainbuffer;
 FILE *pi,*r_traj_fd,*w_traj_fd;
 VOLATILE char *pbuffer;
 char *default_filename="iozone.tmp"; /*default name of temporary file*/
@@ -1379,7 +1388,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 19;
+int proto_version = 20;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1583,6 +1592,40 @@ char **argv;
 		~((long)cache_size-1));
 #endif
 	mainbuffer = buffer;
+
+	/* de-dup input buf */
+     	buffer1 = (char *) alloc_mem((long long)(MAXBUFFERSIZE + (2 * cache_size)),(int)0);
+	if(buffer1 == 0) {
+        	perror("Memory allocation failed:");
+        	exit(1);
+        }
+
+#ifdef _64BIT_ARCH_
+     	buffer1 = (char *) ((long long )(buffer1 + cache_size ) & 
+		~(cache_size-1));
+#else
+     	buffer1 = (char *) ((long)(buffer1 + cache_size ) & 
+		~((long)cache_size-1));
+#endif
+	dedup_ibuf = buffer1;
+	touch_dedup(buffer1, MAXBUFFERSIZE);
+
+	/* de-dup temp buf */
+     	buffer1 = (char *) alloc_mem((long long)(MAXBUFFERSIZE + (2 * cache_size)),(int)0);
+	if(buffer1 == 0) {
+        	perror("Memory allocation failed:");
+        	exit(1);
+        }
+
+#ifdef _64BIT_ARCH_
+     	buffer1 = (char *) ((long long )(buffer1 + cache_size ) & 
+		~(cache_size-1));
+#else
+     	buffer1 = (char *) ((long)(buffer1 + cache_size ) & 
+		~((long)cache_size-1));
+#endif
+	dedup_temp = buffer1;
+
 	fetchon++;  /* By default, prefetch the CPU cache lines associated with the buffer */
   	strcpy(filename,default_filename); 	/* Init default filename */
   	sprintf(dummyfile[0],"%s.DUMMY",default_filename);
@@ -2410,6 +2453,20 @@ char **argv;
 					Kplus_flag=1;
 					sprintf(splash[splash_line++],"\tManual control of test 8. >>> Very Experimental. Sony special <<<\n");
 					break;
+				case 'w':  /* Argument is the percent of dedup */
+					subarg=argv[optind++];
+					if(subarg==(char *)0)
+					{
+					     printf("-+w takes an operand !!\n");
+					     exit(200);
+					}
+					dedup = atoi(subarg);
+					if(dedup <=0)
+						dedup = 1;
+					if(dedup >100)
+						dedup = 100;
+					sprintf(splash[splash_line++],"\tDedup activated at %d percent non-dedup\n",dedup);
+					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
 					exit(0);
@@ -2663,6 +2720,11 @@ char **argv;
 	if(h_flag && k_flag)
 	{
 		printf("\n\tCan not do both -H and -k\n");
+		exit(20);
+	}
+	if(dedup && diag_v)
+	{
+		printf("\n\tCan not do both -+d and -+w\n");
 		exit(20);
 	}
 		
@@ -6040,6 +6102,7 @@ char sverify;
 {
 	volatile unsigned long long *where;
 	volatile unsigned long long dummy;
+	long *de_ibuf, *de_obuf;
 	long long j,k;
 	off64_t file_position=0;
 	off64_t i;
@@ -6054,6 +6117,8 @@ char sverify;
 	unsigned long long c= 0x01010101;
 	unsigned long long d = 0x01010101;
 	unsigned long long pattern_buf;
+	int lite = 1;	/* Only validate 1 long when running 
+			   de-deup validation */
 
 	value = (a<<32) | b;
 	value1 = (c<<32) | d;
@@ -6065,6 +6130,31 @@ char sverify;
 		xx2=(long long)0;
 	mpattern=patt;
 	pattern_buf=patt;
+	if(dedup)
+	{
+		gen_new_buf((char *)dedup_ibuf,(char *)dedup_temp, (long)recnum, (int)length,(int)dedup, 0);
+		de_ibuf = (long *)buffer;
+		de_obuf = (long *)dedup_temp;
+		if(lite)	/* short touch to reduce intrusion */
+			length = (long) sizeof(long);
+		for(i=0;i<length/sizeof(long);i++)
+		{
+			if(de_ibuf[i]!= de_obuf[i])
+			{
+				if(!silent)
+#ifdef NO_PRINT_LLD
+				   printf("\nDedup mis-compare at %ld\n",
+					(long long)((recnum*recsize)+(i*sizeof(long))) );
+#else
+				   printf("\nDedup mis-compare at %lld\n",
+					(long long)((recnum*recsize)+(i*sizeof(long))) );
+				   printf("Found %.lx Expecting %.lx \n",de_ibuf[i], de_obuf[i]);
+#endif
+				return(1);
+			}
+		}
+		return(0);
+	}
 	if(diag_v)
 	{
 		if(no_unlink)
@@ -6203,6 +6293,11 @@ char sverify;
 	x=0;
 	mpattern=pattern;
 	/* printf("Fill: Sverify %d verify %d diag_v %d\n",sverify,verify,diag_v);*/
+	if(dedup)
+	{
+		gen_new_buf((char *)dedup_ibuf,(char *)buffer, (long)recnum, (int)length,(int)dedup, 1);
+		return;
+	}
 	if(diag_v)
 	{
 		/*if(client_iozone)
@@ -6576,7 +6671,7 @@ long long *data2;
 		pbuff=mainbuffer;
 		if(fetchon)
 			fetchit(pbuff,reclen);
-		if(verify)
+		if(verify || dedup)
 			fill_buffer(pbuff,reclen,(long long)pattern,sverify,(long long)0);
 		starttime1 = time_so_far();
 #ifdef unix
@@ -6620,7 +6715,7 @@ long long *data2;
 				mylockr((int) fd, (int) 1, (int)0,
 				  lock_offset, reclen);
 			}
-			if(verify && diag_v)
+			if((verify && diag_v) || dedup)
 				fill_buffer(pbuff,reclen,(long long)pattern,sverify,i);
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
@@ -6630,14 +6725,14 @@ long long *data2;
 				if(Index > (MAXBUFFERSIZE-reclen))
 					Index=0;
 				pbuff = mbuffer + Index;	
-				if(verify)
+				if(verify || dedup)
 					fill_buffer(pbuff,reclen,(long long)pattern,sverify,(long long)0);
 			}
 			if(async_flag && no_copy_flag)
 			{
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-				if(verify)
+				if(verify || dedup)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 				if(purge)
 					purgeit(nbuff,reclen);
@@ -6959,7 +7054,7 @@ long long *data2;
 		buffer=mainbuffer;
 		if(fetchon)
 			fetchit(buffer,reclen);
-		if(verify)
+		if(verify || dedup)
 			fill_buffer(buffer,reclen,(long long)pattern,sverify,(long long)0);
 		starttime1 = time_so_far();
 		compute_val=(double)0;
@@ -6973,7 +7068,7 @@ long long *data2;
 					Index=0;
 				buffer = mbuffer + Index;	
 			}
-			if(verify & diag_v)
+			if((verify & diag_v) || dedup)
 				fill_buffer(buffer,reclen,(long long)pattern,sverify,i);
 			if(purge)
 				purgeit(buffer,reclen);
@@ -8011,7 +8106,7 @@ long long *data1, *data2;
 	     }
 	     else
 	     {
-			if(verify)
+			if(verify || dedup)
 				fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 			for(i=0; i<numrecs64; i++) 
 			{
@@ -8045,13 +8140,13 @@ long long *data1, *data2;
 				{
 					free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 					nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-					if(verify)
+					if(verify || dedup)
 						fill_buffer(nbuff,reclen,(long long)pattern,sverify,offset64/reclen);
 				}
 				if(purge)
 					purgeit(nbuff,reclen);
 
-				if(verify & diag_v)
+				if((verify & diag_v) || dedup)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,offset64/reclen);
 
 				if (!(h_flag || k_flag || mmapflag))
@@ -8626,7 +8721,7 @@ long long *data1,*data2;
 		signal_handler();
 	}
 	*/
-	if(verify)
+	if(verify || dedup)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 	starttime1 = time_so_far();
 	if(cpuutilflag)
@@ -8654,10 +8749,10 @@ long long *data1,*data2;
 		{
 			free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 			nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-			if(verify)
+			if(verify || dedup)
 				fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 		}
-		if(verify & diag_v)
+		if((verify & diag_v) || dedup)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 		if(purge)
 			purgeit(nbuff,reclen);
@@ -9263,7 +9358,7 @@ long long *data1,*data2;
 		mbuffer=mainbuffer;
 		if(fetchon)
 			fetchit(nbuff,reclen);
-		if(verify)
+		if(verify || dedup)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 		starttime1 = time_so_far();
 	        compute_val=(double)0;
@@ -9294,7 +9389,7 @@ long long *data1,*data2;
                                         Index=0;
                                 nbuff = mbuffer + Index;
                         }
-			if(verify && diag_v)
+			if((verify && diag_v) || dedup)
 				fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			if(purge)
 				purgeit(nbuff,reclen);
@@ -9803,7 +9898,7 @@ long long *data1,*data2;
 			{
 				piov[xx].piov_base = 
 					(caddr_t)(nbuff+(xx * reclen));
-				if(verify)
+				if(verify || dedup)
 					fill_buffer(piov[xx].piov_base,reclen,(long long)pattern,sverify,i);
 				piov[xx].piov_len = reclen;
 #ifdef PER_VECTOR_OFFSET
@@ -11378,7 +11473,7 @@ thread_write_test( x)
 	}
 	if(fetchon)			/* Prefetch into processor cache */
 		fetchit(nbuff,reclen);
-	if(verify && !no_copy_flag)
+	if((verify && !no_copy_flag) || dedup)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 
 	if(w_traj_flag)
@@ -11476,7 +11571,7 @@ thread_write_test( x)
 			mylockr((int) fd, (int) 1, (int)0,
 			  lock_offset, reclen);
 		}
-		if(verify && !no_copy_flag)
+		if((verify && !no_copy_flag) || dedup)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -11556,7 +11651,7 @@ again:
 			     {
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-				if(verify)
+				if(verify || dedup)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (i*reclen), depth,free_addr);
 			     }
@@ -12000,7 +12095,7 @@ thread_pwrite_test( x)
 	}
 	if(fetchon)			/* Prefetch into processor cache */
 		fetchit(nbuff,reclen);
-	if(verify && !no_copy_flag)
+	if((verify && !no_copy_flag) || dedup)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 
 	if(w_traj_flag)
@@ -12084,7 +12179,7 @@ thread_pwrite_test( x)
 			mylockr((int) fd, (int) 1, (int)0,
 			  lock_offset, reclen);
 		}
-		if(verify && !no_copy_flag)
+		if((verify && !no_copy_flag) || dedup)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -12147,7 +12242,7 @@ again:
 			     {
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-				if(verify)
+				if(verify || dedup)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (traj_offset), depth,free_addr);
 			     }
@@ -12631,7 +12726,7 @@ thread_rwrite_test(x)
 	}
 	if(w_traj_flag)
 		rewind(w_traj_fd);
-	if(verify && !no_copy_flag)
+	if((verify && !no_copy_flag) || dedup)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 	for(i=0; i<numrecs64; i++){
 		traj_offset= i*reclen ;
@@ -12669,7 +12764,7 @@ thread_rwrite_test(x)
 				printf("\nStop_flag 1\n");
 			break;
 		}
-		if(verify && !no_copy_flag)
+		if((verify && !no_copy_flag) || dedup)
 		{
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 		}
@@ -12701,7 +12796,7 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 			     {
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-				if(verify)
+				if(verify || dedup)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (i*reclen), depth,free_addr);
 			     }
@@ -16197,7 +16292,7 @@ thread_ranwrite_test( x)
 		fprintf(thread_Lwqfd,"%-25s %s","Random write start: ",
 			now_string);
 	}
-	if(verify && !no_copy_flag)
+	if((verify && !no_copy_flag) || dedup)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 	starttime1 = time_so_far();
 	if(cpuutilflag)
@@ -16245,7 +16340,7 @@ thread_ranwrite_test( x)
 			mylockr((int) fd, (int) 1, (int)0,
 			  lock_offset, reclen);
 		}
-		if(verify && !no_copy_flag)
+		if((verify && !no_copy_flag) || dedup)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)(current_offset/reclen));
 		if(*stop_flag && !stopped){
 			if(include_flush)
@@ -16305,7 +16400,7 @@ again:
 			     {
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-				if(verify)
+				if(verify || dedup)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)(current_offset/reclen));
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (current_offset), depth,free_addr);
 			     }
@@ -18589,6 +18684,7 @@ int send_size;
 	sprintf(outbuf.c_sverify,"%d",send_buffer->c_sverify);
 	sprintf(outbuf.c_odsync,"%d",send_buffer->c_odsync);
 	sprintf(outbuf.c_diag_v,"%d",send_buffer->c_diag_v);
+	sprintf(outbuf.c_dedup,"%d",send_buffer->c_dedup);
 	sprintf(outbuf.c_Q_flag,"%d",send_buffer->c_Q_flag);
 	sprintf(outbuf.c_L_flag,"%d",send_buffer->c_L_flag);
 	sprintf(outbuf.c_include_flush,"%d",send_buffer->c_include_flush);
@@ -19462,6 +19558,7 @@ long long numrecs64, reclen;
 	cc.c_sverify = sverify;
 	cc.c_odsync = odsync;
 	cc.c_diag_v = diag_v;
+	cc.c_dedup = dedup;
 	cc.c_file_lock = file_lock;
 	cc.c_rec_lock = rlocking;
 	cc.c_Kplus_readers = Kplus_readers;
@@ -19706,6 +19803,7 @@ become_client()
 	sscanf(cnc->c_sverify,"%d",&cc.c_sverify);
 	sscanf(cnc->c_odsync,"%d",&cc.c_odsync);
 	sscanf(cnc->c_diag_v,"%d",&cc.c_diag_v);
+	sscanf(cnc->c_dedup,"%d",&cc.c_dedup);
 	sscanf(cnc->c_file_lock,"%d",&cc.c_file_lock);
 	sscanf(cnc->c_rec_lock,"%d",&cc.c_rec_lock);
 	sscanf(cnc->c_Kplus_readers,"%d",&cc.c_Kplus_readers);
@@ -19773,6 +19871,7 @@ become_client()
 	fetchon = cc.c_fetchon;
 	verify = cc.c_verify;
 	diag_v = cc.c_diag_v;
+	dedup = cc.c_dedup;
 	if(diag_v)
 		sverify = 0;
 	else
@@ -21517,3 +21616,73 @@ char *test;
 	}
 }
 
+/* 
+ * As quickly as possible, generate a new buffer that
+ * can not be easily compressed, or de-duped. Also
+ * permit specified percentage of buffer to be updated.
+ *
+ * ibuf ... input buffer
+ * obuf ... output buffer
+ * seed ... Seed to use for srand, rand -> xor ops
+ *          Seed composed from: blocknumber
+		(do not include childnum as you want duplicates)
+ * size ... size of buffers. (in bytes)
+ * percent. Percent of buffer to modify.
+ *
+ * Returns 0 (zero) for success, and -1 (minus one) for failure.
+ */
+int
+gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,int all)
+{
+	register long *ip, *op; /* Register for speed 	*/
+	register long iseed; 	/* Register for speed 	*/
+	register long isize; 	/* Register for speed 	*/
+	register int x; 	/* Register for speed 	*/
+	if(ibuf == NULL)	/* no input buf 	*/
+		return(-1);
+	if(obuf == NULL)	/* no output buf 	*/
+		return(-1);
+	if((percent > 100) || (percent < 0)) /* percent check */
+		return(-1);
+	if(size == 0)		/* size check 		*/
+		return(-1);
+	srand(seed);            /* set randdom seed 	*/
+	iseed = rand();		/* generate random value */
+	isize = ((size * percent)/100)/sizeof(long); /* percent to alter */
+	ip = (long *)ibuf;	/* pointer to input buf */
+	op = (long *)obuf;	/* pointer to output buf */
+	if(all == 0)		/* Special case for verify only */
+		isize = 1;
+	for(x=0;x<isize;x++)	/* tight loop for transformation */
+	{
+		*op=*ip ^ iseed; /* do the xor op */
+		op++;
+		ip++;
+	}	
+	if(all == 0)		/* Special case for verify only */
+		return(0);
+	/* Copy the rest of the unmodified input buf to the output buf */
+	if(percent < 100)
+	{
+		for( ; x<size/sizeof(long);x++)
+			*op++=*ip++; /* just copy input buf */
+	}
+	return(0);
+}
+/* 
+ * Used to touch all of the buffers so that the CPU data
+ * cache is hot, and not part of the measurement.
+ */
+void
+touch_dedup(char *i, int size)
+{
+	register int x;
+	register long *ip;
+	ip = (long *)i;
+	srand(DEDUPSEED);
+	for(x=0;x<size/sizeof(long);x++)
+	{
+		*ip=rand(); /* fill initial buffer */
+		ip++;
+	}
+}
