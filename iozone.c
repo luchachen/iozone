@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.69 $"
+#define THISVERSION "        Version $Revision: 3.71 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -95,15 +95,16 @@ long long mythread_create();
 
 
 char *help[] = {
-"    Usage: iozone [-s filesize_Kb] [-r record_size_Kb] [-f [path]filename]",
-"                  [-i test] [-E] [-p] [-a] [-A] [-z] [-Z] [-m] [-M] [-t children] [-h] [-o]",
-"                  [-l min_number_procs] [-u max_number_procs] [-v] [-R] [-x]",
+"    Usage: iozone [-s filesize_Kb] [-r record_size_Kb] [-f [path]filename] [-h]",
+"                  [-i test] [-E] [-p] [-a] [-A] [-z] [-Z] [-m] [-M] [-t children]",
+"                  [-l min_number_procs] [-u max_number_procs] [-v] [-R] [-x] [-o]",
 "                  [-d microseconds] [-F path1 path2...] [-V pattern] [-j stride]",
 "                  [-T] [-C] [-B] [-D] [-G] [-I] [-H depth] [-k depth] [-U mount_point]",
-"                  [-S cache_size] [-O] [-L line_size] [-K] [-g maxfilesize_Kb]",
+"                  [-S cache_size] [-O] [-L cacheline_size] [-K] [-g maxfilesize_Kb]",
 "                  [-n minfilesize_Kb] [-N] [-Q] [-P start_cpu] [-e] [-c] [-b Excel.xls]",
 "                  [-J milliseconds] [-X write_telemetry_filename] [-w] [-W]",
 "                  [-Y read_telemetry_filename] [-y minrecsize_Kb] [-q maxrecsize_Kb]",
+"                  [-+u]",
 " ",
 "           -a  Auto mode",
 "           -A  Auto2 mode",
@@ -166,6 +167,7 @@ char *help[] = {
 "           -Y filename  Read  telemetry file. Contains lines with (offset reclen compute_time) in ascii",
 "           -z  Used in conjunction with -a to test all possible record sizes",
 "           -Z  Enable mixing of mmap I/O and file I/O",
+"           -+u  Enable CPU utilization output (Experimental)",
 "" };
 
 char *head1[] = {
@@ -257,6 +259,7 @@ typedef long long off64_t;
 #ifdef unix
 #include <sys/times.h>
 #include <sys/file.h>
+#include <sys/resource.h>
 #ifndef NULL
 #define NULL 0
 #endif
@@ -320,15 +323,22 @@ struct piovec piov[PVECMAX];
 #endif
 
 struct child_stats {
-	long long flag;	/* control space */
+	long long flag;		/* control space */
 	long long flag1;	/* pad */
-	long long flag2;	/* pad */
-	long long flag3;	/* pad */
-	double throughput; /* Throughput in either kb/sec or ops/sec */
-	double actual;	   /* Either actual kb read or # of ops performed */
+	double walltime;	/* child elapsed time */
+	double cputime;		/* child CPU time */
+	double throughput; 	/* Throughput in either kb/sec or ops/sec */
+	double actual;	   	/* Either actual kb read or # of ops performed */
 	double start_time;	/* Actual start time */
 	double stop_time;	/* Actual end time */
+	double fini_time;	/* always set, while stop_time is not always set for a child */
 } VOLATILE *child_stat;
+
+struct runtime {
+	double	walltime;
+	double	cputime;
+	double	cpuutil;
+};
 
 #ifdef __convex_spp
 #include <sys/cnx_ail.h>
@@ -476,9 +486,13 @@ static double time_so_far();	/* time since start of program    */
 static double utime_so_far();	/* user time 			  */
 static double stime_so_far();	/* system time   		  */
 static double clk_tck();	/* Get clocks/tick		  */
+static double cputime_so_far();
+#else
+#define cputime_so_far()	time_so_far()
 #endif
 static double time_so_far1();	/* time since start of program    */
 void get_resolution();
+void get_rusage_resolution();
 void signal_handler();		/* clean up if user interrupts us */
 void begin();			/* The main worker in the app     */
 void fetchit();			/* Prime on chip cache		  */
@@ -513,6 +527,9 @@ void async_init();
 void fill_area(long long *, long long *, long long);
 void fill_buffer(char *,long long ,long long ,char );
 void store_value(off64_t);
+void store_times(double, double);
+static double cpu_util(double, double);
+void dump_cputimes(void);
 void purge_buffer_cache(void);
 char *alloc_mem(long long);
 void *(thread_rwrite_test)(void *);
@@ -617,7 +634,7 @@ VOLATILE struct child_stats *shmaddr;
 double totaltime,total_time, temp_time ,total_kilos;
 off64_t report_array[MAX_X][MAX_Y];
 double report_darray[MAX_X][MAXSTREAMS];
-double time_res;
+double time_res,cputime_res;
 long long throughput_array[MAX_X];	/* Filesize & record size are constants */
 short current_x, current_y;
 long long max_x, max_y;
@@ -646,6 +663,7 @@ char yflag,qflag;
 int direct_flag;
 char async_flag;
 char trflag; 
+char cpuutilflag;
 long long mint, maxt,depth; 
 long long w_traj_ops, r_traj_ops, w_traj_fsize,r_traj_fsize;
 long long r_traj_ops_completed,r_traj_bytes_completed;
@@ -657,6 +675,7 @@ char MS_flag;
 char mmapflag,mmapasflag,mmapssflag,mmapnsflag,mmap_mix;
 char compute_flag;
 double compute_time;
+struct runtime runtimes [MAX_X] [MAX_Y];	/* in parallel with report_array[][] */
 long long include_test[50];
 long long include_mask;
 char RWONLYflag, NOCROSSflag;		/*auto mode 2 - kcollins 8-21-96*/
@@ -706,7 +725,7 @@ VOLATILE char *stop_flag;		/* Used to stop all children */
 VOLATILE char stoptime;
 char xflag,Cflag;
 char use_thread = 0;
-long long debug1=0;
+long long debug1=0;		
 long long debug=0;
 unsigned long cache_size=CACHE_SIZE;
 unsigned long cache_line_size=CACHE_LINE_SIZE;
@@ -722,6 +741,9 @@ long long xover = CROSSOVER;
 char *throughput_tests[] = {"Initial write","Rewrite","Read","Re-read",
 	"Reverse Read","Stride read","Random read","Random write"};
 char command_line[1024] = "\0";
+#ifdef unix
+double sc_clk_tck;
+#endif
 
 /****************************************************************/
 /*								*/
@@ -754,6 +776,9 @@ char **argv;
 	page_size=getpagesize();
 #endif
 #endif
+#ifdef unix
+	sc_clk_tck = clk_tck();
+#endif
 	for(ind=0;ind<MAXSTREAMS;ind++)
 		filearray[ind]=(char *)tfile;
 
@@ -764,7 +789,7 @@ char **argv;
     	printf("\t%s\n\t%s\n\n", THISVERSION,MODE);
     	printf("\tContributors:William Norcott, Don Capps, Isom Crawford, Kirby Collins\n");
 	printf("\t             Al Slater, Scott Rhine, Mike Wisner, Ken Goss\n");
-    	printf("\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR.\n");
+    	printf("\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR,\n");
     	printf("\t             Randy Dunlap.\n\n");
 	printf("\tRun began: %s\n",ctime(&time_run));
 	record_command_line(argc, argv);
@@ -1408,6 +1433,12 @@ char **argv;
 					break;
 				case 'b':  /* Does not have an argument */
 					break;
+				case 'u':	/* set CPU utilization output flag */
+					cpuutilflag = 1;	/* only used if R(eport) flag is also set */
+					get_rusage_resolution();
+    					printf("\tCPU utilization Resolution = %5.3f seconds.\n",cputime_res);
+	    				printf("\tCPU utilization Excel chart enabled\n");
+					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
 					exit(0);
@@ -1559,7 +1590,7 @@ char **argv;
 		printf("\n\tMicrosecond mode not supported in throughput mode.\n\n");
 		exit(17);
 	}
-	if (trflag	// throughput mode, don't allow auto-mode options:
+	if (trflag	/* throughput mode, don't allow auto-mode options: */
 		&& (auto_mode || aflag || yflag || qflag || nflag || gflag))
 	{
 		printf("\n\tCan not mix throughput mode and auto-mode flags.\n\n");
@@ -2063,9 +2094,14 @@ void auto_test()
 /* Data in shared memory format is:				*/
 /*								*/
 /* struct child_stats {						*/
-/* 	char flag; 		Used to barrier			*/
-/* 	double throughput;	Childs throughput		*/
-/* 	double actual;		Childs actual read/written	*/
+/* 	long long flag; 	Used to barrier			*/
+/*	double walltime;	Child's elapsed time		*/
+/*	double cputime;		Child's CPU time		*/
+/* 	double throughput;	Child's throughput		*/
+/* 	double actual;		Child's actual read/written	*/
+/*	double start_time;	Actual start time		*/
+/*	double stop_time;	Actual end time			*/
+/*	double fini_time;	Ending time for a child		*/
 /* } 								*/
 /*								*/
 /* There is an array of child_stat structures layed out in 	*/
@@ -2084,6 +2120,9 @@ void throughput_test()
 	double starttime1 = 0;
 	double jstarttime = 0;
 	double jtime = 0;
+	double walltime = 0;
+	double cputime = 0;
+	double time_begin, time_fini;
 	char *port;
 	char getout;
 	long long throughsize = KILOBYTES;
@@ -2140,6 +2179,9 @@ void throughput_test()
 		child_stat->throughput=0;
 		child_stat->start_time=0;
 		child_stat->stop_time=0;
+		child_stat->fini_time=0;
+		child_stat->cputime=0.0;
+		child_stat->walltime=0.0;
 	}
 	*stop_flag = 0;
 	if(!sflag)
@@ -2308,9 +2350,12 @@ waitout:
 	total_time=total_time-jtime;/* Remove the join time */
 	printf("\nJoin time %10.2f\n",jtime);
 #endif
-	
+
 	total_kilos=0;
 	ptotal=0;
+	time_begin = time_fini = 0.0;
+	walltime = 0.0;
+	cputime = 0.0;
 	printf("\n");
 	for(xyz=0;xyz<num_child;xyz++){
 		child_stat = (struct child_stats *) &shmaddr[xyz];
@@ -2326,13 +2371,35 @@ waitout:
 			min_throughput=child_stat->throughput;
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
+		/* Add up the cpu times of all children */
+		cputime += child_stat->cputime;
+
+		/* and find the child with the longest wall time */
+		/* Get the earliest start time and latest fini time to calc. elapsed time. */
+		if (time_begin == 0.0)
+			time_begin = child_stat->start_time;
+		else
+			if (child_stat->start_time < time_begin)
+				time_begin = child_stat->start_time;
+		if (child_stat->fini_time > time_fini)
+			time_fini = child_stat->fini_time;
 	}
 	avg_throughput=total_kilos/num_child;
-
+	if(cpuutilflag)
+	{
+		walltime = time_fini - time_begin;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+	}
+	
 	for(xyz=0;xyz<num_child;xyz++){
 		child_stat = (struct child_stats *) &shmaddr[xyz];
 		child_stat->flag = CHILD_STATE_HOLD; /* Start children at state 0 (HOLD) */
 	}
+	if(cpuutilflag)
+		store_times (walltime, cputime);	/* Must be Before store_dvalue(). */
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	printf("\n\n\tChildren see throughput for %2ld initial writers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
@@ -2344,11 +2411,27 @@ waitout:
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
 	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
-	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
+	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n", min_xfer,unit);
+	/* CPU% can be > 100.0 for multiple CPUs */
+	if(cpuutilflag)
+	{
+		if(walltime == 0.0)
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 0.0);
+		else
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 100.0 * cputime / walltime);
+	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
+			if(cpuutilflag)
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
+					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			else
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 		}
 	/**********************************************************/
 	/*************** End of intitial writer *******************/
@@ -2361,6 +2444,9 @@ waitout:
 	/**********************************************************/
 	/* Re-write throughput performance test. ******************/
 	/**********************************************************/
+	time_begin = time_fini = 0.0;
+	walltime = 0.0;
+	cputime = 0.0;
 	jstarttime=0;
 	total_kilos=0;
 	if(!use_thread)
@@ -2477,13 +2563,32 @@ jump3:
 			min_throughput=child_stat->throughput;
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
+		cputime += child_stat->cputime;
+		/* Get the earliest start time and latest fini time to calc. elapsed time. */
+		if (time_begin == 0.0)
+			time_begin = child_stat->start_time;
+		else
+			if (child_stat->start_time < time_begin)
+				time_begin = child_stat->start_time;
+		if (child_stat->fini_time > time_fini)
+			time_fini = child_stat->fini_time;
 	}
 	avg_throughput=total_kilos/num_child;
+	if(cpuutilflag)
+	{
+		walltime = time_fini - time_begin;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+	}
 
 	for(xyz=0;xyz<num_child;xyz++){	/* Reset state to 0 (HOLD) */
 		child_stat=(struct child_stats *)&shmaddr[xyz];
 		child_stat->flag = CHILD_STATE_HOLD;
 	}
+	if(cpuutilflag)
+		store_times (walltime, cputime);	/* Must be Before store_dvalue(). */
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	printf("\tChildren see throughput for %2ld rewriters \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
@@ -2495,11 +2600,27 @@ jump3:
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
 	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
-	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
+	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n", min_xfer,unit);
+	/* CPU% can be > 100.0 for multiple CPUs */
+	if(cpuutilflag)
+	{
+		if(walltime == 0.0)
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 0.0);
+		else
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 100.0 * cputime / walltime);
+	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-			printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
+			if(cpuutilflag)
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
+					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			else
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 		}
 	*stop_flag=0;
 	/**********************************************************/
@@ -2514,6 +2635,9 @@ next0:
 	/**************************************************************/
 	/*** Reader throughput tests **********************************/
 	/**************************************************************/
+	time_begin = time_fini = 0.0;
+	walltime = 0.0;
+	cputime = 0.0;
 	jstarttime=0;
 	total_kilos=0;
 	if(!use_thread)
@@ -2625,8 +2749,27 @@ jumpend:
 			min_throughput=child_stat->throughput;
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
+		cputime += child_stat->cputime;
+		/* Get the earliest start time and latest fini time to calc. elapsed time. */
+		if (time_begin == 0.0)
+			time_begin = child_stat->start_time;
+		else
+			if (child_stat->start_time < time_begin)
+				time_begin = child_stat->start_time;
+		if (child_stat->fini_time > time_fini)
+			time_fini = child_stat->fini_time;
 	}
 	avg_throughput=total_kilos/num_child;
+	if(cpuutilflag)
+	{
+		walltime = time_fini - time_begin;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+	}
+	if(cpuutilflag)
+		store_times (walltime, cputime);	/* Must be Before store_dvalue(). */
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	printf("\tChildren see throughput for %2ld readers \t\t= %10.2f %s/sec\n", num_child, total_kilos,unit);
@@ -2638,11 +2781,27 @@ jumpend:
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
 	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
-	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
+	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n", min_xfer,unit);
+	/* CPU% can be > 100.0 for multiple CPUs */
+	if(cpuutilflag)
+	{
+		if(walltime == 0.0)
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 0.0);
+		else
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 100.0 * cputime / walltime);
+	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-			printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
+			if(cpuutilflag)
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
+					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			else
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 		}
 	/**********************************************************/
 	/*************** End of readers throughput ****************/
@@ -2656,6 +2815,9 @@ jumpend:
 	/**************************************************************/
 	/*** ReReader throughput tests **********************************/
 	/**************************************************************/
+	time_begin = time_fini = 0.0;
+	walltime = 0.0;
+	cputime = 0.0;
 	jstarttime=0;
 	*stop_flag=0;
 	total_kilos=0;
@@ -2768,8 +2930,27 @@ jumpend2:
 			min_throughput=child_stat->throughput;
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
+		cputime += child_stat->cputime;
+		/* Get the earliest start time and latest fini time to calc. elapsed time. */
+		if (time_begin == 0.0)
+			time_begin = child_stat->start_time;
+		else
+			if (child_stat->start_time < time_begin)
+				time_begin = child_stat->start_time;
+		if (child_stat->fini_time > time_fini)
+			time_fini = child_stat->fini_time;
 	}
 	avg_throughput=total_kilos/num_child;
+	if(cpuutilflag)
+	{
+		walltime = time_fini - time_begin;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+	}
+	if(cpuutilflag)
+		store_times (walltime, cputime);	/* Must be Before store_dvalue(). */
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	printf("\tChildren see throughput for %ld re-readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
@@ -2781,11 +2962,27 @@ jumpend2:
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
 	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
-	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
+	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n", min_xfer,unit);
+	/* CPU% can be > 100.0 for multiple CPUs */
+	if(cpuutilflag)
+	{
+		if(walltime == 0.0)
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 0.0);
+		else
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 100.0 * cputime / walltime);
+	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-			printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
+			if(cpuutilflag)
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
+					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			else
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 		}
 	/**********************************************************/
 	/*************** End of re-readers throughput ****************/
@@ -2801,6 +2998,9 @@ next1:
 	/**************************************************************/
 	/*** Reverse reader throughput tests **************************/
 	/**************************************************************/
+	time_begin = time_fini = 0.0;
+	walltime = 0.0;
+	cputime = 0.0;
 	jstarttime=0;
 	*stop_flag=0;
 	total_kilos=0;
@@ -2911,8 +3111,28 @@ next1:
 			min_throughput=child_stat->throughput;
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
+		/* walltime += child_stat->walltime; */
+		cputime += child_stat->cputime;
+		/* Get the earliest start time and latest fini time to calc. elapsed time. */
+		if (time_begin == 0.0)
+			time_begin = child_stat->start_time;
+		else
+			if (child_stat->start_time < time_begin)
+				time_begin = child_stat->start_time;
+		if (child_stat->fini_time > time_fini)
+			time_fini = child_stat->fini_time;
 	}
 	avg_throughput=total_kilos/num_child;
+	if(cpuutilflag)
+	{
+		walltime = time_fini - time_begin;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+	}
+	if(cpuutilflag)
+		store_times (walltime, cputime);	/* Must be Before store_dvalue(). */
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	printf("\tChildren see throughput for %ld reverse readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
@@ -2924,13 +3144,28 @@ next1:
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
 	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
-	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
+	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n", min_xfer,unit);
+	/* CPU% can be > 100.0 for multiple CPUs */
+	if(cpuutilflag)
+	{
+		if(walltime == 0.0)
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 0.0);
+		else
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 100.0 * cputime / walltime);
+	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-			printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
+			if(cpuutilflag)
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
+					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			else
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 		}
-
 next2:
 	if(include_tflag)
 		if(!(include_mask & STRIDE_READ_MASK))
@@ -2938,6 +3173,9 @@ next2:
 	/**************************************************************/
 	/*** stride reader throughput tests **************************/
 	/**************************************************************/
+	time_begin = time_fini = 0.0;
+	walltime = 0.0;
+	cputime = 0.0;
 	jstarttime=0;
 	sync();
 	sleep(2);
@@ -3050,8 +3288,28 @@ next2:
 			min_throughput=child_stat->throughput;
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
+		/* walltime += child_stat->walltime; */
+		cputime += child_stat->cputime;
+		/* Get the earliest start time and latest fini time to calc. elapsed time. */
+		if (time_begin == 0.0)
+			time_begin = child_stat->start_time;
+		else
+			if (child_stat->start_time < time_begin)
+				time_begin = child_stat->start_time;
+		if (child_stat->fini_time > time_fini)
+			time_fini = child_stat->fini_time;
 	}
 	avg_throughput=total_kilos/num_child;
+	if(cpuutilflag)
+	{
+		walltime = time_fini - time_begin;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+	}
+	if(cpuutilflag)
+		store_times (walltime, cputime);	/* Must be Before store_dvalue(). */
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	printf("\tChildren see throughput for %ld stride readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
@@ -3063,13 +3321,28 @@ next2:
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
 	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
-	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
+	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n", min_xfer,unit);
+	/* CPU% can be > 100.0 for multiple CPUs */
+	if(cpuutilflag)
+	{
+		if(walltime == 0.0)
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 0.0);
+		else
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 100.0 * cputime / walltime);
+	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-			printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
+			if(cpuutilflag)
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
+					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			else
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 		}
-
 	/**************************************************************/
 	/*** random reader throughput tests ***************************/
 	/**************************************************************/
@@ -3078,6 +3351,9 @@ next3:
 		if(!(include_mask & RANDOM_RW_MASK))
 			goto next4;
 	
+	time_begin = time_fini = 0.0;
+	walltime = 0.0;
+	cputime = 0.0;
 	jstarttime=0;
 	sync();
 	sleep(2);
@@ -3190,8 +3466,27 @@ next3:
 			min_throughput=child_stat->throughput;
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
+		cputime += child_stat->cputime;
+		/* Get the earliest start time and latest fini time to calc. elapsed time. */
+		if (time_begin == 0.0)
+			time_begin = child_stat->start_time;
+		else
+			if (child_stat->start_time < time_begin)
+				time_begin = child_stat->start_time;
+		if (child_stat->fini_time > time_fini)
+			time_fini = child_stat->fini_time;
 	}
 	avg_throughput=total_kilos/num_child;
+	if(cpuutilflag)
+	{
+		walltime = time_fini - time_begin;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+	}
+	if(cpuutilflag)
+		store_times (walltime, cputime);	/* Must be Before store_dvalue(). */
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	printf("\tChildren see throughput for %ld random readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
@@ -3203,13 +3498,28 @@ next3:
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
 	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
-	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
+	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n", min_xfer,unit);
+	/* CPU% can be > 100.0 for multiple CPUs */
+	if(cpuutilflag)
+	{
+		if(walltime == 0.0)
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 0.0);
+		else
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 100.0 * cputime / walltime);
+	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-			printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
+			if(cpuutilflag)
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
+					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			else
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 		}
-
 next4:
 	/**************************************************************/
 	/*** random writer throughput tests  **************************/
@@ -3218,6 +3528,9 @@ next4:
 		if(!(include_mask & RANDOM_RW_MASK))
 			goto next5;
 	
+	time_begin = time_fini = 0.0;
+	walltime = 0.0;
+	cputime = 0.0;
 	jstarttime=0;
 	sync();
 	sleep(2);
@@ -3330,8 +3643,27 @@ next4:
 			min_throughput=child_stat->throughput;
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
+		cputime += child_stat->cputime;
+		/* Get the earliest start time and latest fini time to calc. elapsed time. */
+		if (time_begin == 0.0)
+			time_begin = child_stat->start_time;
+		else
+			if (child_stat->start_time < time_begin)
+				time_begin = child_stat->start_time;
+		if (child_stat->fini_time > time_fini)
+			time_fini = child_stat->fini_time;
 	}
 	avg_throughput=total_kilos/num_child;
+	if(cpuutilflag)
+	{
+		walltime = time_fini - time_begin;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+	}
+	if(cpuutilflag)
+		store_times (walltime, cputime);	/* Must be Before store_dvalue(). */
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	printf("\tChildren see throughput for %ld random writers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
@@ -3343,13 +3675,28 @@ next4:
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
 	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
-	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
+	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n", min_xfer,unit);
+	/* CPU% can be > 100.0 for multiple CPUs */
+	if(cpuutilflag)
+	{
+		if(walltime == 0.0)
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 0.0);
+		else
+			printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
+				walltime, cputime, 100.0 * cputime / walltime);
+	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-			printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
+			if(cpuutilflag)
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
+					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			else
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 		}
-
 next5:
 	if (!no_unlink) {
 		for(i=0;i<num_child;i++)
@@ -3653,6 +4000,7 @@ long long *data2;
 {
 	double starttime1;
 	double writetime[2];
+	double walltime[2], cputime[2];
 	double qtime_start,qtime_stop;
 	double compute_val = (double)0;
 #ifdef unix
@@ -3712,6 +4060,11 @@ long long *data2;
 
 	for( j=0; j<2; j++)
 	{
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far();
+			cputime[j]  = cputime_so_far();
+		}
 		if(Uflag) /* Unmount and re-mount the mountpoint */
 		{
 			purge_buffer_cache();
@@ -3915,13 +4268,13 @@ long long *data2;
 		   qtime_s_stop=stime_so_far();
 		   if(j==0)
 			 fprintf(wqfd,"\nSystem time %10.3f User time %10.3f Real %10.3f  (seconds)\n",
-				(qtime_s_stop-qtime_s_start)/clk_tck(),
-				(qtime_u_stop-qtime_u_start)/clk_tck(),
+				(qtime_s_stop-qtime_s_start)/sc_clk_tck,
+				(qtime_u_stop-qtime_u_start)/sc_clk_tck,
 				time_so_far()-starttime1);
 		   else
 			fprintf(rwqfd,"\nSystem time %10.3f User time %10.3f Real %10.3f  (seconds)\n",
-				(qtime_s_stop-qtime_s_start)/clk_tck(),
-				(qtime_u_stop-qtime_u_start)/clk_tck(),
+				(qtime_s_stop-qtime_s_start)/sc_clk_tck,
+				(qtime_u_stop-qtime_u_start)/sc_clk_tck,
 				time_so_far()-starttime1);
 		}
 #endif
@@ -3972,6 +4325,15 @@ long long *data2;
 			}
 			close(fd);
 		}
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime_res)
+				walltime[j] = 0.0;
+			cputime[j]  = cputime_so_far() - cputime[j];
+			if (cputime[j] < cputime_res)
+				cputime[j] = 0.0;
+		}
 	}
 	if(OPS_flag || MS_flag){
 	   filebytes64=w_traj_ops_completed;
@@ -3993,7 +4355,12 @@ out:
 		   writerate[j] >>= 10;
 	}
 	data1[0]=writerate[0];
+	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
+	if(cpuutilflag)
+		store_times(walltime[0], cputime[0]);
 	store_value((off64_t)writerate[0]);
+	if(cpuutilflag)
+		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)writerate[1]);
 #ifdef NO_PRINT_LLD
 	printf("%8ld",writerate[0]);
@@ -4021,6 +4388,7 @@ long long *data2;
 {
 	double starttime1;
 	double writetime[2];
+	double walltime[2], cputime[2];
 	double compute_val = (double)0;
 	long long i,j;
 	off64_t numrecs64;
@@ -4037,6 +4405,11 @@ long long *data2;
 	stdio_buf=(char *)malloc((size_t)reclen);
 	for( j=0; j<2; j++)
 	{
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far();
+			cputime[j]  = cputime_so_far();
+		}
 		if(Uflag) /* Unmount and re-mount the mountpoint */
 		{
 			purge_buffer_cache();
@@ -4143,6 +4516,16 @@ long long *data2;
 		}
 		fsync(fd);
 		close(fd);
+
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime_res)
+				walltime[j] = 0.0;
+			cputime[j]  = cputime_so_far() - cputime[j];
+			if (cputime[j] < cputime_res)
+				cputime[j] = 0.0;
+		}
 	}
 	free(stdio_buf);
 	if(OPS_flag || MS_flag){
@@ -4160,7 +4543,12 @@ long long *data2;
 		if(!(OPS_flag || MS_flag))
 			writerate[j] >>= 10;
 	}
+	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
+	if(cpuutilflag)
+		store_times(walltime[0], cputime[0]);
 	store_value((off64_t)writerate[0]);
+	if(cpuutilflag)
+		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)writerate[1]);
 	data1[0]=writerate[0];
 #ifdef NO_PRINT_LLD
@@ -4189,6 +4577,7 @@ long long *data1,*data2;
 {
 	double starttime2;
 	double readtime[2];
+	double walltime[2], cputime[2];
 	double compute_val = (double)0;
 	long long j;
 	off64_t i,numrecs64;
@@ -4205,6 +4594,11 @@ long long *data1,*data2;
 
 	for( j=0; j<2; j++ )
 	{
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far();
+			cputime[j]  = cputime_so_far();
+		}
 
 		if(Uflag) /* Unmount and re-mount the mountpoint */
 		{
@@ -4308,6 +4702,15 @@ long long *data1,*data2;
 			fclose(stream);
 		}
 		stream = NULL;
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime_res)
+				walltime[j] = 0.0;
+			cputime[j]  = cputime_so_far() - cputime[j];
+			if (cputime[j] < cputime_res)
+				cputime[j] = 0.0;
+		}
     	}
 	free(stdio_buf);
 	if(OPS_flag || MS_flag){
@@ -4327,18 +4730,21 @@ long long *data1,*data2;
 	}
 	data1[0]=readrate[0];
 	data2[0]=1;
+	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
+	if(cpuutilflag)
+		store_times(walltime[0], cputime[0]);
+	store_value((off64_t)readrate[0]);
+	if(cpuutilflag)
+		store_times(walltime[1], cputime[1]);
+	store_value((off64_t)readrate[1]);
 #ifdef NO_PRINT_LLD
 	printf("%8ld",readrate[0]);
 	printf("%9ld",readrate[1]);
 	fflush(stdout);
-	store_value((off64_t)readrate[0]);
-	store_value((off64_t)readrate[1]);
 #else
 	printf("%8lld",readrate[0]);
 	printf("%9lld",readrate[1]);
 	fflush(stdout);
-	store_value((off64_t)readrate[0]);
-	store_value((off64_t)readrate[1]);
 #endif
 }
 
@@ -4358,6 +4764,7 @@ long long *data1,*data2;
 	double starttime2;
 	double compute_val = (double)0;
 	double readtime[2];
+	double walltime[2], cputime[2];
 #ifdef unix
 	double qtime_u_start,qtime_u_stop;
 	double qtime_s_start,qtime_s_stop;
@@ -4412,7 +4819,12 @@ long long *data1,*data2;
 	for( j=0; j<2; j++ )
 	{
 
-			
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far();
+			cputime[j]  = cputime_so_far();
+		}
+
 		if(Uflag) /* Unmount and re-mount the mountpoint */
 		{
 			purge_buffer_cache();
@@ -4632,13 +5044,13 @@ long long *data1,*data2;
 		   qtime_s_stop=stime_so_far();
 		   if(j==0)
 			 fprintf(rqfd,"\nSystem time %10.3f User time %10.3f Real %10.3f  (seconds)\n",
-				(qtime_s_stop-qtime_s_start)/clk_tck(),
-				(qtime_u_stop-qtime_u_start)/clk_tck(),
+				(qtime_s_stop-qtime_s_start)/sc_clk_tck,
+				(qtime_u_stop-qtime_u_start)/sc_clk_tck,
 				time_so_far()-starttime2);
 		   else
 			fprintf(rrqfd,"\nSystem time %10.3f User time %10.3f Real %10.3f  (seconds)\n",
-				(qtime_s_stop-qtime_s_start)/clk_tck(),
-				(qtime_u_stop-qtime_u_start)/clk_tck(),
+				(qtime_s_stop-qtime_s_start)/sc_clk_tck,
+				(qtime_u_stop-qtime_u_start)/sc_clk_tck,
 				time_so_far()-starttime2);
 		}
 #endif
@@ -4684,6 +5096,15 @@ long long *data1,*data2;
 			}
 			close(fd);
 		}
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime_res)
+				walltime[j] = 0.0;
+			cputime[j]  = cputime_so_far() - cputime[j];
+			if (cputime[j] < cputime_res)
+				cputime[j] = 0.0;
+		}
     	}
 	if(OPS_flag || MS_flag){
 	   filebytes64=r_traj_ops_completed;
@@ -4706,7 +5127,12 @@ long long *data1,*data2;
 	}
 	data1[0]=readrate[0];
 	data2[0]=1;
+	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
+	if(cpuutilflag)
+		store_times(walltime[0], cputime[0]);
 	store_value((off64_t)readrate[0]);
+	if(cpuutilflag)
+		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)readrate[1]);
 #ifdef NO_PRINT_LLD
 	printf("%9ld",readrate[0]);
@@ -4735,6 +5161,7 @@ long long *data1, *data2;
 {
 	double randreadtime[2];
 	double starttime2;
+	double walltime[2], cputime[2];
 	double compute_val = (double)0;
 	long long j;
 	off64_t i,numrecs64;
@@ -4761,6 +5188,11 @@ long long *data1, *data2;
 	for( j=0; j<2; j++ )
 	{
 
+	     if(cpuutilflag)
+	     {
+		     walltime[j] = time_so_far();
+		     cputime[j]  = cputime_so_far();
+	     }
 	     if(Uflag) /* Unmount and re-mount the mountpoint */
 	     {
 			purge_buffer_cache();
@@ -5041,6 +5473,15 @@ long long *data1, *data2;
 			mmap_end(maddr,(unsigned long long)filebytes64);
 		close(fd);
  	    }
+            if(cpuutilflag)
+	    {
+	    	walltime[j] = time_so_far() - walltime[j];
+		    if (walltime[j] < cputime_res)
+			walltime[j] = 0.0;
+	    	cputime[j]  = cputime_so_far() - cputime[j];
+	    	if (cputime[j] < cputime_res)
+			cputime[j] = 0.0;
+	    }
     	}
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
@@ -5057,7 +5498,12 @@ long long *data1, *data2;
 		if(!(OPS_flag || MS_flag))
 			randreadrate[j] >>= 10;
 	}
+	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
+        if(cpuutilflag)
+		store_times(walltime[0], cputime[0]);
 	store_value((off64_t)randreadrate[0]);
+        if(cpuutilflag)
+		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)randreadrate[1]);
 #ifdef NO_PRINT_LLD
 	printf("%8ld",randreadrate[0]);
@@ -5085,6 +5531,7 @@ long long *data1,*data2;
 {
 	double revreadtime[2];
 	double starttime2;
+	double walltime[2], cputime[2];
 	double compute_val = (double)0;
 	long long j;
 	off64_t i,numrecs64;
@@ -5105,6 +5552,11 @@ long long *data1,*data2;
 	fd = 0;
 	for( j=0; j<2; j++ )
 	{
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far();
+			cputime[j]  = cputime_so_far();
+		}
 		if(Uflag) /* Unmount and re-mount the mountpoint */
 		{
 			purge_buffer_cache();
@@ -5288,6 +5740,15 @@ long long *data1,*data2;
 			}
 			close(fd);
 		}
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime_res)
+				walltime[j] = 0.0;
+			cputime[j]  = cputime_so_far() - cputime[j];
+			if (cputime[j] < cputime_res)
+				cputime[j] = 0.0;
+		}
         }
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
@@ -5303,6 +5764,9 @@ long long *data1,*data2;
 		if(!(OPS_flag || MS_flag))
 			revreadrate[j] >>= 10;
 	}
+	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
+	if(cpuutilflag)
+		store_times(walltime[0], cputime[0]);
 	store_value((off64_t)revreadrate[0]);
 #ifdef NO_PRINT_LLD
 	printf("%8ld",revreadrate[0]);
@@ -5327,6 +5791,7 @@ long long *data1,*data2;
 {
 	double writeintime;
 	double starttime1;
+	double walltime, cputime;
 	double compute_val = (double)0;
 	long long i;
 	off64_t numrecs64;
@@ -5339,7 +5804,6 @@ long long *data1,*data2;
 	char *wmaddr,*free_addr;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
-
 #else
 	long long *gc=0;
 #endif
@@ -5407,6 +5871,11 @@ long long *data1,*data2;
 	}
 	*/
 	starttime1 = time_so_far();
+	if(cpuutilflag)
+	{
+		walltime = time_so_far();
+		cputime  = cputime_so_far();
+	}
 	for(i=0; i<numrecs64; i++){
 		if(compute_flag)
 			compute_val+=do_compute(compute_time);
@@ -5495,6 +5964,15 @@ long long *data1,*data2;
 	}
 	writeintime = ((time_so_far() - starttime1)-time_res)-
 		compute_val;
+	if(cpuutilflag)
+	{
+		walltime = time_so_far() - walltime;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		cputime  = cputime_so_far() - cputime;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+	}
 	if(writeintime < (double).000001) 
 	{
 		writeintime= time_res;
@@ -5524,6 +6002,9 @@ long long *data1,*data2;
 	}
 	if(!(OPS_flag || MS_flag))
 		writeinrate >>= 10;
+	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
+	if(cpuutilflag)
+		store_times(walltime, cputime);
 	store_value((off64_t)writeinrate);
 #ifdef NO_PRINT_LLD
 	printf("%8ld",writeinrate);
@@ -5549,6 +6030,7 @@ long long *data1, *data2;
 	double strideintime;
 	double starttime1;
 	double compute_val = (double)0;
+	double walltime, cputime;
 	off64_t i,xx;
 	off64_t numrecs64,current_position;
 	long long Index = 0;
@@ -5628,6 +6110,11 @@ long long *data1, *data2;
 	if(fetchon)
 		fetchit(buffer,reclen);
 	starttime1 = time_so_far();
+	if(cpuutilflag)
+	{
+		walltime = time_so_far();
+		cputime  = cputime_so_far();
+	}
 	for(i=0; i<numrecs64; i++){
 		if(compute_flag)
 			compute_val+=do_compute(compute_time);
@@ -5760,6 +6247,15 @@ long long *data1, *data2;
 			}
 		}
 	}
+	if(cpuutilflag)
+	{
+		walltime = time_so_far() - walltime;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		cputime  = cputime_so_far() - cputime;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+	}
 
 #ifdef ASYNC_IO
 	if(async_flag)
@@ -5816,6 +6312,9 @@ long long *data1, *data2;
 	}
 	if(!(OPS_flag || MS_flag))
 		strideinrate >>= 10;
+	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
+	if(cpuutilflag)
+		store_times(walltime, cputime);
 	store_value((off64_t)strideinrate);
 #ifdef NO_PRINT_LLD
 	printf("%8ld",strideinrate);
@@ -5841,6 +6340,7 @@ long long *data1,*data2;
 {
 	double pwritetime[2];
 	double starttime1;
+	double walltime[2], cputime[2];
 	double compute_val = (double)0;
 	long long i,j;
 	long long Index = 0;
@@ -5861,6 +6361,11 @@ long long *data1,*data2;
 	}
 	for( j=0; j<2; j++)
 	{
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far();
+			cputime[j]  = cputime_so_far();
+		}
 		if(Uflag) /* Unmount and re-mount the mountpoint */
 		{
 			purge_buffer_cache();
@@ -5994,6 +6499,15 @@ long long *data1,*data2;
 			close(fd);
 		}
 
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime_res)
+				walltime[j] = 0.0;
+			cputime[j]  = cputime_so_far() - cputime[j];
+			if (cputime[j] < cputime_res)
+				cputime[j] = 0.0;
+		}
 	}
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
@@ -6009,7 +6523,12 @@ long long *data1,*data2;
 		if(!(OPS_flag || MS_flag))
 			pwriterate[j] >>= 10;
 	}
+	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
+	if(cpuutilflag)
+		store_times(walltime[0], cputime[0]);
 	store_value((off64_t)pwriterate[0]);
+	if(cpuutilflag)
+		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)pwriterate[1]);
 #ifdef NO_PRINT_LLD
 	printf("%8ld",pwriterate[0]);
@@ -6037,6 +6556,7 @@ long long *data1, *data2;
 {
 	double starttime2;
 	double preadtime[2];
+	double walltime[2], cputime[2];
 	double compute_val = (double)0;
 	long long numrecs64,i;
 	long long j;
@@ -6050,7 +6570,11 @@ long long *data1, *data2;
 	fd = 0;
 	for( j=0; j<2; j++ ) 		/* Pread and Re-Pread */
 	{
-
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far();
+			cputime[j]  = cputime_so_far();
+		}
 		if(Uflag) /* Unmount and re-mount the mountpoint */
 		{
 			purge_buffer_cache();
@@ -6132,6 +6656,16 @@ long long *data1, *data2;
 			fsync(fd);
 			close(fd);
 		}
+
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime_res)
+				walltime[j] = 0.0;
+			cputime[j]  = cputime_so_far() - cputime[j];
+			if (cputime[j] < cputime_res)
+				cputime[j] = 0.0;
+		}
     	}
 
 	filebytes64 = numrecs64*reclen;
@@ -6149,7 +6683,12 @@ long long *data1, *data2;
 		if(!(OPS_flag || MS_flag))
 			preadrate[j] >>= 10;
 	}
+	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
+	if(cpuutilflag)
+		store_times(walltime[0], cputime[0]);
 	store_value((off64_t)preadrate[0]);
+	if(cpuutilflag)
+		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)preadrate[1]);
 #ifdef NO_PRINT_LLD
 	printf("%8ld",preadrate[0]);
@@ -6177,6 +6716,7 @@ long long *data1,*data2;
 {
 	double starttime1;
 	double pwritevtime[2];
+	double walltime[2], cputime[2];
 	double compute_val = (double)0;
 	long long list_off[PVECMAX];
 	long long numvecs,j,xx;
@@ -6197,6 +6737,11 @@ long long *data1,*data2;
 	 
 	for( j=0; j<2; j++)
 	{
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far();
+			cputime[j]  = cputime_so_far();
+		}
 		if(Uflag) /* Unmount and re-mount the mountpoint */
 		{
 			purge_buffer_cache();
@@ -6341,6 +6886,16 @@ long long *data1,*data2;
 			fsync(fd);
 			close(fd);
 		}
+
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime_res)
+				walltime[j] = 0.0;
+			cputime[j]  = cputime_so_far() - cputime[j];
+			if (cputime[j] < cputime_res)
+				cputime[j] = 0.0;
+		}
 	}
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
@@ -6356,7 +6911,12 @@ long long *data1,*data2;
 		if(!(OPS_flag || MS_flag))
 			pwritevrate[j] >>= 10;
 	}
+	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
+	if(cpuutilflag)
+		store_times(walltime[0], cputime[0]);
 	store_value((off64_t)pwritevrate[0]);
+	if(cpuutilflag)
+		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)pwritevrate[1]);
 #ifdef NO_PRINT_LLD
 	printf("%9ld",pwritevrate[0]);
@@ -6438,6 +6998,7 @@ long long *data1,*data2;
 {
 	double starttime2;
 	double preadvtime[2];
+	double walltime[2], cputime[2];
 	double compute_val = (double)0;
 	long long list_off[PVECMAX];
 	long long numvecs,i,j,xx;
@@ -6452,6 +7013,11 @@ long long *data1,*data2;
 	fd = 0;
 	for( j=0; j<2; j++ )
 	{
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far();
+			cputime[j]  = cputime_so_far();
+		}
 		if(Uflag) /* Unmount and re-mount the mountpoint */
 		{
 			purge_buffer_cache();
@@ -6543,6 +7109,16 @@ long long *data1,*data2;
 			fsync(fd);
 			close(fd);
 		}
+
+		if(cpuutilflag)
+		{
+			walltime[j] = time_so_far() - walltime[j];
+			if (walltime[j] < cputime_res)
+				walltime[j] = 0.0;
+			cputime[j]  = cputime_so_far() - cputime[j];
+			if (cputime[j] < cputime_res)
+				cputime[j] = 0.0;
+		}
     	}
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
@@ -6558,7 +7134,12 @@ long long *data1,*data2;
 		if(!(OPS_flag || MS_flag))
 			preadvrate[j] >>= 10;
 	}
+	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
+	if(cpuutilflag)
+		store_times(walltime[0], cputime[0]);
 	store_value((off64_t)preadvrate[0]);
+	if(cpuutilflag)
+		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)preadvrate[1]);
 #ifdef NO_PRINT_LLD
 	printf("%10ld",preadvrate[0]);
@@ -6760,6 +7341,26 @@ off64_t value;
 		printf("\nMAX_Y too small\n");
 		exit(118);
 	}
+}
+
+/************************************************************************/
+/* store_times()							*/
+/* Stores runtime (walltime & cputime) in a memory array.		*/
+/* Used by the report function to re-organize the output for Excel	*/
+/* For now, must be called immediately before calling store_value() for	*/
+/* each cell.								*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+void
+store_times(double walltime, double cputime)
+#else
+store_times(walltime, cputime)
+double walltime, cputime;
+#endif
+{
+	runtimes [current_x][current_y].walltime = walltime;
+	runtimes [current_x][current_y].cputime  = cputime;
+	runtimes [current_x][current_y].cpuutil  = cpu_util(cputime, walltime);
 }
 
 /************************************************************************/
@@ -6990,8 +7591,225 @@ void dump_excel()
 		}
 	}
 #endif
+	if (cpuutilflag)
+		dump_cputimes();
 	if(bif_flag)
 		close_xls(bif_fd);
+}
+
+/************************************************************************/
+/* dump_times()		 						*/
+/* Dumps the Excel CPU times report to stdout and to the bif file.	*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+void dump_times(long long who)
+#else
+dump_times(who)
+long long who;
+#endif
+{
+	long long i;
+	off64_t current_file_size;
+	off64_t rec_size;
+
+	if (bif_flag)
+		bif_column++;
+	printf("      ");
+
+	for (rec_size = get_next_record_size(0); rec_size <= orig_max_rec_size;
+		rec_size = get_next_record_size(rec_size))
+	{
+		if (rec_size == 0) break;
+		if (bif_flag)
+			do_float(bif_fd, (double)(rec_size/1024), bif_row, bif_column++);
+#ifdef NO_PRINT_LLD
+		printf("  %c%ld%c",042,rec_size/1024,042);
+#else
+		printf("  %c%lld%c",042,rec_size/1024,042);
+#endif
+	}
+	printf("\n");
+	if (bif_flag)
+	{
+		bif_column=0;
+		bif_row++;
+	}
+
+	current_file_size = report_array[0][0];
+	if (bif_flag)
+	{
+		do_float(bif_fd, (double)(current_file_size), bif_row, bif_column++);
+	}
+#ifdef NO_PRINT_LLD
+	printf("%c%ld%c  ",042,current_file_size,042);
+#else
+	printf("%c%lld%c  ",042,current_file_size,042);
+#endif
+	for (i = 0; i <= max_y; i++) {
+		if (report_array[0][i] != current_file_size) {
+			printf("\n");
+			current_file_size = report_array[0][i];
+			if (bif_flag)
+			{
+				bif_row++;
+				bif_column=0;
+				do_float(bif_fd, (double)(current_file_size), bif_row, bif_column++);
+			}
+#ifdef NO_PRINT_LLD
+			printf("%c%ld%c  ",042,current_file_size,042);
+#else
+			printf("%c%lld%c  ",042,current_file_size,042);
+#endif
+		}
+		if (bif_flag)
+			do_float(bif_fd, (double)(runtimes [who][i].cpuutil), bif_row, bif_column++);
+		printf(" %6.2f", runtimes [who][i].cpuutil);
+	}
+	printf("\n");
+	if (bif_flag)
+	{
+		bif_row++;
+		bif_column=0;
+	}
+}
+
+/************************************************************************/
+/* Wrapper that dumps each of the collected data sets.			*/
+/* This one dumps only the collected CPU times.				*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+void dump_cputimes(void)
+#else
+void dump_cputimes()
+#endif
+{
+	bif_row++;
+	bif_column = 0;
+
+    if ((!include_tflag) || (include_mask & WRITER_MASK)) {
+	if(bif_flag)
+		do_label(bif_fd, "Writer CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+	printf("\n%cWriter CPU utilization report (Zero values should be ignored)%c\n",042,042);
+	dump_times(2); 
+	if(bif_flag)
+		do_label(bif_fd, "Re-writer CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+	printf("\n%cRe-writer CPU utilization report (Zero values should be ignored)%c\n",042,042);
+	dump_times(3); 
+    }
+
+    if ((!include_tflag) || (include_mask & READER_MASK)) {
+	if(bif_flag)
+		do_label(bif_fd, "Reader CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+	printf("\n%cReader CPU utilization report (Zero values should be ignored)%c\n",042,042);
+	dump_times(4); 
+	if(bif_flag)
+		do_label(bif_fd, "Re-reader CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+	printf("\n%cRe-Reader CPU utilization report (Zero values should be ignored)%c\n",042,042);
+	dump_times(5); 
+    }
+
+	if ((!include_tflag) || (include_mask & RANDOM_RW_MASK)) {
+		if(bif_flag)
+			do_label(bif_fd, "Random Read CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+		printf("\n%cRandom read CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		dump_times(6); 
+		if(bif_flag)
+			do_label(bif_fd, "Random Write CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+		printf("\n%cRandom write CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		dump_times(7); 
+	}
+
+	if ((!include_tflag) || (include_mask & REVERSE_MASK)) {
+		if(bif_flag)
+			do_label(bif_fd, "Backward Read CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+		printf("\n%cBackward read CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		dump_times(8); 
+	}
+
+	if ((!include_tflag) || (include_mask & REWRITE_REC_MASK)) {
+		if(bif_flag)
+			do_label(bif_fd, "Record Rewrite CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+		printf("\n%cRecord rewrite CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		dump_times(9); 
+	}
+
+	if ((!include_tflag) || (include_mask & STRIDE_READ_MASK)) {
+		if(bif_flag)
+			do_label(bif_fd, "Stride Read CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+		printf("\n%cStride read CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		dump_times(10); 
+	}
+
+	if ((!include_tflag) || (include_mask & FWRITER_MASK)) {
+		if(bif_flag)
+			do_label(bif_fd, "Fwrite CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+		printf("\n%cFwrite CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		dump_times(11); 
+		if(bif_flag)
+			do_label(bif_fd, "Re-fwrite CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+		printf("\n%cRe-Fwrite CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		dump_times(12); 
+	}
+
+	if ((!include_tflag) || (include_mask & FREADER_MASK)) {
+		if(bif_flag)
+			do_label(bif_fd, "Fread CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+		printf("\n%cFread CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		dump_times(13); 
+		if(bif_flag)
+			do_label(bif_fd, "Re-fread CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+		printf("\n%cRe-Fread CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		dump_times(14); 
+	}
+
+#ifdef HAVE_PREAD
+	if(Eflag)
+	{
+		if ((!include_tflag) || (include_mask & PWRITER_MASK)) {
+			if(bif_flag)
+				do_label(bif_fd, "Pwrite CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+			printf("\n%cPwrite CPU utilization report (Zero values should be ignored)%c\n",042,042);
+			dump_times(15); 
+			if(bif_flag)
+				do_label(bif_fd, "Re-pwrite CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+		 	printf("\n%cRe-Pwrite CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		 	dump_times(16); 
+		}
+
+		if ((!include_tflag) || (include_mask & PREADER_MASK)) {
+			if(bif_flag)
+				do_label(bif_fd, "Pread CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+		 	printf("\n%cPread CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		 	dump_times(17); 
+			if(bif_flag)
+				do_label(bif_fd, "Re-pread CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+		 	printf("\n%cRe-Pread CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		 	dump_times(18); 
+		}
+
+		if ((!include_tflag) || (include_mask & PWRITEV_MASK)) {
+			if(bif_flag)
+				do_label(bif_fd, "Pwritev CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+ 			printf("\n%cPwritev CPU utilization report (Zero values should be ignored)%c\n",042,042);
+ 			dump_times(19); 
+			if(bif_flag)
+				do_label(bif_fd, "Re-pwritev CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+ 			printf("\n%cRe-Pwritev CPU utilization report (Zero values should be ignored)%c\n",042,042);
+ 			dump_times(20); 
+		}
+
+		if ((!include_tflag) || (include_mask & PREADV_MASK)) {
+			if(bif_flag)
+				do_label(bif_fd, "Preadv CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+			printf("\n%cPreadv CPU utilization report (Zero values should be ignored)%c\n",042,042);
+ 			dump_times(21); 
+			if(bif_flag)
+				do_label(bif_fd, "Re-preadv CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
+			printf("\n%cRe-Preadv CPU utilization report (Zero values should be ignored)%c\n",042,042);
+			dump_times(22); 
+		}
+	}
+#endif
 }
 
 /************************************************************************/
@@ -7232,6 +8050,7 @@ thread_write_test( x)
 	struct child_stats *child_stat;
 	double starttime1 = 0;
 	double temp_time;
+	double walltime, cputime;
 	double compute_val = (double)0;
 	double delay = (double)0;
 	double thread_qtime_stop,thread_qtime_start;
@@ -7420,6 +8239,11 @@ thread_write_test( x)
 	}
 	starttime1 = time_so_far();
 	child_stat->start_time = starttime1;
+	if(cpuutilflag)
+	{
+		walltime = starttime1;
+		cputime = cputime_so_far();
+	}
 	if(w_traj_flag)
 		rewind(w_traj_fd);
 	for(i=0; i<numrecs64; i++){
@@ -7470,7 +8294,7 @@ thread_write_test( x)
 			child_stat->actual = (double)written_so_far;
 			if(debug1)
 			{
-				printf("\nStopped by another\n");
+				printf("\n(%ld) Stopped by another\n", (long)xx);
 			}
 			stopped=1;
 		}
@@ -7542,7 +8366,7 @@ again:
 				child_stat->actual = (double)written_so_far;
 				if(debug1)
 				{
-					printf("\nStopped by another\n");
+					printf("\n(%ld) Stopped by another\n", (long)xx);
 				}
 				stopped=1;
 				goto again;
@@ -7609,7 +8433,6 @@ again:
 			msync(maddr,(size_t)filebytes64,MS_SYNC);
 		else
 			fsync(fd);
-	
 	}
 	if(include_close)
 	{
@@ -7638,7 +8461,24 @@ again:
 		child_stat->actual = (double)written_so_far;
 		child_stat->stop_time = temp_time;
 	}
-	child_stat->flag = CHILD_STATE_DONE; /* Tell parent I'm done */
+	if(cpuutilflag)
+	{
+		child_stat->fini_time = time_so_far();
+		cputime = cputime_so_far() - cputime;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+		child_stat->cputime = cputime;
+		walltime = time_so_far() - walltime;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		child_stat->walltime = walltime;
+	}
+	if (debug1) {
+		printf(" child/slot: %lld, start-fini: %8.3f-%8.3f=%8.3f %8.3fC" " -> %6.2f%%\n",
+			xx, child_stat->start_time, child_stat->fini_time, walltime, cputime,
+			cpu_util(cputime, walltime));
+	}
+	child_stat->flag = CHILD_STATE_HOLD; /* Tell parent I'm done */
 	stopped=0;
 	/*******************************************************************/
 	/* End write performance test. *************************************/
@@ -7694,6 +8534,7 @@ thread_rwrite_test(x)
 	long long xx;
 	long long tt;
 	double compute_val = (double)0;
+	double walltime, cputime;
 	double delay = (double)0;
 	double thread_qtime_stop,thread_qtime_start;
 	off64_t traj_offset;
@@ -7847,10 +8688,21 @@ thread_rwrite_test(x)
 	while(child_stat->flag==CHILD_STATE_READY)	/* Wait for parent to say go */
 		Poll((long long)1);
 	starttime1 = time_so_far();
+	child_stat->start_time = starttime1;
+	if(cpuutilflag)
+	{
+		walltime = starttime1;
+		cputime = cputime_so_far();
+	}
 	if(file_lock)
 		if(mylockf((int) fd, (int) 1, (int)0) != 0)
 			printf("File lock for write failed. %d\n",errno);
-	child_stat->start_time=starttime1;
+	if(cpuutilflag)
+	{
+		child_stat->start_time = starttime1;
+		walltime = starttime1;
+		cputime = cputime_so_far();
+	}
 	if(w_traj_flag)
 		rewind(w_traj_fd);
 	for(i=0; i<numrecs64; i++){
@@ -8007,6 +8859,18 @@ thread_rwrite_test(x)
 	child_stat->actual = (double)re_written_so_far;
 	if(!xflag)
 		*stop_flag=1;
+	if(cpuutilflag)
+	{
+		child_stat->fini_time = time_so_far();
+		cputime = cputime_so_far() - cputime;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+		child_stat->cputime = cputime;
+		walltime = time_so_far() - walltime;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		child_stat->walltime = walltime;
+	}
 	child_stat->flag = CHILD_STATE_HOLD;	/* Tell parent I'm done */
 	if(!include_close)
 	{
@@ -8057,6 +8921,7 @@ thread_read_test(x)
 	long long xx;
 	struct child_stats *child_stat;
 	long long tt;
+	double walltime, cputime;
 	long long r_traj_bytes_completed;
 	long long r_traj_ops_completed;
 	int fd;
@@ -8223,6 +9088,11 @@ thread_read_test(x)
 			printf("File lock for read failed. %d\n",errno);
 	starttime1 = time_so_far();
 	child_stat->start_time = starttime1;
+	if(cpuutilflag)
+	{
+		walltime = starttime1;
+		cputime = cputime_so_far();
+	}
 
 	if(r_traj_flag)
 		rewind(r_traj_fd);
@@ -8254,7 +9124,7 @@ thread_read_test(x)
 		if(*stop_flag)
 		{
 			if(debug1)
-				printf("\nStopped by another 2\n");
+				printf("\n(%ld) Stopped by another 2\n", (long)xx);
 			break;
 		}
 		if(purge)
@@ -8286,7 +9156,7 @@ thread_read_test(x)
 				if(*stop_flag)
 				{
 					if(debug1)
-						printf("\nStopped by another 2\n");
+						printf("\n(%ld) Stopped by another 2\n", (long)xx);
 					break;
 				}
 #ifdef NO_PRINT_LLD
@@ -8392,6 +9262,18 @@ thread_read_test(x)
 	child_stat->actual = read_so_far;
 	if(!xflag)
 		*stop_flag=1;
+	if(cpuutilflag)
+	{
+		child_stat->fini_time = time_so_far();
+		cputime = cputime_so_far() - cputime;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+		child_stat->cputime = cputime;
+		walltime = time_so_far() - walltime;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		child_stat->walltime = walltime;
+	}
 	child_stat->flag = CHILD_STATE_HOLD; 	/* Tell parent I'm done */
 	/*fsync(fd);*/
 	if(!include_close)
@@ -8444,6 +9326,7 @@ thread_rread_test(x)
 	int fd;
 	FILE *r_traj_fd,*thread_rrqfd;
 	long long r_traj_bytes_completed;
+	double walltime, cputime;
 	long long r_traj_ops_completed;
 	off64_t traj_offset;
 	long long flags = 0;
@@ -8603,6 +9486,11 @@ thread_rread_test(x)
 			printf("File lock for read failed. %d\n",errno);
 	starttime1 = time_so_far();
 	child_stat->start_time = starttime1;
+	if(cpuutilflag)
+	{
+		walltime = starttime1;
+		cputime = cputime_so_far();
+	}
 
 	if(r_traj_flag)
 		rewind(r_traj_fd);
@@ -8634,7 +9522,7 @@ thread_rread_test(x)
 		if(*stop_flag)
 		{
 			if(debug1)
-				printf("\nStopped by another 3\n");
+				printf("\n(%ld) Stopped by another 3\n", (long)xx);
 			break;
 		}
 		if(purge)
@@ -8666,7 +9554,7 @@ thread_rread_test(x)
 				if(*stop_flag)
 				{
 					if(debug1)
-						printf("\nStopped by another 4\n");
+						printf("\n(%ld) Stopped by another 4\n", (long)xx);
 					break;
 				}
 #ifdef NO_PRINT_LLD
@@ -8772,6 +9660,18 @@ thread_rread_test(x)
 	child_stat->actual = re_read_so_far;
 	if(!xflag)
 		*stop_flag=1;
+	if(cpuutilflag)
+	{
+		child_stat->fini_time = time_so_far();
+		cputime = cputime_so_far() - cputime;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+		child_stat->cputime = cputime;
+		walltime = time_so_far() - walltime;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		child_stat->walltime = walltime;
+	}
 	child_stat->flag = CHILD_STATE_HOLD;	/* Tell parent I'm done */
 	if(!include_close)
 	{
@@ -8823,6 +9723,7 @@ thread_reverse_read_test(x)
 	long long tt;
 	int fd;
 	long long flags = 0;
+	double walltime, cputime;
 	double thread_qtime_stop,thread_qtime_start;
 	double starttime2 = 0;
 	double delay = 0;
@@ -8968,6 +9869,11 @@ thread_reverse_read_test(x)
                 Poll((long long)1);
 	starttime2 = time_so_far();
 	child_stat->start_time = starttime2;
+	if(cpuutilflag)
+	{
+		walltime = starttime2;
+		cputime = cputime_so_far();
+	}
 
 #ifdef _LARGEFILE64_SOURCE
 	t_offset = (off64_t)reclen;
@@ -9012,7 +9918,7 @@ thread_reverse_read_test(x)
 		if(*stop_flag)
 		{
 			if(debug1)
-				printf("\nStopped by another 3\n");
+				printf("\n(%ld) Stopped by another 3\n", (long)xx);
 			break;
 		}
 		if(purge)
@@ -9044,7 +9950,7 @@ thread_reverse_read_test(x)
 				if(*stop_flag)
 				{
 					if(debug1)
-						printf("\nStopped by another 4\n");
+						printf("\n(%ld) Stopped by another 4\n", (long)xx);
 					break;
 				}
 #ifdef NO_PRINT_LLD
@@ -9155,6 +10061,18 @@ thread_reverse_read_test(x)
 	child_stat->actual = reverse_read;
 	if(!xflag)
 		*stop_flag=1;
+	if(cpuutilflag)
+	{
+		child_stat->fini_time = time_so_far();
+		cputime = cputime_so_far() - cputime;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+		child_stat->cputime = cputime;
+		walltime = time_so_far() - walltime;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		child_stat->walltime = walltime;
+	}
 	child_stat->flag = CHILD_STATE_HOLD;	/* Tell parent I'm done */
 	if(!include_close)
 	{
@@ -9200,6 +10118,7 @@ thread_stride_read_test(x)
 	off64_t xx64;
 	char *nbuff;
 	struct child_stats *child_stat;
+	double walltime, cputime;
 	long long tt;
 	int fd;
 	long long flags = 0;
@@ -9354,6 +10273,11 @@ thread_stride_read_test(x)
 			printf("File lock for write failed. %d\n",errno);
 	starttime2 = time_so_far();
 	child_stat->start_time = starttime2;
+	if(cpuutilflag)
+	{
+		walltime = starttime2;
+		cputime = cputime_so_far();
+	}
 	for(i=0; i<numrecs64; i++){
 		if(disrupt_flag && ((i%DISRUPT)==0))
 		{
@@ -9372,7 +10296,7 @@ thread_stride_read_test(x)
 		if(*stop_flag)
 		{
 			if(debug1)
-				printf("\nStopped by another 3\n");
+				printf("\n(%ld) Stopped by another 3\n", (long)xx);
 			break;
 		}
 		if(purge)
@@ -9406,7 +10330,7 @@ thread_stride_read_test(x)
 				if(*stop_flag)
 				{
 					if(debug1)
-						printf("\nStopped by another 4\n");
+						printf("\n(%ld) Stopped by another 4\n", (long)xx);
 					break;
 				}
 #ifdef NO_PRINT_LLD
@@ -9559,6 +10483,18 @@ thread_stride_read_test(x)
 	child_stat->actual = stride_read;
 	if(!xflag)
 		*stop_flag=1;
+	if(cpuutilflag)
+	{
+		child_stat->fini_time = time_so_far();
+		cputime = cputime_so_far() - cputime;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+		child_stat->cputime = cputime;
+		walltime = time_so_far() - walltime;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		child_stat->walltime = walltime;
+	}
 	child_stat->flag = CHILD_STATE_HOLD;	/* Tell parent I'm done */
 	if(!include_close)
 	{
@@ -9604,6 +10540,7 @@ thread_ranread_test(x)
 	long long xx;
 	struct child_stats *child_stat;
 	long long tt;
+	double walltime, cputime;
 	int fd;
 	long long flags = 0;
 	double thread_qtime_stop,thread_qtime_start;
@@ -9754,6 +10691,11 @@ thread_ranread_test(x)
 		Poll((long long)1);
 	starttime1 = time_so_far();
 	child_stat->start_time = starttime1;
+	if(cpuutilflag)
+	{
+		walltime = starttime1;
+		cputime = cputime_so_far();
+	}
 
 #ifdef bsd4_2
         srand();
@@ -9773,7 +10715,7 @@ thread_ranread_test(x)
 		if(*stop_flag)
 		{
 			if(debug1)
-				printf("\nStopped by another 2\n");
+				printf("\n(%ld) Stopped by another 2\n", (long)xx);
 			break;
 		}
 		if(purge)
@@ -9836,7 +10778,7 @@ thread_ranread_test(x)
 				if(*stop_flag)
 				{
 					if(debug1)
-						printf("\nStopped by another 2\n");
+						printf("\n(%ld) Stopped by another 2\n", (long)xx);
 					break;
 				}
 #ifdef NO_PRINT_LLD
@@ -9937,6 +10879,18 @@ thread_ranread_test(x)
 	child_stat->actual = ranread_so_far;
 	if(!xflag)
 		*stop_flag=1;
+	if(cpuutilflag)
+	{
+		child_stat->fini_time = time_so_far();
+		cputime = cputime_so_far() - cputime;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+		child_stat->cputime = cputime;
+		walltime = time_so_far() - walltime;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		child_stat->walltime = walltime;
+	}
 	child_stat->flag = CHILD_STATE_HOLD; 	/* Tell parent I'm done */
 	if(!include_close)
 	{
@@ -9983,6 +10937,7 @@ thread_ranwrite_test( x)
 	struct child_stats *child_stat;
 	double starttime1 = 0;
 	double temp_time;
+	double walltime, cputime;
 	double compute_val = (double)0;
 	double delay = (double)0;
 	double thread_qtime_stop,thread_qtime_start;
@@ -10163,6 +11118,11 @@ thread_ranwrite_test( x)
 	}
 	starttime1 = time_so_far();
 	child_stat->start_time = starttime1;
+	if(cpuutilflag)
+	{
+		walltime = starttime1;
+		cputime = cputime_so_far();
+	}
 	for(i=0; i<numrecs64; i++){
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -10228,7 +11188,7 @@ thread_ranwrite_test( x)
 			child_stat->actual = (double)written_so_far;
 			if(debug1)
 			{
-				printf("\nStopped by another\n");
+				printf("\n(%ld) Stopped by another\n", (long)xx);
 			}
 			stopped=1;
 		}
@@ -10300,7 +11260,7 @@ again:
 				child_stat->actual = (double)written_so_far;
 				if(debug1)
 				{
-					printf("\nStopped by another\n");
+					printf("\n(%ld) Stopped by another\n", (long)xx);
 				}
 				stopped=1;
 				goto again;
@@ -10367,7 +11327,6 @@ again:
 			msync(maddr,(size_t)filebytes64,MS_SYNC);
 		else
 			fsync(fd);
-	
 	}
 	if(include_close)
 	{
@@ -10396,7 +11355,19 @@ again:
 		child_stat->actual = (double)written_so_far;
 		child_stat->stop_time = temp_time;
 	}
-	child_stat->flag = CHILD_STATE_DONE; /* Tell parent I'm done */
+	if(cpuutilflag)
+	{
+		child_stat->fini_time = time_so_far();
+		cputime = cputime_so_far() - cputime;
+		if (cputime < cputime_res)
+			cputime = 0.0;
+		child_stat->cputime = cputime;
+		walltime = time_so_far() - walltime;
+		if (walltime < cputime_res)
+			walltime = 0.0;
+		child_stat->walltime = walltime;
+	}
+	child_stat->flag = CHILD_STATE_HOLD; /* Tell parent I'm done */
 	stopped=0;
 	/*******************************************************************/
 	/* End random write performance test. ******************************/
@@ -10561,6 +11532,75 @@ void *status;
 
 
 /************************************************************************/
+/* Dump the CPU utilization data.					*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+void
+dump_throughput_cpu(void)
+#else
+void
+dump_throughput_cpu()
+#endif
+{
+	long long x,y,i,j;
+	char *port;
+	char *label;
+	char print_str[300];
+	x=max_x;
+	y=max_y;
+
+	port = use_thread ? "threads" : "processes";
+	printf("\n\"CPU utilization report Y-axis is type of test X-axis is number of %s\"\n",port);
+	if (bif_flag)
+	{
+		sprintf(print_str, "CPU utilization report Y-axis is type of test X-axis is number of %s", port);
+		do_label(bif_fd, print_str, bif_row++, bif_column);
+	}
+	label = OPS_flag ?  "ops/sec" :
+		MS_flag ? "microseconds/op" : "Kbytes/sec";
+#ifdef NO_PRINT_LLD
+	printf("\"Record size = %ld Kbytes \"\n", reclen/1024);
+#else
+	printf("\"Record size = %lld Kbytes \"\n", reclen/1024);
+#endif
+	printf("\"Output is in CPU%%\"\n\n");
+	if (bif_flag)
+	{
+#ifdef NO_PRINT_LLD
+		sprintf(print_str, "Record size = %ld Kbytes", reclen/1024);
+#else
+		sprintf(print_str, "Record size = %lld Kbytes", reclen/1024);
+#endif
+		do_label(bif_fd, print_str, bif_row++, bif_column);
+		sprintf(print_str, "Output is in CPU%%");
+		do_label(bif_fd, print_str, bif_row++, bif_column);
+	}
+	for (i = 0; i < x; i++)
+	{
+		printf("\"%15s \"", throughput_tests[i]);
+		if (bif_flag)
+		{
+			sprintf(print_str, "%15s ", throughput_tests[i]);
+			do_label(bif_fd, print_str, bif_row, bif_column++);
+			bif_column++;
+		}
+		for (j = 0; j <= y; j++)
+		{
+			if (bif_flag)
+				do_float(bif_fd, runtimes[i][j].cpuutil, bif_row, bif_column++);
+			printf("%10.2f ", runtimes[i][j].cpuutil);
+		}
+		printf("\n\n");
+		if (bif_flag)
+		{
+			bif_column=0;
+			bif_row++;
+		}
+	}
+}
+
+
+/************************************************************************/
 /* Dump the throughput graphs 						*/
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
@@ -10678,9 +11718,10 @@ dump_throughput()
 		{
 			bif_column=0;
 			bif_row++;
-			bif_row++;
 		}
 	}
+	if (cpuutilflag)
+		dump_throughput_cpu();
 	if(bif_flag)
 		close_xls(bif_fd);
 }
@@ -10953,6 +11994,40 @@ again:
 	time_res = (finishtime-starttime)/1000000.0;	
 }
 /************************************************************************/
+/* Function that establishes the resolution 				*/
+/* of the getrusage() function.						*/
+/************************************************************************/
+
+#ifdef HAVE_ANSIC_C
+void
+get_rusage_resolution(void)
+#else
+void
+get_rusage_resolution()
+#endif
+{
+	double starttime, finishtime;
+	long  j;
+
+again:
+	finishtime=cputime_so_far(); /* Warm up the instruction cache */
+	starttime=cputime_so_far();  /* Warm up the instruction cache */
+	delay=j=0;		   /* Warm up the data cache */
+	while(1)
+	{
+		starttime=cputime_so_far();
+		for(j=0;j< delay;j++)
+			;
+		finishtime=cputime_so_far();
+		if(starttime==finishtime)
+			
+			delay++;
+		else
+			break;
+	}
+	cputime_res = (finishtime-starttime);	 /* in seconds */
+}
+/************************************************************************/
 /* Time measurement routines.						*/
 /* Return time in microseconds						*/
 /************************************************************************/
@@ -11042,7 +12117,64 @@ stime_so_far()
   	times(&tp);
   	return ((double) (tp.tms_stime));
 }
+
+/************************************************************************/
+/* Return the CPU (user + system) time in seconds as a double.		*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+static double
+cputime_so_far(void)  	/* Return CPU time in seconds as double */
+#else
+static double
+cputime_so_far()
 #endif
+{
+#if 0
+  	struct tms tp;
+
+  	times(&tp);
+  	return ((double) (tp.tms_utime + tp.tms_stime) / sc_clk_tck);
+#else
+	struct rusage ru;
+
+	if (getrusage (RUSAGE_SELF, &ru))
+		perror ("getrusage");
+	return ((double)(ru.ru_utime.tv_sec + ru.ru_stime.tv_sec) +
+		.000001 *(ru.ru_utime.tv_usec + ru.ru_stime.tv_usec));
+#endif
+}
+#endif
+
+/************************************************************************/
+/* Return the CPU utilization ((user + system) / walltime) as a percentage. */
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+static double
+cpu_util(double cputime, double walltime)
+#else
+static double
+cpu_util(cputime, walltime)
+double cputime, walltime;
+#endif
+{
+	double cpu;
+
+	if (walltime <= (double)0.0)
+	{
+		cpu = (double)0.0;
+		return cpu;
+	}
+	if (cputime <= (double)0.0)
+		cputime = 0.0;
+	if (walltime <= (double)0.0)
+		cpu = (double)100.0;
+	else {
+		cpu = (((double)100.0 * cputime) / walltime);
+		if (cpu > (double)100.0)
+			cpu = (double)99.99;
+	}
+	return cpu;
+}
 
 /************************************************************************/
 /* This is a locking function that permits the writes and 		*/

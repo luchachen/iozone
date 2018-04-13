@@ -107,7 +107,7 @@
 #include <sys/fs/vx_ioctl.h>
 #endif
 
-#if !defined(off64_t) && !defined(_OFF64_T) && !defined(__off64_t_defined) && !defined(SCO_Unixware_gcc)
+#if !defined(solaris) && !defined(off64_t) && !defined(_OFF64_T) && !defined(__off64_t_defined) && !defined(SCO_Unixware_gcc)
 typedef long long off64_t;
 #endif
 #if defined(OSFV5)
@@ -122,7 +122,7 @@ extern int one;
  * cache, pointed to by async_init(gc) will be of
  * this structure type.
  */
-char version[] = "Libasync Version $Revision: 3.10 $";
+char version[] = "Libasync Version $Revision: 3.11 $";
 struct cache_ent {
 	struct aiocb myaiocb;			/* For use in small file mode */
 #ifdef _LARGEFILE64_SOURCE 

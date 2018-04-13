@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.48 $
+# Version $Revision: 1.49 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -42,6 +42,7 @@ all:
 	@echo "        ->   SCO_Unixware_gcc     (32bit)   <-"
 	@echo "        ->   Solaris              (32bit)   <-"
 	@echo "        ->   Solaris-2.6          (32bit)   <-"
+	@echo "        ->   Solaris7gcc          (32bit)   <-"
 	@echo "        ->   sppux                (32bit)   <-"
 	@echo "        ->   sppux-10.1           (32bit)   <-"
 	@echo "        ->   sppux_no_ansi-10.1   (32bit)   <-"
@@ -211,6 +212,14 @@ convex: iozone_convex.o libbif.o
 Solaris: iozone_solaris.o libasync.o libbif.o 
 	cc  -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-Dsolaris iozone_solaris.o libasync.o libbif.o \
+		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -lthread -lpthread -lposix4 -o iozone
+
+#
+# Solaris 32 bit build with threads, largefiles, and async I/O
+#
+Solaris7gcc: iozone_solaris7gcc.o libasync7.o libbif7.o 
+	gcc  -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
+		-Dsolaris iozone_solaris7gcc.o libasync7.o libbif7.o \
 		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -lthread -lpthread -lposix4 -o iozone
 
 #
@@ -470,7 +479,7 @@ iozone_solaris.o: iozone.c libasync.c libbif.c
 	@echo ""
 	@echo "Building iozone for Solaris"
 	@echo ""
-	cc -c -O -Dunix -DHAVE_ANSIC_C -DNNO_THREADS -DASYNC_IO \
+	cc -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
 		iozone.c -o iozone_solaris.o
 	cc -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
@@ -479,6 +488,21 @@ iozone_solaris.o: iozone.c libasync.c libbif.c
 	cc -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
 		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
 		-DBIG_ENDIAN libbif.c -o libbif.o
+
+iozone_solaris7gcc.o: iozone.c libasync.c libbif.c
+	@echo ""
+	@echo "Building iozone for Solaris7gcc"
+	@echo ""
+	gcc -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
+		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+		libasync.c -o libasync7.o
+	gcc -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
+		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+		-DBIG_ENDIAN libbif.c -o libbif7.o
+	gcc -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
+		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+		iozone.c -o iozone_solaris7gcc.o
+
 #
 #		-DSHARED_MEM -Dsolaris libasync.c -o libasync.o
 #		-DSHARED_MEM -Dsolaris iozone.c -o iozone_solaris.o
