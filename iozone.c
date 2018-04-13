@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.62 $"
+#define THISVERSION "        Version $Revision: 3.64 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -95,74 +95,77 @@ long long mythread_create();
 
 
 char *help[] = {
-"    Usage: iozone [-s kilobytes] [-r record_length in kb] [-f [path]filename] ",
-"                  [-i test] [-E] [-p] [-a] [-A] [-z] [-m] [-M] [-t children] [-h] [-o] ",
-"                  [-l min_number_procs] [-u] max_number_procs] [-v] [-R] [-x]",
+"    Usage: iozone [-s filesize_Kb] [-r record_size_Kb] [-f [path]filename]",
+"                  [-i test] [-E] [-p] [-a] [-A] [-z] [-Z] [-m] [-M] [-t children] [-h] [-o]",
+"                  [-l min_number_procs] [-u max_number_procs] [-v] [-R] [-x]",
 "                  [-d microseconds] [-F path1 path2...] [-V pattern] [-j stride]",
-"                  [-T ] [-C] [-B] [-D] [-G] [-I] [-H depth] [-k depth] [-U mount_point]",
-"                  [-S cache_size] [-O] [-L line_size] [-K] [-g maxfilesize_in_kb]",
-"                  [-n] minfilesize_in_kb] [-N] [-Q] [-P start_cpu] [-e] [-c] [-b Excel.xls]",
-"                  [-J milliseconds] [-X write_telemetry_filename]",
-"                  [-Y read_telemetry_filename] [-y minrecsize_in_kb] [-q maxrecsize_in_kb]",
+"                  [-T] [-C] [-B] [-D] [-G] [-I] [-H depth] [-k depth] [-U mount_point]",
+"                  [-S cache_size] [-O] [-L line_size] [-K] [-g maxfilesize_Kb]",
+"                  [-n minfilesize_Kb] [-N] [-Q] [-P start_cpu] [-e] [-c] [-b Excel.xls]",
+"                  [-J milliseconds] [-X write_telemetry_filename] [-w] [-W]",
+"                  [-Y read_telemetry_filename] [-y minrecsize_Kb] [-q maxrecsize_Kb]",
 " ",
-"           -s # Kilobytes in file.",
-"              or -s #k .. size in Kb",
-"              or -s #m .. size in Mb",
-"           -r # record size in kb",
+"           -a  Auto mode",
+"           -A  Auto2 mode",
+"           -b Filename  Create Excel worksheet file",
+"           -B  Use mmap() files",
+"           -c  Include close in the timing calculations",
+"           -C  Show bytes transferred by each child in throughput testing",
+"           -d #  Microsecond delay out of barrier",
+"           -D  Use msync(MS_ASYNC) on mmap files",
+"           -e  Include flush (fsync,fflush) in the timing calculations",
+"           -E  Run extension tests",
+"           -f filename  to use",
+"           -F filenames  for each process/thread in throughput test",
+"           -g #  Set maximum file size (in Kbytes) for auto mode",
+"           -G  Use msync(MS_SYNC) on mmap files",
+"           -h  help",
+"           -H #  Use POSIX async I/O with # async operations",
+"           -i #  Test to run (0=write/rewrite, 1=read/re-read, 2=random-read/write",
+"                 3=Read-backwards, 4=Re-write-record, 5=stride-read, 6=fwrite/re-fwrite",
+"                 7=fread/Re-fread, 8=pwrite/Re-pwrite, 9=pread/Re-pread",
+"                 10=pwritev/Re-pwritev, 11=preadv/Re-preadv)",
+"           -I  Use VxFS VX_DIRECT for all file operations",
+"           -j #  Set stride of file accesses to (# * record size)",
+"           -J #  milliseconds of compute cycle before each I/O operation",
+"           -k #  Use POSIX async I/O (no bcopy) with # async operations",
+"           -K  Create jitter in the access pattern for readers",
+"           -l #  Lower limit on number of processes to run",
+"           -L #  Set processor cache line size to value (in bytes)",
+"           -m  Use multiple buffers",
+"           -M  Report uname -a output",
+"           -n #  Set minimum file size (in Kbytes) for auto mode",
+"           -N  Report results in microseconds per operation",
+"           -o  Writes are synch (O_SYNC)",
+"           -O  Give results in ops/sec.",
+"           -p  Purge on",
+"           -P #  Bind processes/threads to processors, starting with this cpu",
+"           -q #  Set maximum record size (in Kbytes) for auto mode (or #m or #g)",
+"           -Q  Create offset/latency files",
+"           -r #  record size in Kb",
 "              or -r #k .. size in Kb",
 "              or -r #m .. size in Mb",
-"           -f filename to use",
-"           -J # milliseconds of compute cycle before each I/O operation",
-"           -i # Test to run. (0=write/rewrite, 1=read/re-read, 2=random-read/write",
-"                 3=Read-backwards, 4=Re-write-record, 5=stride-read, 6=fwrite/re-fwrite",
-"                 7=fread/Re-fread, 8=pwrite/Re-pwrite, 9=pread/Re-pread, 10=pwritev/Re-pwritev",
-"                 11=preadv/Re-preadv)",
-"           -E Run extension tests",
-"           -p Purge on",
-"           -a Auto mode",
-"           -A Auto2 mode",
-"           -m Use multiple buffers",
-"           -M Report uname -a output",
-"           -W Lock file when reading or writing",
-"           -t # Number of threads or processes to use in throughput test",
-"           -h help",
-"           -o Writes are synch (O_SYNC)",
-"           -l # Lower limit on number of processes to run",
-"           -u # Upper limit on number of processes to run",
-"           -v version information",
-"           -R Generate Excel report",
-"           -x Turn off stone-walling",
-"           -d # Microsecond delay out of barrier",
-"           -F filenames for each process/thread in throughput test",
-"           -V Verify data pattern write/read",
-"           -j # Set stride of file accesses to (# * record size)",
-"           -T Use POSIX pthreads for throughput tests ",
-"           -C Show bytes transfered by each child in throughput testing.",
-"           -B Use mmap() files",
-"           -D Use msync(MS_ASYNC) on mmap files",
-"           -G Use msync(MS_SYNC) on mmap files",
-"           -I Use VxFS VX_DIRECT for all file operations",
-"           -H # Use POSIX async I/O with # async operations",
-"           -k # Use POSIX async I/O. (no bcopy) with # async operations",
-"           -U Mount point to remount between tests",
-"           -S # Set processor cache size to value (in Kbytes).",
-"           -O Give results in ops/sec.",
-"           -L # Set processor cache line size to value (in bytes).",
-"           -N Report results in microseconds per operation.",
-"           -Q Create offset/latency files.",
-"           -P # Bind processes/threads to processors, starting with this cpu",
-"           -e Include flush (fsync,fflush) in the timing calculations",
-"           -c Include close in the timing calculations",
-"           -b Filename. Create Excel worksheet file",
-"           -K Create jitter in the access pattern for readers.",
-"           -n #  Set minimum file size (in kbytes) for auto mode",
-"           -g #  Set maximum file size (in kbytes) for auto mode",
-"           -w Do not unlink temporary file",
+"              or -r #g .. size in Gb",
+"           -R  Generate Excel report",
+"           -s #  file size in Kb",
+"              or -s #k .. size in Kb",
+"              or -s #m .. size in Mb",
+"              or -s #g .. size in Gb",
+"           -S #  Set processor cache size to value (in Kbytes)",
+"           -t #  Number of threads or processes to use in throughput test",
+"           -T  Use POSIX pthreads for throughput tests",
+"           -u #  Upper limit on number of processes to run",
+"           -U  Mount point to remount between tests",
+"           -v  version information",
+"           -V  Verify data pattern write/read",
+"           -w  Do not unlink temporary file",
+"           -W  Lock file when reading or writing",
+"           -x  Turn off stone-walling",
 "           -X filename  Write telemetry file. Contains lines with (offset reclen compute_time) in ascii",
+"           -y #  Set minimum record size (in Kbytes) for auto mode (or #m or #g)",
 "           -Y filename  Read  telemetry file. Contains lines with (offset reclen compute_time) in ascii",
-"           -z Used in conjunction with -a to test all possible record sizes",
-"           -y #  Set minimum record size (in kbytes) for auto mode",
-"           -q #  Set maximum record size (in kbytes) for auto mode",
+"           -z  Used in conjunction with -a to test all possible record sizes",
+"           -Z  Enable mixing of mmap I/O and file I/O",
 "" };
 
 char *head1[] = {
@@ -2056,10 +2059,10 @@ void throughput_test()
 	if(w_traj_flag)
 	{
 #ifdef NO_PRINT_LLD
-	printf("\tEach %s writes a %ld Kbyte file in telemetry controled records\n",
+	printf("\tEach %s writes a %ld Kbyte file in telemetry controlled records\n",
 		port,kilobytes64);
 #else
-	printf("\tEach %s writes a %lld Kbyte file in telemetry controled records\n",
+	printf("\tEach %s writes a %lld Kbyte file in telemetry controlled records\n",
 		port,kilobytes64);
 #endif
 	}
@@ -6671,7 +6674,7 @@ off64_t value;
 	}
 	if(max_y >= MAX_Y)
 	{
-		printf("\nMAX_X too small\n");
+		printf("\nMAX_Y too small\n");
 		exit(118);
 	}
 }
@@ -10463,6 +10466,7 @@ dump_throughput()
 	if(bif_flag)
 	{
 		bif_fd=create_xls(bif_filename);
+		do_label(bif_fd,command_line,bif_row++,bif_column);
 		sprintf(print_str,"Throughput report Y-axis is type of test X-axis is number of %s",port);
 		do_label(bif_fd,print_str,bif_row++,bif_column);
 	}
@@ -10546,7 +10550,7 @@ double value;
 	}
 	if(max_y >= MAXSTREAMS)
 	{
-		printf("\nMAX_X too small\n");
+		printf("\nMAXSTREAMS too small\n");
 		exit(164);
 	}
 }
