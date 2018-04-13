@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.412 $"
+#define THISVERSION "        Version $Revision: 3.413 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1309,7 +1309,7 @@ int chid_skew = 0;
 int hist_summary;
 int op_rate;
 int op_rate_flag;
-char aflag, Eflag, hflag, Rflag, rflag, sflag,del_flag;
+char aflag, Eflag, hflag, Rflag, rflag, sflag,del_flag,mix_test;
 char diag_v,sent_stop,dedup,dedup_interior,dedup_compress;
 char *dedup_ibuf;
 char *dedup_temp;
@@ -12504,7 +12504,7 @@ thread_write_test( x)
 		flags=O_RDWR|O_SYNC|O_CREAT;
 	else
 		flags=O_RDWR|O_CREAT;
-	if(del_flag)
+	if(del_flag && mix_test)
 		flags |=  O_TRUNC;
 #if defined(O_DSYNC)
 	if(odsync)
@@ -17034,6 +17034,7 @@ thread_mix_test(x)
 	int num_readers;
 	long xx;
 
+	mix_test = 1;
 #ifdef NO_THREADS
 	xx=chid;
 #else
