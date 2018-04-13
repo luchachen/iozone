@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.59 $
+# Version $Revision: 1.60 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -48,7 +48,7 @@ all:
 	@echo "        ->   sppux                (32bit)   <-"
 	@echo "        ->   sppux-10.1           (32bit)   <-"
 	@echo "        ->   sppux_no_ansi-10.1   (32bit)   <-"
-	@echo "        ->   TRU64                (32bit)   <-"
+	@echo "        ->   TRU64                (64bit)   <-"
 	@echo "        ->   UWIN                 (32bit)   <-"
 	@echo "        ->   Windows (95/98/NT)   (32bit)   <-"
 	@echo ""

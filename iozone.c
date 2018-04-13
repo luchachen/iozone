@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.103 $"
+#define THISVERSION "        Version $Revision: 3.104 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -5147,13 +5147,8 @@ long long *data2;
 		};
 		fsync(fd);
 #ifdef ASYNC_IO
-#if defined (_HPUX_SOURCE) || defined(linux)
 		if(async_flag)
 			async_init(&gc,fd,direct_flag);
-#else
-		if(async_flag)
-			async_init(&gc,fd,0);
-#endif
 #endif
 		buffer=mainbuffer;
 		if(fetchon)
@@ -5824,13 +5819,8 @@ long long *data1,*data2;
 			exit(58);
 		}
 #ifdef ASYNC_IO
-#if defined (_HPUX_SOURCE) || defined(linux)
 		if(async_flag)
 			async_init(&gc,fd,direct_flag);
-#else
-		if(async_flag)
-			async_init(&gc,fd,0);
-#endif
 #endif
 
 #ifdef VXFS
@@ -6175,13 +6165,8 @@ long long *data1, *data2;
 			exit(66);
 	     }
 #ifdef ASYNC_IO
-#if defined (_HPUX_SOURCE) || defined(linux)
 		if(async_flag)
 			async_init(&gc,fd,direct_flag);
-#else
-		if(async_flag)
-			async_init(&gc,fd,0);
-#endif
 #endif
 
 #ifdef VXFS
@@ -6515,19 +6500,14 @@ long long *data1,*data2;
 		{
 			purge_buffer_cache();
 		}
-	 	if((fd = I_OPEN(filename, O_RDONLY,0))<0){
+	 	if((fd = I_OPEN(filename, open_flags,0))<0){
 	 		printf("\nCan not open temporary file for read\n");
 	 		perror("open");
 	 		exit(75);
 	 	}
 #ifdef ASYNC_IO
-#if defined (_HPUX_SOURCE) || defined(linux)
 		if(async_flag)
 			async_init(&gc,fd,direct_flag);
-#else
-		if(async_flag)
-			async_init(&gc,fd,0);
-#endif
 #endif
 
 #ifdef VXFS
@@ -6778,13 +6758,8 @@ long long *data1,*data2;
 		maddr=(char *)initfile(fd,filebytes64,1,PROT_READ|PROT_WRITE);
 	}
 #ifdef ASYNC_IO
-#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
 #endif
 	fsync(fd);
 	buffer=mainbuffer;
@@ -7005,13 +6980,8 @@ long long *data1, *data2;
                     exit(86);
         }
 #ifdef ASYNC_IO
-#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
 #endif
 
 #ifdef VXFS
@@ -9087,13 +9057,8 @@ thread_write_test( x)
 	}
 #endif
 #ifdef ASYNC_IO
-#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
 #endif
 	if(mmapflag)
 	{
@@ -9590,13 +9555,8 @@ thread_rwrite_test(x)
 	}
 #endif
 #ifdef ASYNC_IO
-#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
 #endif
 	if(mmapflag)
 	{
@@ -9962,13 +9922,8 @@ thread_read_test(x)
 		exit(130);
 	}
 #ifdef ASYNC_IO
-#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
 #endif
 #ifdef VXFS
 	if(direct_flag)
@@ -10391,13 +10346,8 @@ thread_rread_test(x)
 		exit(135);
 	}
 #ifdef ASYNC_IO
-#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
 #endif
 #ifdef VXFS
 	if(direct_flag)
@@ -10789,13 +10739,8 @@ thread_reverse_read_test(x)
 		exit(140);
 	}
 #ifdef ASYNC_IO
-#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
 #endif
 #ifdef VXFS
 	if(direct_flag)
@@ -11181,13 +11126,8 @@ thread_stride_read_test(x)
 		exit(147);
 	}
 #ifdef ASYNC_IO
-#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
 #endif
 #ifdef VXFS
 	if(direct_flag)
@@ -11573,13 +11513,8 @@ thread_ranread_test(x)
 		exit(156);
 	}
 #ifdef ASYNC_IO
-#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
 #endif
 
 #ifdef VXFS
@@ -12026,13 +11961,8 @@ thread_ranwrite_test( x)
 	}
 #endif
 #ifdef ASYNC_IO
-#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
 #endif
 	if(mmapflag)
 	{
