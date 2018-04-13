@@ -1328,6 +1328,10 @@ Fix file descriptor leak in cluster mode.
 Revision 3.89 -> 3.91
 =============================================================================
 Support for heterogeneous clusters, bug fix for -C 
-
+=============================================================================
+Revision 3.92 
+=============================================================================
+Add a small sleep in the client so the master's terminate message 
+can arrive before the client exits and closes the channel.
 
 

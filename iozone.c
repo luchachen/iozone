@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.91 $"
+#define THISVERSION "        Version $Revision: 3.92 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -970,12 +970,12 @@ int child_async_port; /* Virtualized due to fork */
 int client_listen_pid; /* Virtualized due to fork */
 int master_join_count;
 int l_sock,s_sock,l_async_sock;
-char master_rcv_buf[8192];
+char master_rcv_buf[4096];
 int master_listen_pid;
-char master_send_buf[8192];
-char child_rcv_buf[8192];
-char child_async_rcv_buf[8192];
-char child_send_buf[8192];
+char master_send_buf[4096];
+char child_rcv_buf[4096];
+char child_async_rcv_buf[4096];
+char child_send_buf[4096];
 int child_send_socket;
 int child_listen_socket;
 int child_listen_socket_async;
@@ -14291,6 +14291,11 @@ int send_size;
 	struct in_addr *ip;
 	struct client_neutral_command outbuf;
 
+	if(mdebug)
+	{
+		printf("Master_neutral_command size = %d\n",sizeof(struct master_neutral_command));
+		printf("Client_neutral_command size = %d\n",sizeof(struct client_neutral_command));
+	}
 	/* 
 	 * Convert internal commands to string format for neutral format/portability
 	 */
@@ -15602,6 +15607,7 @@ start_child_listen_loop()
 			}
 			i = cc.c_client_number;
 			child_remove_files(i);
+			sleep(2);
 			exit(0);
 		}
 			
