@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.64 $"
+#define THISVERSION "        Version $Revision: 3.66 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -725,7 +725,8 @@ char **argv;
     	printf("\t%s\n\t%s\n\n", THISVERSION,MODE);
     	printf("\tContributors:William Norcott, Don Capps, Isom Crawford, Kirby Collins\n");
 	printf("\t             Al Slater, Scott Rhine, Mike Wisner, Ken Goss\n");
-    	printf("\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR.\n\n");
+    	printf("\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR.\n");
+    	printf("\t             Randy Dunlap.\n\n");
 	printf("\tRun began: %s\n",ctime(&time_run));
 	record_command_line(argc, argv);
 
@@ -3600,12 +3601,14 @@ long long *data2;
 			printf("Unable to open wol.dat\n");
 			exit(40);
 		}
+		fprintf(wqfd,"Offset in Kbytes   Latency in microseconds\n");
 		rwqfd=fopen("rwol.dat","a");
 		if(rwqfd==0)
 		{
 			printf("Unable to open rwol.dat\n");
 			exit(41);
 		}
+		fprintf(rwqfd,"Offset in Kbytes   Latency in microseconds\n");
 	}
 	fd = 0;
 	if(oflag)
@@ -3817,12 +3820,12 @@ long long *data2;
 		   qtime_u_stop=utime_so_far();
 		   qtime_s_stop=stime_so_far();
 		   if(j==0)
-			 fprintf(wqfd,"System time %10.3f User time %10.3f Real %10.3f\n",
+			 fprintf(wqfd,"\nSystem time %10.3f User time %10.3f Real %10.3f  (seconds)\n",
 				(qtime_s_stop-qtime_s_start)/clk_tck(),
 				(qtime_u_stop-qtime_u_start)/clk_tck(),
 				time_so_far()-starttime1);
 		   else
-			fprintf(rwqfd,"System time %10.3f User time %10.3f Real %10.3f\n",
+			fprintf(rwqfd,"\nSystem time %10.3f User time %10.3f Real %10.3f  (seconds)\n",
 				(qtime_s_stop-qtime_s_start)/clk_tck(),
 				(qtime_u_stop-qtime_u_start)/clk_tck(),
 				time_so_far()-starttime1);
@@ -4306,12 +4309,14 @@ long long *data1,*data2;
 			printf("Unable to open rol.dat\n");
 			exit(56);
 		}
+		fprintf(rqfd,"Offset in Kbytes   Latency in microseconds\n");
 		rrqfd=fopen("rrol.dat","a");
 		if(rrqfd==0)
 		{
 			printf("Unable to open rrol.dat\n");
 			exit(57);
 		}
+		fprintf(rrqfd,"Offset in Kbytes   Latency in microseconds\n");
 	}
 	/* 
 	 * begin real testing
@@ -4538,12 +4543,12 @@ long long *data1,*data2;
 		   qtime_u_stop=utime_so_far();
 		   qtime_s_stop=stime_so_far();
 		   if(j==0)
-			 fprintf(rqfd,"System time %10.3f User time %10.3f Real %10.3f\n",
+			 fprintf(rqfd,"\nSystem time %10.3f User time %10.3f Real %10.3f  (seconds)\n",
 				(qtime_s_stop-qtime_s_start)/clk_tck(),
 				(qtime_u_stop-qtime_u_start)/clk_tck(),
 				time_so_far()-starttime2);
 		   else
-			fprintf(rrqfd,"System time %10.3f User time %10.3f Real %10.3f\n",
+			fprintf(rrqfd,"\nSystem time %10.3f User time %10.3f Real %10.3f  (seconds)\n",
 				(qtime_s_stop-qtime_s_start)/clk_tck(),
 				(qtime_u_stop-qtime_u_start)/clk_tck(),
 				time_so_far()-starttime2);
@@ -7304,6 +7309,7 @@ thread_write_test( x)
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
+		fprintf(thread_wqfd,"Offset in Kbytes   Latency in microseconds\n");
 	}
 	starttime1 = time_so_far();
 	child_stat->start_time = starttime1;
@@ -7728,6 +7734,7 @@ thread_rwrite_test(x)
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
+		fprintf(thread_rwqfd,"Offset in Kbytes   Latency in microseconds\n");
 	}
 	child_stat->flag = 1;
 	while(child_stat->flag==1)	/* Wait for parent to say go */
@@ -8093,6 +8100,7 @@ thread_read_test(x)
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
+		fprintf(thread_rqfd,"Offset in Kbytes   Latency in microseconds\n");
 	}
 
 	if(r_traj_flag)
@@ -8474,6 +8482,7 @@ thread_rread_test(x)
                         printf("Unable to open %s\n",tmpname);
                         exit(40);
                 }
+		fprintf(thread_rrqfd,"Offset in Kbytes   Latency in microseconds\n");
         }
 
 	child_stat = (struct child_stats *)&shmaddr[xx];
@@ -8842,6 +8851,7 @@ thread_reverse_read_test(x)
                         printf("Unable to open %s\n",tmpname);
                         exit(40);
                 }
+		fprintf(thread_revqfd,"Offset in Kbytes   Latency in microseconds\n");
         }
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = 0;
@@ -9224,6 +9234,7 @@ thread_stride_read_test(x)
                         printf("Unable to open %s\n",tmpname);
                         exit(40);
                 }
+		fprintf(thread_strqfd,"Offset in Kbytes   Latency in microseconds\n");
         }
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = 0;
@@ -9628,6 +9639,7 @@ thread_ranread_test(x)
                         printf("Unable to open %s\n",tmpname);
                         exit(40);
                 }
+		fprintf(thread_randrfd,"Offset in Kbytes   Latency in microseconds\n");
         }
 	child_stat=(struct child_stats *)&shmaddr[xx];
 	child_stat->flag = 1;
@@ -10040,6 +10052,7 @@ thread_ranwrite_test( x)
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
+		fprintf(thread_randwqfd,"Offset in Kbytes   Latency in microseconds\n");
 	}
 	starttime1 = time_so_far();
 	child_stat->start_time = starttime1;
