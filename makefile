@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.122 $
+# Version $Revision: 1.123 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -171,9 +171,10 @@ linux-powerpc: iozone_linux-powerpc.o  libbif.o libasync.o fileop_linux-ppc.o
 #
 # GNU 'C' compiler Linux build for sparc chip with threads, largefiles, async I/O 
 #
-linux-sparc: iozone_linux-sparc.o  libbif.o libasync.o
+linux-sparc: iozone_linux-sparc.o  libbif.o libasync.o fileop_linux.o
 	$(CC) -O3 $(LDFLAGS) iozone_linux-sparc.o libasync.o libbif.o \
 		-lpthread -lrt -o iozone
+	$(CC) -O3 -Dlinux fileop_linux.o -o fileop
 
 #
 # GNU 'C' compiler Linux build with threads, largefiles, async I/O 

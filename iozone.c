@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.311 $"
+#define THISVERSION "        Version $Revision: 3.315 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1542,7 +1542,7 @@ char **argv;
 	setvbuf( stderr, NULL, _IONBF, (size_t) NULL );
 	
 	/* Save the master's name */
-	gethostname(controlling_host_name,256);
+	gethostname(controlling_host_name,100);
 
 	/* Try to find the actual VM page size, if possible */
 #if defined (solaris) || defined (_HPUX_SOURCE) || defined (linux) || defined(IRIX) || defined (IRIX64)
@@ -3721,6 +3721,16 @@ waitout:
 	else
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
+		if(!barray[xx])
+		{
+			barray[xx]=(char *) alloc_mem((long long)(MAXBUFFERSIZE+cache_size),(int)0);
+			if(barray[xx] == 0) {
+        		   perror("Memory allocation failed:");
+        		   exit(26);
+        		}
+     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+			~(cache_size-1));
+		}
 #ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_rwrite_test,xx);
 #else
@@ -3956,6 +3966,16 @@ next0:
 	else
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
+		if(!barray[xx])
+		{
+			barray[xx]=(char *) alloc_mem((long long)(MAXBUFFERSIZE+cache_size),(int)0);
+			if(barray[xx] == 0) {
+        		   perror("Memory allocation failed:");
+        		   exit(26);
+        		}
+     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+			~(cache_size-1));
+		}
 #ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_read_test,xx);
 #else
@@ -4181,6 +4201,16 @@ jumpend:
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 		chid=xx;
+		if(!barray[xx])
+		{
+			barray[xx]=(char *) alloc_mem((long long)(MAXBUFFERSIZE+cache_size),(int)0);
+			if(barray[xx] == 0) {
+        		   perror("Memory allocation failed:");
+        		   exit(26);
+        		}
+     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+			~(cache_size-1));
+		}
 #ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_rread_test,xx);
 #else
@@ -4411,6 +4441,16 @@ next1:
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 		chid=xx;
+		if(!barray[xx])
+		{
+			barray[xx]=(char *) alloc_mem((long long)(MAXBUFFERSIZE+cache_size),(int)0);
+			if(barray[xx] == 0) {
+        		   perror("Memory allocation failed:");
+        		   exit(26);
+        		}
+     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+			~(cache_size-1));
+		}
 #ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_reverse_read_test,xx);
 #else
@@ -4635,6 +4675,16 @@ next2:
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 		chid=xx;
+		if(!barray[xx])
+		{
+			barray[xx]=(char *) alloc_mem((long long)(MAXBUFFERSIZE+cache_size),(int)0);
+			if(barray[xx] == 0) {
+        		   perror("Memory allocation failed:");
+        		   exit(26);
+        		}
+     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+			~(cache_size-1));
+		}
 #ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_stride_read_test,xx);
 #else
@@ -4860,6 +4910,16 @@ next3:
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 		chid=xx;
+		if(!barray[xx])
+		{
+			barray[xx]=(char *) alloc_mem((long long)(MAXBUFFERSIZE+cache_size),(int)0);
+			if(barray[xx] == 0) {
+        		   perror("Memory allocation failed:");
+        		   exit(26);
+        		}
+     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+			~(cache_size-1));
+		}
 #ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_ranread_test,xx);
 #else
@@ -5080,6 +5140,16 @@ next4:
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 		chid=xx;
+		if(!barray[xx])
+		{
+			barray[xx]=(char *) alloc_mem((long long)(MAXBUFFERSIZE+cache_size),(int)0);
+			if(barray[xx] == 0) {
+        		   perror("Memory allocation failed:");
+        		   exit(26);
+        		}
+     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+			~(cache_size-1));
+		}
 #ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_mix_test,xx);
 #else
@@ -5300,6 +5370,16 @@ next5:
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 		chid=xx;
+		if(!barray[xx])
+		{
+			barray[xx]=(char *) alloc_mem((long long)(MAXBUFFERSIZE+cache_size),(int)0);
+			if(barray[xx] == 0) {
+        		   perror("Memory allocation failed:");
+        		   exit(26);
+        		}
+     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+			~(cache_size-1));
+		}
 #ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_ranwrite_test,xx);
 #else
@@ -5523,6 +5603,16 @@ next6:
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 		chid=xx;
+		if(!barray[xx])
+		{
+			barray[xx]=(char *) alloc_mem((long long)(MAXBUFFERSIZE+cache_size),(int)0);
+			if(barray[xx] == 0) {
+        		   perror("Memory allocation failed:");
+        		   exit(26);
+        		}
+     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+			~(cache_size-1));
+		}
 #ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_pwrite_test,xx);
 #else
@@ -5748,6 +5838,16 @@ next7:
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 		chid=xx;
+		if(!barray[xx])
+		{
+			barray[xx]=(char *) alloc_mem((long long)(MAXBUFFERSIZE+cache_size),(int)0);
+			if(barray[xx] == 0) {
+        		   perror("Memory allocation failed:");
+        		   exit(26);
+        		}
+     			barray[xx] =(char *)(((long)barray[xx] + cache_size ) & 
+			~(cache_size-1));
+		}
 #ifdef _64BIT_ARCH_
 		childids[xx] = mythread_create( thread_pread_test,xx);
 #else
@@ -7091,7 +7191,7 @@ long long *data2;
 			exit(49);
 		}
 #endif
-		fd=I_OPEN(filename,O_RDWR,0640);
+		fd=fileno(stream);
 		fsync(fd);
 		setvbuf(stream,stdio_buf,_IOFBF,reclen);
 		buffer=mainbuffer;
@@ -7162,21 +7262,16 @@ long long *data2;
 				perror("fflush");
 				signal_handler();
 			}
+			wval=fsync(fd);
+			if(wval==-1){
+				perror("fsync");
+				signal_handler();
+			}
 			wval=fclose(stream);
 			if(wval==-1){
 				perror("fclose");
 				signal_handler();
 			}
-		}
-		wval=fsync(fd);
-		if(wval==-1){
-			perror("fsync");
-			signal_handler();
-		}
-		wval=close(fd);
-		if(wval==-1){
-			perror("close");
-			signal_handler();
 		}
 
 		if(cpuutilflag)
@@ -11323,9 +11418,19 @@ purge_buffer_cache()
 #endif
 {
 	char command[1024];
+	int ret,i;
 	strcpy(command,"umount ");
 	strcat(command, mountname);
-	system(command);
+        /*
+           umount might fail if the device is still busy, so
+           retry unmounting several times with increasing delays
+        */
+        for (i = 1; i < 10; ++i) {
+               ret = system(command);
+               if (ret == 0)
+                       break;
+               sleep(i); // seconds
+        }
 	strcpy(command,"mount ");
 	strcat(command, mountname);
 	system(command);
@@ -19984,7 +20089,7 @@ become_client()
 	struct master_command mc;
 	struct client_command cc;
 	struct client_neutral_command *cnc;
-	char client_name[256];
+	char client_name[100];
 	char *workdir;
 
 	bzero(&mc,sizeof(struct master_command));
@@ -19994,7 +20099,7 @@ become_client()
 	/*
  	 * I am the child 
 	 */
-	(void)gethostname(client_name,256);
+	(void)gethostname(client_name,100);
 
 	fflush(stdout);
 	fflush(stderr);

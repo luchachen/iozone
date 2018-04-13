@@ -105,7 +105,7 @@ void bzero();
 void clear_stats();
 int validate(char *, int , char );
 
-#define THISVERSION "        $Revision: 1.41 $"
+#define THISVERSION "        $Revision: 1.42 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;
@@ -194,12 +194,12 @@ int main(int argc, char **argv)
 	if(!verbose)
 	{
 #ifdef Windows
-	   	printf(" .     %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %10s\n",
+	   	printf(" .     %7s %7s %7s %7s %7s %7s %7s %7s %7s %7s %7s %7s %10s\n",
        	   	"mkdir","rmdir","create","open","read","write","close","stat",
 		"access","chmod","readdir","delete"," Total_files");
 #else
 
-	   	printf(" .     %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %10s\n",
+	   	printf(" .     %7s %7s %7s %7s %7s %7s %7s %7s %7s %7s %7s %7s %7s %7s %10s\n",
        	   	"mkdir","rmdir","create","open", "read","write","close","stat",
 		"access","chmod","readdir","link  ","unlink","delete",
 		" Total_files");
@@ -426,66 +426,66 @@ int main(int argc, char **argv)
 	   }
 	   if(!verbose)
 	   {
-	         printf("%c %4d %6.0f ",'A',x,stats[_STAT_DIR_CREATE].counter/stats[_STAT_DIR_CREATE].total_time);
-	         printf("%6.0f ",stats[_STAT_DIR_DELETE].counter/stats[_STAT_DIR_DELETE].total_time);
-	         printf("%6.0f ",stats[_STAT_CREATE].counter/stats[_STAT_CREATE].total_time);
-	         printf("%6.0f ",stats[_STAT_OPEN].counter/stats[_STAT_OPEN].total_time);
-	         printf("%6.0f ",stats[_STAT_READ].counter/stats[_STAT_READ].total_time);
-	         printf("%6.0f ",stats[_STAT_WRITE].counter/stats[_STAT_WRITE].total_time);
-	         printf("%6.0f ",stats[_STAT_CLOSE].counter/stats[_STAT_CLOSE].total_time);
-	         printf("%6.0f ",stats[_STAT_STAT].counter/stats[_STAT_STAT].total_time);
-	         printf("%6.0f ",stats[_STAT_ACCESS].counter/stats[_STAT_ACCESS].total_time);
-	         printf("%6.0f ",stats[_STAT_CHMOD].counter/stats[_STAT_CHMOD].total_time);
-	         printf("%6.0f ",stats[_STAT_READDIR].counter/stats[_STAT_READDIR].total_time);
+	         printf("%c %4d %7.0f ",'A',x,stats[_STAT_DIR_CREATE].counter/stats[_STAT_DIR_CREATE].total_time);
+	         printf("%7.0f ",stats[_STAT_DIR_DELETE].counter/stats[_STAT_DIR_DELETE].total_time);
+	         printf("%7.0f ",stats[_STAT_CREATE].counter/stats[_STAT_CREATE].total_time);
+	         printf("%7.0f ",stats[_STAT_OPEN].counter/stats[_STAT_OPEN].total_time);
+	         printf("%7.0f ",stats[_STAT_READ].counter/stats[_STAT_READ].total_time);
+	         printf("%7.0f ",stats[_STAT_WRITE].counter/stats[_STAT_WRITE].total_time);
+	         printf("%7.0f ",stats[_STAT_CLOSE].counter/stats[_STAT_CLOSE].total_time);
+	         printf("%7.0f ",stats[_STAT_STAT].counter/stats[_STAT_STAT].total_time);
+	         printf("%7.0f ",stats[_STAT_ACCESS].counter/stats[_STAT_ACCESS].total_time);
+	         printf("%7.0f ",stats[_STAT_CHMOD].counter/stats[_STAT_CHMOD].total_time);
+	         printf("%7.0f ",stats[_STAT_READDIR].counter/stats[_STAT_READDIR].total_time);
 #ifndef Windows
-	         printf("%6.0f ",stats[_STAT_LINK].counter/stats[_STAT_LINK].total_time);
-	         printf("%6.0f ",stats[_STAT_UNLINK].counter/stats[_STAT_UNLINK].total_time);
+	         printf("%7.0f ",stats[_STAT_LINK].counter/stats[_STAT_LINK].total_time);
+	         printf("%7.0f ",stats[_STAT_UNLINK].counter/stats[_STAT_UNLINK].total_time);
 #endif
-	         printf("%6.0f ",stats[_STAT_DELETE].counter/stats[_STAT_DELETE].total_time);
+	         printf("%7.0f ",stats[_STAT_DELETE].counter/stats[_STAT_DELETE].total_time);
 	         printf("%10d ",x*x*x);
 	         printf("\n");
   	   	 fflush(stdout);
 
 		if(best)
 		{
-	         printf("%c %4d %6.0f ",'B',x, 1/stats[_STAT_DIR_CREATE].best);
-	         printf("%6.0f ",1/stats[_STAT_DIR_DELETE].best);
-	         printf("%6.0f ",1/stats[_STAT_CREATE].best);
-	         printf("%6.0f ",1/stats[_STAT_OPEN].best);
-	         printf("%6.0f ",1/stats[_STAT_READ].best);
-	         printf("%6.0f ",1/stats[_STAT_WRITE].best);
-	         printf("%6.0f ",1/stats[_STAT_CLOSE].best);
-	         printf("%6.0f ",1/stats[_STAT_STAT].best);
-	         printf("%6.0f ",1/stats[_STAT_ACCESS].best);
-	         printf("%6.0f ",1/stats[_STAT_CHMOD].best);
-	         printf("%6.0f ",1/stats[_STAT_READDIR].best);
+	         printf("%c %4d %7.0f ",'B',x, 1/stats[_STAT_DIR_CREATE].best);
+	         printf("%7.0f ",1/stats[_STAT_DIR_DELETE].best);
+	         printf("%7.0f ",1/stats[_STAT_CREATE].best);
+	         printf("%7.0f ",1/stats[_STAT_OPEN].best);
+	         printf("%7.0f ",1/stats[_STAT_READ].best);
+	         printf("%7.0f ",1/stats[_STAT_WRITE].best);
+	         printf("%7.0f ",1/stats[_STAT_CLOSE].best);
+	         printf("%7.0f ",1/stats[_STAT_STAT].best);
+	         printf("%7.0f ",1/stats[_STAT_ACCESS].best);
+	         printf("%7.0f ",1/stats[_STAT_CHMOD].best);
+	         printf("%7.0f ",1/stats[_STAT_READDIR].best);
 #ifndef Windows
-	         printf("%6.0f ",1/stats[_STAT_LINK].best);
-	         printf("%6.0f ",1/stats[_STAT_UNLINK].best);
+	         printf("%7.0f ",1/stats[_STAT_LINK].best);
+	         printf("%7.0f ",1/stats[_STAT_UNLINK].best);
 #endif
-	         printf("%6.0f ",1/stats[_STAT_DELETE].best);
+	         printf("%7.0f ",1/stats[_STAT_DELETE].best);
 	         printf("%10d ",x*x*x);
 		 printf("\n");
   	   	 fflush(stdout);
 		}
 		if(worst)
 		{
-	         printf("%c %4d %6.0f ",'W',x, 1/stats[_STAT_DIR_CREATE].worst);
-	         printf("%6.0f ",1/stats[_STAT_DIR_DELETE].worst);
-	         printf("%6.0f ",1/stats[_STAT_CREATE].worst);
-	         printf("%6.0f ",1/stats[_STAT_OPEN].worst);
-	         printf("%6.0f ",1/stats[_STAT_READ].worst);
-	         printf("%6.0f ",1/stats[_STAT_WRITE].worst);
-	         printf("%6.0f ",1/stats[_STAT_CLOSE].worst);
-	         printf("%6.0f ",1/stats[_STAT_STAT].worst);
-	         printf("%6.0f ",1/stats[_STAT_ACCESS].worst);
-	         printf("%6.0f ",1/stats[_STAT_CHMOD].worst);
-	         printf("%6.0f ",1/stats[_STAT_READDIR].worst);
+	         printf("%c %4d %7.0f ",'W',x, 1/stats[_STAT_DIR_CREATE].worst);
+	         printf("%7.0f ",1/stats[_STAT_DIR_DELETE].worst);
+	         printf("%7.0f ",1/stats[_STAT_CREATE].worst);
+	         printf("%7.0f ",1/stats[_STAT_OPEN].worst);
+	         printf("%7.0f ",1/stats[_STAT_READ].worst);
+	         printf("%7.0f ",1/stats[_STAT_WRITE].worst);
+	         printf("%7.0f ",1/stats[_STAT_CLOSE].worst);
+	         printf("%7.0f ",1/stats[_STAT_STAT].worst);
+	         printf("%7.0f ",1/stats[_STAT_ACCESS].worst);
+	         printf("%7.0f ",1/stats[_STAT_CHMOD].worst);
+	         printf("%7.0f ",1/stats[_STAT_READDIR].worst);
 #ifndef Windows
-	         printf("%6.0f ",1/stats[_STAT_LINK].worst);
-	         printf("%6.0f ",1/stats[_STAT_UNLINK].worst);
+	         printf("%7.0f ",1/stats[_STAT_LINK].worst);
+	         printf("%7.0f ",1/stats[_STAT_UNLINK].worst);
 #endif
-	         printf("%6.0f ",1/stats[_STAT_DELETE].worst);
+	         printf("%7.0f ",1/stats[_STAT_DELETE].worst);
 	         printf("%10d ",x*x*x);
 		 printf("\n");
   	   	 fflush(stdout);
