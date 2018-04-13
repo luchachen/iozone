@@ -2330,3 +2330,6 @@ Format change for the -+z latency histogram logging.
 Revision 3.369
 Added -+O Op_rate control.
 =============================================================================
+Revision 3.370
+Close race condition with master closing socket to child async reader
+=============================================================================

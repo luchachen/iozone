@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.369 $"
+#define THISVERSION "        Version $Revision: 3.370 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -20472,6 +20472,13 @@ int sock, size_of_message;
 			perror("Read failed\n");
 			exit(21);
 		}
+		/* Special case. If master gets final results, it can 
+                   exit, and close the connection to the async child
+                   too quickly. When this happens the child gets a 
+		   read() that returns 0. It just needs to exit here.
+		*/
+		if(rc==0)
+			exit(0);
 		if(cdebug >= 1)
 		{
 			printf("Child %d: Got %d bytes (async) \n",(int)chid,rc);
