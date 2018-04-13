@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.210 $"
+#define THISVERSION "        Version $Revision: 3.211 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -8506,14 +8506,25 @@ long long *data1,*data2;
 	off64_t filebytes64;
 	long long flags_here = 0;
 	int fd,ltest;
+	off64_t numrecs64,traj_offset;
+	long long traj_size;
 #ifdef VXFS
 	int test_foo=0;
 #endif
 	char *nbuff;
 
+	traj_offset=0;
 	nbuff=mainbuffer;
-	numrecs64 = (kilos64*1024)/reclen;
-	filebytes64 = numrecs64*reclen;
+	if(w_traj_flag)
+	{
+		filebytes64 = w_traj_fsize;
+		numrecs64=w_traj_ops;
+	}
+	else
+	{
+		numrecs64 = (kilos64*1024)/reclen;
+		filebytes64 = numrecs64*reclen;
+	}
 	fd = 0;
 	if(oflag){
 		flags_here = O_SYNC|O_RDWR;
@@ -8621,7 +8632,18 @@ long long *data1,*data2;
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 		starttime1 = time_so_far();
 	        compute_val=(double)0;
+		if(w_traj_flag)
+		{
+			rewind(w_traj_fd);
+		}
 		for(i=0; i<numrecs64; i++){
+			if(w_traj_flag)
+			{
+				traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(float *)&compute_time,(long)1);
+				reclen=traj_size;
+			}
+			else
+				traj_offset=(i * reclen);
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
                         if(multi_buffer)
@@ -8635,7 +8657,7 @@ long long *data1,*data2;
 				fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			if(purge)
 				purgeit(nbuff,reclen);
-			if(I_PWRITE(fd, nbuff, reclen, (i * reclen )) != reclen)
+			if(I_PWRITE(fd, nbuff, reclen, traj_offset) != reclen)
 			{
 #ifdef NO_PRINT_LLD
 			    	printf("\nError pwriting block %ld, fd= %d\n", i,
@@ -8750,11 +8772,14 @@ long long *data1, *data2;
 	off64_t filebytes64;
 	int fd,open_flags;
 	int ltest;
+	off64_t traj_offset;
+	long long traj_size;
 #ifdef VXFS
 	int test_foo = 0;
 #endif
 	char *nbuff;
 
+	traj_offset=0;
 	nbuff=mainbuffer;
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
@@ -8771,8 +8796,16 @@ long long *data1, *data2;
 	if(read_sync)
 		open_flags |=O_RSYNC|O_SYNC;
 #endif
-	numrecs64 = (kilos64*1024)/reclen;
-	filebytes64 = numrecs64*reclen;
+	if(r_traj_flag)
+	{
+		filebytes64 = r_traj_fsize;
+		numrecs64=r_traj_ops;
+	}
+	else
+	{
+		numrecs64 = (kilos64*1024)/reclen;
+		filebytes64 = numrecs64*reclen;
+	}
 
 	fd = 0;
 	if(noretest)
@@ -8815,8 +8848,19 @@ long long *data1, *data2;
 			fetchit(nbuff,reclen);
 		starttime2 = time_so_far();
 	        compute_val=(double)0;
+		if(r_traj_flag)
+		{
+			rewind(r_traj_fd);
+		}
 		for(i=0; i<numrecs64; i++) 
 		{
+			if(r_traj_flag)
+			{
+				traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(float *)&compute_time,(long)1);
+				reclen=traj_size;
+			}
+			else
+				traj_offset=(i * reclen);
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
                         if(multi_buffer)
@@ -8829,7 +8873,7 @@ long long *data1, *data2;
 
 			if(purge)
 				purgeit(nbuff,reclen);
-			if(I_PREAD(((int)fd), ((void*)nbuff), ((size_t) reclen),(i * reclen) ) 
+			if(I_PREAD(((int)fd), ((void*)nbuff), ((size_t) reclen),traj_offset ) 
 					!= reclen)
 			{
 #ifdef NO_PRINT_LLD
