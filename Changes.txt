@@ -1734,4 +1734,8 @@ Revision 3.191
 =============================================================================
 Add 64 bit compiles for s390x
 Move BIG_ENDIAN to ZBIG_ENDIAN to avoid header conflicts.
+=============================================================================
+Revision 3.192 
+=============================================================================
+Make random offsets always based on 48 bit random values.
 
