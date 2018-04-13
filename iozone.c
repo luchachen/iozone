@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.66 $"
+#define THISVERSION "        Version $Revision: 3.67 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -10465,6 +10465,7 @@ dump_throughput()
 #endif
 {
 	long long x,y,i,j;
+	int step,sel,skip;
 	char *port;
 	char *label;
 	char print_str[300];
@@ -10507,12 +10508,53 @@ dump_throughput()
 		sprintf(print_str,"Output is in %s",label);
 		do_label(bif_fd,print_str,bif_row++,bif_column);
 	}
+	step=0;
+	skip=0;
+	sel=-1;
 	for(i=0;i<x;i++)
 	{
-		printf("\"%15s \"",throughput_tests[i]);
+		if(!include_tflag)
+			skip=1;
+		if(!skip)
+		{
+			for( ; step < 12 ; step++)
+			{
+				if(include_test[step])
+					break;
+			}
+			switch (step) {
+			case 0: 
+				sel = 0;
+				skip=1;
+				break;
+			case 1: 
+				sel = 2;
+				skip=1;
+				break;
+			case 2: 
+				sel = 6;
+				skip=1;
+				break;
+			case 3: 
+				sel = 4;
+				skip=0;
+				break;
+			case 5: 
+				sel = 5;
+				skip=0;
+				break;
+			}
+		}else
+		{
+			sel++;
+			skip=0;
+		}
+		step++;
+		
+		printf("\"%15s \"",throughput_tests[sel]);
 		if(bif_flag)
 		{
-			sprintf(print_str,"%15s ",throughput_tests[i]);
+			sprintf(print_str,"%15s ",throughput_tests[sel]);
 			do_label(bif_fd,print_str,bif_row,bif_column++);
 			bif_column++;
 		}
@@ -10952,8 +10994,8 @@ double
 do_compute(double delay)
 #else
 double
-do_compute()
-double delay
+do_compute(delay)
+double delay;
 #endif
 {
 	double starttime,tmptime;

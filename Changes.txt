@@ -1252,3 +1252,7 @@ Add labels to the latency/offset output files.
 Revision 3.66
 =============================================================================
 Added Randy Dunlap to the list of contributors. Thanks Randy !!
+=============================================================================
+Revision 3.67
+=============================================================================
+Fix labels when using -R and -i options together.
