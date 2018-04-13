@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.61 $"
+#define THISVERSION "        Version $Revision: 3.62 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -362,7 +362,7 @@ struct child_stats {
 #define CROSSOVER (8*1024)		/* At 8 Meg switch to large records */
 #define MAXBUFFERSIZE (8*1024*1024)		/*maximum buffer size*/
 #else
-#define CROSSOVER (1*1024)		/* At 16 Meg switch to large records */
+#define CROSSOVER (16*1024)		/* At 16 Meg switch to large records */
 #define MAXBUFFERSIZE (16*1024*1024)		/*maximum buffer size*/
 #endif
 
