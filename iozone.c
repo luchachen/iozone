@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.99 $"
+#define THISVERSION "        Version $Revision: 3.100 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -569,6 +569,7 @@ struct master_neutral_command {
 #define R_JOIN_ACK        4
 #define R_STOP_FLAG       5
 #define R_TERMINATE       6
+#define R_DEATH           7
 
 
 /* These are the defaults for the processor. They can be 
@@ -14314,6 +14315,7 @@ start_master_listen()
 	int rcvd;
 	int s;
 	int rc;
+	int tmp_port;
 	struct sockaddr_in addr, raddr;
 
         s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -14322,21 +14324,23 @@ start_master_listen()
                 perror("socket failed:");
                 exit(19);
         }
+	tmp_port=HOST_LIST_PORT;
         bzero(&addr, sizeof(struct sockaddr_in));
-        addr.sin_port = HOST_LIST_PORT;
+        addr.sin_port = htons(tmp_port);
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
         rc = -1;
         while (rc < 0)
         {
                 rc = bind(s, (struct sockaddr *)&addr,
-                                sizeof(struct sockaddr));
+                                sizeof(struct sockaddr_in));
 		if(rc < 0)
 		{
-                	addr.sin_port++;
+			tmp_port++;
+                	addr.sin_port=htons(tmp_port);
 			continue;
 		}
-		master_listen_port = addr.sin_port;
+		master_listen_port = ntohs(addr.sin_port);
         }
 	if(rc < 0)
 	{
@@ -14581,7 +14585,7 @@ char *controlling_host_name;
 	int rc,child_socket_val,tsize;
 	struct sockaddr_in addr,raddr;
 	struct hostent *he;
-	int port;
+	int port, tmp_port;
 	struct in_addr *ip;
 
         he = gethostbyname(controlling_host_name);
@@ -14610,7 +14614,7 @@ char *controlling_host_name;
 
 
         raddr.sin_family = AF_INET;
-        raddr.sin_port = HOST_LIST_PORT;
+        raddr.sin_port = htons(HOST_LIST_PORT);
         raddr.sin_addr.s_addr = ip->s_addr;
         child_socket_val = socket(AF_INET, SOCK_DGRAM, 0);
         if (child_socket_val < 0)
@@ -14619,7 +14623,8 @@ char *controlling_host_name;
                 exit(23);
         }
         bzero(&addr, sizeof(struct sockaddr_in));
-        addr.sin_port = CHILD_ESEND_PORT;
+	tmp_port=CHILD_ESEND_PORT;
+        addr.sin_port = htons(tmp_port);
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
         rc = -1;
@@ -14629,13 +14634,14 @@ char *controlling_host_name;
                                                 sizeof(struct sockaddr_in));
 		if(rc < 0)
 		{
-                	addr.sin_port++;
+			tmp_port++;
+                	addr.sin_port=htons(tmp_port);
 			continue;
 		}
         }
 	if(cdebug ==1)
 	{
-		fprintf(newstdout,"Child: Bound to host port %d\n",addr.sin_port);
+		fprintf(newstdout,"Child: Bound to host port %d\n",tmp_port);
 		fflush(newstdout);
 	}
         if (rc < 0)
@@ -14736,6 +14742,7 @@ int size_of_message;
 	int s;
 	int rc;
 	int xx;
+	int tmp_port;
 	struct sockaddr_in addr, raddr;
 	xx = 0;
 	tsize=size_of_message; /* Number of messages to receive */
@@ -14746,24 +14753,26 @@ int size_of_message;
                 exit(19);
         }
         bzero(&addr, sizeof(struct sockaddr_in));
-        addr.sin_port = CHILD_LIST_PORT+chid;
+	tmp_port=CHILD_LIST_PORT+chid;
+        addr.sin_port = htons(tmp_port);
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
         rc = -1;
         while (rc < 0)
         {
                 rc = bind(s, (struct sockaddr *)&addr,
-                                sizeof(struct sockaddr));
+                                sizeof(struct sockaddr_in));
 		if(rc < 0)
 		{
-                	addr.sin_port++;
+			tmp_port++;
+                	addr.sin_port=htons(tmp_port);
 			continue;
 		}
         }
-	child_port = addr.sin_port;
+	child_port = ntohs(addr.sin_port);
 	if(cdebug ==1)
 	{
-		fprintf(newstdout,"Child: Listen: Bound at port %d\n",addr.sin_port);
+		fprintf(newstdout,"Child: Listen: Bound at port %d\n",tmp_port);
 		fflush(newstdout);
 	}
 	if(rc < 0)
@@ -14838,6 +14847,7 @@ int size_of_message;
 	int s;
 	int rc;
 	int xx;
+	int tmp_port;
 	struct sockaddr_in addr, raddr;
 	xx = 0;
 	tsize=size_of_message; /* Number of messages to receive */
@@ -14848,24 +14858,26 @@ int size_of_message;
                 exit(19);
         }
         bzero(&addr, sizeof(struct sockaddr_in));
-        addr.sin_port = CHILD_ALIST_PORT;
+	tmp_port=CHILD_ALIST_PORT;
+        addr.sin_port = htons(tmp_port);
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
         rc = -1;
         while (rc < 0)
         {
                 rc = bind(s, (struct sockaddr *)&addr,
-                                sizeof(struct sockaddr));
+                                sizeof(struct sockaddr_in));
 		if(rc < 0)
 		{
-                	addr.sin_port++;
+			tmp_port++;
+                	addr.sin_port=htons(tmp_port);
 			continue;
 		}
         }
-	child_async_port = addr.sin_port;
+	child_async_port = ntohs(addr.sin_port);
 	if(cdebug ==1)
 	{
-		fprintf(newstdout,"Child: Async Listen: Bound at port %d\n",addr.sin_port);
+		fprintf(newstdout,"Child: Async Listen: Bound at port %d\n",tmp_port);
 		fflush(newstdout);
 	}
 	if(rc < 0)
@@ -14942,7 +14954,7 @@ struct in_addr *my_s_addr;
 	int rc,master_socket_val,tsize;
 	struct sockaddr_in addr,raddr;
 	struct hostent *he;
-	int port;
+	int port,tmp_port;
 	struct in_addr *ip;
         he = gethostbyname(child_host_name);
         if (he == NULL)
@@ -14971,7 +14983,7 @@ struct in_addr *my_s_addr;
 	/*port=CHILD_LIST_PORT;*/
 
         raddr.sin_family = AF_INET;
-        raddr.sin_port = port;
+        raddr.sin_port = htons(port);
         raddr.sin_addr.s_addr = ip->s_addr;
         master_socket_val = socket(AF_INET, SOCK_DGRAM, 0);
         if (master_socket_val < 0)
@@ -14980,7 +14992,8 @@ struct in_addr *my_s_addr;
                 exit(23);
         }
         bzero(&addr, sizeof(struct sockaddr_in));
-        addr.sin_port = HOST_ESEND_PORT;
+	tmp_port=HOST_ESEND_PORT;
+        addr.sin_port = htons(tmp_port);
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
         rc = -1;
@@ -14990,7 +15003,8 @@ struct in_addr *my_s_addr;
                                                 sizeof(struct sockaddr_in));
 		if(rc < 0)
 		{
-                	addr.sin_port++;
+			tmp_port++;
+                	addr.sin_port=htons(tmp_port);
 			continue;
 		}
         }
@@ -15037,7 +15051,7 @@ struct in_addr my_s_addr;
 	int rc,master_socket_val,tsize;
 	struct sockaddr_in addr,raddr;
 	int dummy;
-	int port;
+	int port,tmp_port;
 	struct in_addr *ip;
 	int dummy1;
 	struct hostent *ho;
@@ -15046,7 +15060,7 @@ struct in_addr my_s_addr;
 	port=child_port;
 
         raddr.sin_family = AF_INET;
-        raddr.sin_port = port;
+        raddr.sin_port = htons(port);
         raddr.sin_addr.s_addr = my_s_addr.s_addr;
         master_socket_val = socket(AF_INET, SOCK_DGRAM, 0);
         if (master_socket_val < 0)
@@ -15055,7 +15069,8 @@ struct in_addr my_s_addr;
                 exit(23);
         }
         bzero(&addr, sizeof(struct sockaddr_in));
-        addr.sin_port = HOST_ESEND_PORT;
+	tmp_port=HOST_ESEND_PORT;
+        addr.sin_port = htons(tmp_port);
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
         rc = -1;
@@ -15065,7 +15080,8 @@ struct in_addr my_s_addr;
                                                 sizeof(struct sockaddr_in));
 		if(rc < 0)
 		{
-                	addr.sin_port++;
+			tmp_port++;
+                	addr.sin_port=htons(tmp_port);
 			continue;
 		}
         }
@@ -15404,7 +15420,7 @@ become_client()
 	sscanf(cnc->c_client_number,"%d",&cc.c_client_number);
 	sscanf(cnc->c_host_name,"%s",cc.c_host_name);
 
-	if(cc.c_command == R_TERMINATE)
+	if(cc.c_command == R_TERMINATE || cc.c_command==R_DEATH)
 	{
 		if(cdebug)
 		{
@@ -15744,7 +15760,7 @@ long long chid;
 	child_listen(l_sock,sizeof(struct client_neutral_command));
 	cnc = (struct client_neutral_command *)child_rcv_buf;
 	sscanf(cnc->c_command,"%d",&cc.c_command);
-	if(cc.c_command == R_TERMINATE)
+	if(cc.c_command == R_TERMINATE || cc.c_command==R_DEATH)
 	{
 		if(cdebug)
 		{
@@ -15898,6 +15914,16 @@ start_child_listen_loop()
 				  (int)cc.c_client_number);
 				fflush(newstdout);
 			}
+			sleep(2);
+			/* Aync listener goes away */
+			exit(0);
+		case R_DEATH:
+			if(cdebug)
+			{
+				fprintf(newstdout,"Child loop: R_DEATH: Client %d \n",
+				  (int)cc.c_client_number);
+				fflush(newstdout);
+			}
 			i = cc.c_client_number;
 			child_remove_files(i);
 			sleep(2);
@@ -16048,11 +16074,11 @@ int i;
 
 	char *dummyfile[MAXSTREAMS];           /* name of dummy file     */
 	dummyfile[i]=(char *)malloc((size_t)MAXNAMESIZE);
-#ifdef NO_PRINT_LLD
-	sprintf(dummyfile[i],"%s.DUMMY.%ld",filearray[i],i);
-#else
-	sprintf(dummyfile[i],"%s.DUMMY.%lld",filearray[i],i);
-#endif
+	sprintf(dummyfile[i],"%s.DUMMY.%d",filearray[i],i);
+	if(cdebug)
+	{
+		fprintf(newstdout,"Child remove: %s \n",dummyfile[i]);
+	}
 	unlink(dummyfile[i]);
 }
 
@@ -16155,7 +16181,7 @@ cleanup_children()
 {
 	int i;
 	struct client_command cc;
-	cc.c_command = R_TERMINATE;
+	cc.c_command = R_DEATH;
 	for(i=0;i<num_child;i++)
 	{
 		cc.c_client_number = (int)i; 

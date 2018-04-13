@@ -1363,6 +1363,11 @@ Revision 3.99
 =============================================================================
 Add protocol version checking for distributed messages.
 Add support for AIX 5.2
+=============================================================================
+Revision 3.100 
+=============================================================================
+Fixes for socket ports. Needed to be in network format.
+
 
 
 
