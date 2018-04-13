@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.153 $"
+#define THISVERSION "        Version $Revision: 3.154 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -178,6 +178,8 @@ char *help[] = {
 "           -+p # Percentage of mix to be reads",
 "           -+r Enable O_RSYNC|O_SYNC for all testing.",
 "           -+t Enable network performance test. Requires -+m ",
+"           -+A #  Enable madvise. 0 = normal, 1=random, 2=sequential",
+"                                  3=dontneed, 4=willneed",
 "" };
 
 char *head1[] = {
@@ -441,6 +443,8 @@ struct client_command {
 	int c_base_time;
 	int c_num_child;
 	int c_pct_read;
+	int c_advise_op;
+	int c_advise_flag;
 	long long c_stride;
 	long long c_delay;
 	long long c_purge;
@@ -516,6 +520,8 @@ struct client_neutral_command {
 	char c_base_time[20]; 		/* int */
 	char c_num_child[20]; 		/* int */
 	char c_pct_read[6]; 		/* int */
+	char c_advise_op[6]; 		/* int */
+	char c_advise_flag[6]; 		/* int */
 	char c_depth[20]; 		/* small long long */
 	char c_child_flag[40]; 		/* small long long */
 	char c_delay[80]; 		/* long long */
@@ -1082,7 +1088,7 @@ char *barray[MAXSTREAMS];
 char *haveshm;
 extern int optind;
 long long onetime, auto_mode, sfd, multi_buffer;
-int fd;
+int fd,advise_op,advise_flag;
 int sp_msfd,sp_mrfd,sp_csfd,sp_crfd;
 int begin_proc,num_processors,ioz_processor_bind;
 long long res_prob,rec_prob;
@@ -1251,7 +1257,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 7;
+int proto_version = 8;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -2143,6 +2149,12 @@ char **argv;
     					sprintf(splash[splash_line++],"\tRead & Write sync mode active.\n");
 					break;
 #endif
+				case 'A':  /* Argument is madvise selector */
+					subarg=argv[optind++];
+					advise_flag=1;
+					advise_op=atoi(subarg);
+					sprintf(splash[splash_line++],"\tMadvise enabled: %d\n",advise_op);
+					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
 					exit(0);
@@ -15039,6 +15051,29 @@ int flag, prot;
 #endif
 #endif
 #endif
+	if(advise_flag)
+	{
+		switch(advise_op){
+		case 0:
+			madvise( (char *)pa, (size_t) filebytes, MADV_NORMAL);
+			break;
+		case 1: 
+			madvise( (char *)pa, (size_t) filebytes, MADV_RANDOM);
+			break;
+		case 2: 
+			madvise( (char *)pa, (size_t) filebytes, MADV_SEQUENTIAL);
+			break;
+		case 3: 
+			madvise( (char *)pa, (size_t) filebytes, MADV_DONTNEED);
+			break;
+		case 4: 
+			madvise( (char *)pa, (size_t) filebytes, MADV_WILLNEED);
+			break;
+		default: 
+			break;
+		};
+	}
+	
 	return(pa);
 
 }
@@ -16408,6 +16443,8 @@ int send_size;
 	sprintf(outbuf.c_base_time,"%d",send_buffer->c_base_time);
 	sprintf(outbuf.c_num_child,"%d",send_buffer->c_num_child);
 	sprintf(outbuf.c_pct_read,"%d",send_buffer->c_pct_read);
+	sprintf(outbuf.c_advise_op,"%d",send_buffer->c_advise_op);
+	sprintf(outbuf.c_advise_flag,"%d",send_buffer->c_advise_flag);
 #ifdef NO_PRINT_LLD
 	sprintf(outbuf.c_stride,"%ld",send_buffer->c_stride);
 	sprintf(outbuf.c_delay,"%ld",send_buffer->c_delay);
@@ -17216,6 +17253,8 @@ long long numrecs64, reclen;
 	cc.c_base_time = base_time;
 	cc.c_num_child = (int)num_child;
 	cc.c_pct_read = pct_read;
+	cc.c_advise_op = advise_op;
+	cc.c_advise_flag = advise_flag;
 	cc.c_Q_flag = Q_flag;
 	cc.c_xflag = xflag;
 	cc.c_w_traj_flag = w_traj_flag;
@@ -17444,6 +17483,8 @@ become_client()
 	sscanf(cnc->c_base_time,"%d",&cc.c_base_time);
 	sscanf(cnc->c_num_child,"%d",&cc.c_num_child);
 	sscanf(cnc->c_pct_read,"%d",&cc.c_pct_read);
+	sscanf(cnc->c_advise_op,"%d",&cc.c_advise_op);
+	sscanf(cnc->c_advise_flag,"%d",&cc.c_advise_flag);
 	sscanf(cnc->c_Q_flag,"%d",&cc.c_Q_flag);
 	sscanf(cnc->c_xflag,"%d",&cc.c_xflag);
 	sscanf(cnc->c_include_flush,"%d",&cc.c_include_flush);
@@ -17494,6 +17535,8 @@ become_client()
 	base_time=cc.c_base_time;
 	num_child=(long long)cc.c_num_child;
 	pct_read=cc.c_pct_read;
+	advise_op=cc.c_advise_op;
+	advise_flag=cc.c_advise_flag;
 	Q_flag = cc.c_Q_flag;
 	xflag = cc.c_xflag;
 	w_traj_flag = cc.c_w_traj_flag;
