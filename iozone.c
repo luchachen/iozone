@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.138 $"
+#define THISVERSION "        Version $Revision: 3.139 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -1022,6 +1022,9 @@ long long goodrecl;
 off64_t offset = 0;               /*offset for random I/O */
 off64_t offset64 = 0;               /*offset for random I/O */
 off64_t filebytes64;
+off64_t r_range[100];
+off64_t s_range[100];
+int r_count,s_count;
 char *barray[MAXSTREAMS];
 char *haveshm;
 extern int optind;
@@ -1528,8 +1531,11 @@ char **argv;
 			}
 			if(kilobytes64 <= 0)
 				kilobytes64=512;
-			min_file_size = (off64_t)kilobytes64; /* Make visable globally */
-			max_file_size = (off64_t)kilobytes64; /* Make visable globally */
+
+			s_range[s_count++]=kilobytes64;
+			max_file_size = (off64_t)s_range[s_count-1];   /* Make visable globally */
+			min_file_size = (off64_t)s_range[0];   /* Make visable globally */
+
 #ifdef NO_PRINT_LLD
 	    		sprintf(splash[splash_line++],"\tFile size set to %ld KB\n",kilobytes64);
 #else
@@ -1733,8 +1739,9 @@ char **argv;
 			if(reclen <= 0)
 				reclen=(long long)4096;
 
-			max_rec_size = (off64_t)reclen;   /* Make visable globally */
-			min_rec_size = (off64_t)reclen;   /* Make visable globally */
+			r_range[r_count++]=reclen;
+			max_rec_size = (off64_t)r_range[r_count-1];   /* Make visable globally */
+			min_rec_size = (off64_t)r_range[0];   /* Make visable globally */
 #ifdef NO_PRINT_LLD
 	    		sprintf(splash[splash_line++],"\tRecord Size %ld KB\n",reclen/1024);
 #else
@@ -2074,6 +2081,18 @@ char **argv;
 			}	
 			break;
 		}
+	}
+	if(r_count > 1)
+	{
+		aflag=1;
+		rflag=0;
+		NOCROSSflag=1;
+	}
+	if(s_count > 1)
+	{
+		aflag=1;
+		sflag=0;
+		NOCROSSflag=1;
 	}
 	/*
          * If not in silent mode then display the splash screen.
@@ -14337,9 +14356,21 @@ off64_t max_f_size;
 #endif
 {
     	off64_t kilosi;
-        for(kilosi=min_f_size;kilosi<=max_f_size;kilosi*=multiplier)
+	int x;
+	if(s_count > 1)
 	{
-		add_file_size((off64_t)kilosi);
+	        for(x=0; x < s_count; x++)
+		{
+			kilosi=s_range[x];
+			add_file_size((off64_t)kilosi);
+		}
+	}
+	else
+	{
+	        for(kilosi=min_f_size;kilosi<=max_f_size;kilosi*=multiplier)
+		{
+			add_file_size((off64_t)kilosi);
+		}
 	}
 }
 
@@ -14423,10 +14454,22 @@ off64_t min_r_size;
 off64_t max_r_size;
 #endif
 {
+	int x;
     	off64_t size;
-        for(size=min_r_size;size<=max_r_size;size*=multiplier)
+	if(r_count > 1)
 	{
-		add_record_size((off64_t)size);
+	        for(x=0; x < r_count; x++)
+		{
+			size=r_range[x];
+			add_record_size((off64_t)size);
+		}
+	}
+	else
+	{
+	        for(size=min_r_size;size<=max_r_size;size*=multiplier)
+		{
+			add_record_size((off64_t)size);
+		}
 	}
 }
 
