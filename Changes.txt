@@ -2343,3 +2343,22 @@ Set Listen(s,100) to Listen(s,MAXSTREAMS)
 Revision 3.373
 Move lable "again" to outside of cdebug.
 =============================================================================
+Revision 3.374
+More fixes for busted crap in Solaris !!!
+=============================================================================
+Revision 3.376
+AIX update. They now have errno.h
+=============================================================================
+Revision 3.377
+Need errno.h for FreeBSD
+=============================================================================
+Revision 3.379
+Need to include errno.h for Cygwin
+=============================================================================
+Revision 3.381
+Add SO_LINGER for master_listen and child_listen, so that wind-blows
+will work like all other systems on the planet.
+=============================================================================
+Revision 3.382
+Fix for linger addition
+=============================================================================

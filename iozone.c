@@ -60,17 +60,17 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.373 $"
+#define THISVERSION "        Version $Revision: 3.382 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
 #endif
 /* Include for Cygnus development environment for Windows */
 #if defined (Windows)
-#include <Windows.h>
-int errno;
+#include <windows.h>
+#include <errno.h>
 #else
-#if defined(linux) || defined(solaris) || defined(macosx)
+#if defined(linux) || defined(solaris) || defined(macosx) || defined(__AIX__) || defined(FreeBSD)
 #include <errno.h>
 #else
 extern  int errno;   /* imported for errors */
@@ -587,16 +587,16 @@ struct client_command {
  * than 1448 bytes or fragmentation will kick your butt.
  */
 struct client_neutral_command {
-	char c_host_name[40];
+	char c_host_name[100];
 	char c_pit_hostname[40];
 	char c_pit_service[8];
 	char c_client_name[100];
-	char c_working_dir[100];
-	char c_file_name[100];
-	char c_path_dir[100];
-	char c_execute_name[100];
-	char c_write_traj_filename[100];
-	char c_read_traj_filename[100];
+	char c_working_dir[200];
+	char c_file_name[200];
+	char c_path_dir[200];
+	char c_execute_name[200];
+	char c_write_traj_filename[200];
+	char c_read_traj_filename[200];
 	char c_oflag[2];
 	char c_mfflag[2];
 	char c_unbuffered[2];
@@ -1473,7 +1473,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 24;
+int proto_version = 25;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -19791,6 +19791,9 @@ start_master_listen()
 	int sockerr;
 	struct sockaddr_in addr;
 	int recv_buf_size=65536*4;
+#if defined(Windows)
+	struct linger dummy={0,0};
+#endif
 
         s = socket(AF_INET, SOCK_STREAM, 0);
         if (s < 0)
@@ -19808,6 +19811,13 @@ start_master_listen()
 	if ( sockerr == -1 ) {
 		perror("Error in setsockopt 2\n");
 	}
+#if defined(Windows)
+	sockerr = setsockopt (s, SOL_SOCKET, SO_LINGER, (char *)
+		&dummy, sizeof(struct linger));
+	if ( sockerr == -1 ) {
+		perror("Error in setsockopt 2\n");
+	}
+#endif
 	tmp_port=HOST_LIST_PORT;
         bzero(&addr, sizeof(struct sockaddr_in));
         addr.sin_port = htons(tmp_port);
@@ -19968,6 +19978,14 @@ over:
 	  fflush(newstdout);
 	}
 again:
+	/* Solaris STINKS !!!!!!!!!!!!! 
+	 * Without this sleep for 5 seconds the
+         * first connect will always FAIL, but
+ 	 * wait 5 seconds and it always works. CRAP-O-LA 
+	 */
+#if defined(solarit)
+	sleep(5);
+#endif
         rc = connect(child_socket_val, (struct sockaddr *)&cs_raddr,
                         sizeof(struct sockaddr_in));
         if (rc < 0)
@@ -20259,6 +20277,9 @@ int size_of_message;
 	int tmp_port;
 	int sockerr;
 	int recv_buf_size=65536;
+#if defined(Windows)
+	struct linger dummy={0,0};
+#endif
 	xx = 0;
 	tsize=size_of_message; /* Number of messages to receive */
         s = socket(AF_INET, SOCK_STREAM, 0);
@@ -20277,6 +20298,13 @@ int size_of_message;
 	if ( sockerr == -1 ) {
 		perror("Error in setsockopt 4\n");
 	}
+#if defined(Windows)
+	sockerr = setsockopt (s, SOL_SOCKET, SO_LINGER, (char *)
+		&dummy, sizeof(struct linger));
+	if ( sockerr == -1 ) {
+		perror("Error in setsockopt 4\n");
+	}
+#endif
         bzero(&child_sync_sock, sizeof(struct sockaddr_in));
 	tmp_port=CHILD_LIST_PORT+chid;
         child_sync_sock.sin_port = htons(tmp_port);
@@ -20668,11 +20696,14 @@ struct in_addr my_s_addr;
 	int ecount = 0;
 
 	port=child_port;
-	/* Silly, fragile socket code... Sleep 1 sec here
- 	 * or some accept()/connect() pairs will hang 
-	 * and fail. gosh, ain't a standard API fun !!
-	sleep(1);
+	/* Solaris STINKS !!!!!!!!!!!!! 
+	 * Without this sleep for 5 seconds the
+         * first connect will always FAIL, but
+ 	 * wait 5 seconds and it always works. CRAP-O-LA 
 	 */
+#if defined(solaris)
+	sleep(5);
+#endif
 
 over:
         raddr.sin_family = AF_INET;
@@ -20712,6 +20743,7 @@ over:
                 exit(24);
         }
 again:
+
         rc = connect(master_socket_val, (struct sockaddr *)&raddr, 
 			sizeof(struct sockaddr_in));
 	if (rc < 0)
@@ -21700,10 +21732,16 @@ int num;
 		}
 			
 	}
-        sleep(2); /* Let the clients report results before exiting.
-                     Also, exiting too quickly can close the async
-                     socket to the child, and cause it to become ill.
-                     On Solaris, it gets stuck in a 0=read() loop. */
+	/* Let the clients report results before exiting.
+           Also, exiting too quickly can close the async
+           socket to the child, and cause it to become ill.
+           On Solaris, it gets stuck in a 0=read() loop. */
+
+#if defined(solaris)
+	sleep(5);
+#else
+        sleep(2); 
+#endif
 
 	exit(0);
 }

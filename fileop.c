@@ -79,6 +79,7 @@ int x,excel;
 int verbose = 0;
 int sz = 1;
 char *mbuffer;
+int incr;
 #define _STAT_CREATE 0
 #define _STAT_WRITE 1
 #define _STAT_CLOSE 2
@@ -127,7 +128,7 @@ void bzero();
 void clear_stats();
 int validate(char *, int , char );
 
-#define THISVERSION "        $Revision: 1.57 $"
+#define THISVERSION "        $Revision: 1.59 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;
@@ -179,7 +180,7 @@ int main(int argc, char **argv)
 		usage();
 		exit(1);
 	}
-	while((cret = getopt(argc,argv,"hbwetvf:s:l:u:d:U: ")) != EOF){
+	while((cret = getopt(argc,argv,"hbwetvf:s:l:u:d:U:i: ")) != EOF){
 		switch(cret){
                 case 'h':
                         usage();
@@ -194,6 +195,11 @@ int main(int argc, char **argv)
                         break;
 		case 'U':
 			mountname = optarg;
+			break;
+		case 'i':	/* Increment force by */
+			incr=atoi(optarg);
+			if(incr < 0)
+				incr=1;
 			break;
 		case 'f':	/* Force factor */
 			x=atoi(optarg);
@@ -266,7 +272,7 @@ int main(int argc, char **argv)
 		x=1;
 	if(range==0)
 		lower=upper=x;
-	for(i=lower;i<=upper;i++)
+	for(i=lower;i<=upper;i+=incr)
 	{
 		clear_stats();
 		x=i;
@@ -1332,6 +1338,7 @@ usage(void)
   printf("     -s #      Optional. Sets filesize for the create/write. May use suffix 'K' or 'M'.\n");
   printf("     -e        Excel importable format.\n");
   printf("     -b        Output best case results.\n");
+  printf("     -i #      Increment force factor by this increment.\n");
   printf("     -w        Output worst case results.\n");
   printf("     -d <dir>  Specify starting directory.\n");
   printf("     -U <dir>  Mount point to remount between tests.\n");

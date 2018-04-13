@@ -11,6 +11,9 @@
  * act poorly
  */
 
+#ifdef Windows
+#include <Windows.h>
+#endif
 #include <sys/types.h>
 #include <stdio.h>
 #include <sys/file.h>
@@ -88,7 +91,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.23 $";
+char libbif_version[] = "Libbif Version $Revision: 3.24 $";
 void do_eof(int );		/* Used internally */
 void do_header(int );		/* Used internally */
 int endian(void);
