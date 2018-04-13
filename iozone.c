@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.372 $"
+#define THISVERSION "        Version $Revision: 3.373 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -19965,9 +19965,9 @@ over:
         if(cdebug)
 	{
           fprintf(newstdout,"Child sender bound to port %d Master port %d \n",tmp_port,HOST_LIST_PORT);
-again:
 	  fflush(newstdout);
 	}
+again:
         rc = connect(child_socket_val, (struct sockaddr *)&cs_raddr,
                         sizeof(struct sockaddr_in));
         if (rc < 0)
