@@ -20,8 +20,13 @@
 #include <sys/fcntl.h>
 #endif
 
-#if defined(OSFV5)
+#if defined(OSFV5) || defined(linux)
 #include <string.h>
+#endif
+
+#if defined(linux)
+#include <unistd.h>
+#include <stdlib.h>
 #endif
 
 #if defined(solaris) && defined( __LP64__ )
@@ -73,7 +78,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.7 $";
+char libbif_version[] = "Libbif Version $Revision: 3.8 $";
 void do_eof(int );		/* Used internally */
 void do_header(int );		/* Used internally */
 #endif
@@ -256,7 +261,6 @@ int row,column;
 #endif
 	struct float_record floatrec;
 	short s_row,s_column;
-	int i;
 	unsigned char *sptr,*dptr;
 	s_row=(short)row;
 	s_column=(short)column;

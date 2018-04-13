@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.109 $"
+#define THISVERSION "        Version $Revision: 3.112 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -240,20 +240,10 @@ THISVERSION,
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-size_t async_write(struct cache *gc, long long fd, long long size, char *buffer, off64_t offset, long long depth);
-size_t async_write_no_copy(struct cache *gc, long long fd, long long size, char *buffer, off64_t offset, long long depth, char *free_addr);
-void async_release(struct cache *gc);
-int create_xls(char *);
-void close_xls(int);
-void do_float(int fd, double value, int row, int column);
-void do_label(int fd, char *string, int row, int column);
-int mylockf(int fd, int op, int rdwr);
-int get_client_info(void);
-int thread_exit(void);
 #endif
 
 
-#if defined(OSFV5)
+#if defined(OSFV5) || defined(linux)
 #include <string.h>
 #endif
 
@@ -792,7 +782,7 @@ void purgeit();			/* Purge on chip cache		  */
 void throughput_test();		/* Multi process throughput 	  */
 void multi_throughput_test();	/* Multi process throughput 	  */
 void prepage();			/* Pre-fault user buffer	  */
-#if defined(linux) || defined(solaris) || defined(__AIX__) || defined(OSFV5)
+#if defined(linux) || defined(solaris) || defined(__AIX__) || defined(OSFV5) || defined(UWIN) || defined(Windows)
 float do_compute(float);	/* compute cycle simulation       */
 #else
 float do_compute();		/* compute cycle simulation       */
@@ -815,6 +805,25 @@ void store_dvalue();		/* Store doubles array 		  */
 void dump_excel();
 void dump_throughput();
 #ifdef HAVE_ANSIC_C
+char *getenv();
+char *inet_ntoa();
+void my_nap();
+int thread_exit();
+int system();
+size_t async_write();
+void async_release();
+int async_read();
+int async_read_no_copy();
+size_t async_write_no_copy();
+void do_float();
+int create_xls();
+void close_xls();
+void do_label();
+int mylockf(int, int, int);
+int rand(void);
+void srand(unsigned int);
+int get_client_info(void);
+void exit(int);
 void find_remote_shell(char *);
 void end_async();
 void takeoff_cache();
@@ -857,6 +866,25 @@ void add_record_size(off64_t);
 void init_record_sizes( off64_t,  off64_t);
 void del_record_sizes( void );
 #else
+char *getenv();
+char *inet_ntoa();
+void my_nap();
+int thread_exit();
+int system();
+void close_xls();
+void do_label();
+int create_xls();
+void do_float();
+void async_release();
+size_t async_write();
+size_t async_write_no_copy();
+int async_read();
+int async_read_no_copy();
+int mylockf();
+int rand();
+void srand();
+int get_client_info();
+void exit();
 void find_remote_shell();
 void traj_vers();
 void r_traj_size();
@@ -1244,17 +1272,12 @@ char **argv;
 	char reply[IBUFSIZE];
 	unsigned char inp_pat;
 	time_t time_run;
-	char *port,*pl,*m,*subarg;
+	char *port,*m,*subarg;
 	int num_child1;
-	int cret,test_fd;
-	int anwser,bind_cpu,retx;
-#if defined(linux)
-	char *tb,*tbs;
-#endif
-#ifdef VXFS
-	int test_foo;
-#endif
+	int cret;
+	int anwser,bind_cpu;
 
+	anwser=bind_cpu=0;
 	/* Used to make fread/fwrite do something better than their defaults */
 	setvbuf( stdout, NULL, _IONBF, (size_t) NULL );
 	setvbuf( stderr, NULL, _IONBF, (size_t) NULL );
@@ -2072,7 +2095,9 @@ char **argv;
 	if(compute_flag && !r_traj_flag && w_traj_flag)
 	{
 		if(w_traj_items==3)
+		{
 			if(!silent) printf("\tCompute time from telemetry files for writes.\n");
+		}
 		else
 		{
 			if(jflag)
@@ -2084,25 +2109,41 @@ char **argv;
 	if(compute_flag && r_traj_flag && w_traj_flag && jflag)
 	{
 		if(r_traj_items==3)
+		{
 			if(!silent) printf("\tCompute time from telemetry files for reads.\n");
+		}
 		else
+		{
 			if(!silent) printf("\tCompute time %f seconds for reads.\n",compute_time);
+		}
 		if(w_traj_items==3) 
+		{
 			if(!silent) printf("\tCompute time from telemetry files for writes.\n");
+		}
 		else
+		{
 			if(!silent) printf("\tCompute time %f seconds for writes.\n",compute_time);
+		}
 	}
 	if(compute_flag && r_traj_flag && w_traj_flag && !jflag)
 	{
 		if(r_traj_items==3)
+		{
 			if(!silent) printf("\tCompute time from telemetry files for reads.\n");
+		}
 		else
+		{
 			if(!silent) printf("\tNo compute time for reads.\n");
+		}
 
 		if(w_traj_items==3) 
+		{
 			if(!silent) printf("\tCompute time from telemetry files for writes.\n");
+		}
 		else
+		{
 			if(!silent) printf("\tNo compute time for writes.\n");
+		}
 	}
 
 	/* Enforce only write,rewrite,read,reread */
@@ -2239,10 +2280,16 @@ char **argv;
 	if(trflag)
 	{
 		if(num_child > 1)
+		{
 			if(use_thread)
+			{
 				port="threads";
+			}
 			else
+			{
 				port="processes";
+			}
+		}
 
 #ifdef NO_PRINT_LLD
 		if(!silent) printf("\tThroughput test with %ld %s\n", num_child,port);
@@ -2257,7 +2304,7 @@ char **argv;
                                 MAXBUFFERSIZE);
 #else
                 printf("Error: Maximum record length is %lld bytes\n",
-                                MAXBUFFERSIZE);
+                                (long long)MAXBUFFERSIZE);
 #endif
                 exit(21);
         }
@@ -2267,7 +2314,7 @@ char **argv;
                                 MINBUFFERSIZE);
 #else
                 printf("Error: Minimum record length is %lld bytes\n",
-                                MINBUFFERSIZE);
+                                (long long)MINBUFFERSIZE);
 #endif
                 exit(22);
         }
@@ -2333,8 +2380,8 @@ out:
 	if(res_prob)
 	{
 		printf("Timer resolution is poor. Some small transfers may have \n");
-		printf("reported inaccurate results. Sizes %d Kbytes and below.\n",
-			(long)rec_prob/1024);
+		printf("reported inaccurate results. Sizes %ld Kbytes and below.\n",
+			(long)(rec_prob/(long long)1024));
 	}
 
 	if(Rflag && !trflag){
@@ -2389,7 +2436,6 @@ long long reclength;
 {
 	long long num_tests,test_num,i,j;
 	long long data1[MAXTESTS], data2[MAXTESTS];
-	long long tmp;
 	num_tests = sizeof(func)/sizeof(char *);
 #ifdef HAVE_PREAD
 	if(!Eflag)
@@ -2478,10 +2524,11 @@ long long reclength;
 		    	printf("\nThe test completed too quickly to give a good result\n");
 		    	printf("You will get a more precise measure of this machine's\n");
 		    	printf("performance by re-running iozone using the command:\n");
-		    	printf("\n\tiozone %ld ", goodkilos);
 #ifdef NO_PRINT_LLD
+		    	printf("\n\tiozone %ld ", goodkilos);
 		    	printf("\t(i.e., file size = %ld kilobytes64)\n", goodkilos);
 #else
+		    	printf("\n\tiozone %lld ", goodkilos);
 		    	printf("\t(i.e., file size = %lld kilobytes64)\n", goodkilos);
 #endif
 		}
@@ -2489,11 +2536,12 @@ long long reclength;
 	    	goodrecl = reclen/2;
 	    	printf("\nI/O error during read.  Try again with the command:\n");
 #ifdef NO_PRINT_LLD
-	    	printf("\n\tiozone %lld %ld ", kilobytes64,  goodrecl);
-#else
 	    	printf("\n\tiozone %ld %ld ", kilobytes64,  goodrecl);
-#endif
 	    	printf("\t(i.e. record size = %ld bytes)\n",  goodrecl);
+#else
+	    	printf("\n\tiozone %lld %lld ", kilobytes64,  goodrecl);
+	    	printf("\t(i.e. record size = %lld bytes)\n",  goodrecl);
+#endif
 	   }
 	}
 	if (!no_unlink)
@@ -2559,7 +2607,7 @@ void signal_handler()
 		if(res_prob)
 		{
 			printf("Timer resolution is poor. Some small transfers may have \n");
-			printf("reported inaccurate results. Sizes %d Kbytes and below.\n",
+			printf("reported inaccurate results. Sizes %ld Kbytes and below.\n",
 				(long)rec_prob/1024);
 		}
 		if(trflag && !use_thread)
@@ -2587,7 +2635,7 @@ void auto_test()
 {
     	off64_t kilosi;
 	long long recszi,count1;
-	long long mult,save_y=0;
+	long long mult;
 	long long xx;
 
 	/****************************************************************/
@@ -2704,7 +2752,6 @@ throughput_test()
 #endif
 {
 	char *unit;
-	char *stackp;
 	double starttime1 = 0;
 	double jstarttime = 0;
 	double jtime = 0;
@@ -2715,13 +2762,9 @@ throughput_test()
 	char getout;
 	long long throughsize = KILOBYTES;
 	long long xx,xy,i;
-	long long flags,xyz;
+	long long xyz;
 	double ptotal;
-	long long recs_per_buffer;
-	long long buffer_size = MAXBUFFERSIZE;
 	off64_t written_so_far, read_so_far, re_written_so_far,re_read_so_far;
-	long tx;
-	long long stopped;
 	VOLATILE char *temp;
 	double min_throughput = 0;
 	double max_throughput = 0;
@@ -3047,13 +3090,13 @@ waitout:
 			if(cpuutilflag)
 			{
 				if(!silent) 
-					printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+					printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
 			}
 			else
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 			}
 		}
@@ -3276,13 +3319,13 @@ jump3:
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
 			}
 			else
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 			}
 		}
@@ -3497,13 +3540,13 @@ jumpend:
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
 			}
 			else
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 			}
 		}
@@ -3719,13 +3762,13 @@ jumpend2:
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
 			}
 			else
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 			}
 		}
@@ -3942,13 +3985,13 @@ next1:
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
 			}
 			else
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 			}
 		}
@@ -4160,13 +4203,13 @@ next2:
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
 			}
 			else
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 			}
 		}
@@ -4378,13 +4421,13 @@ next3:
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
 			}
 			else
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 			}
 		}
@@ -4596,13 +4639,13 @@ next4:
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
 			}
 			else
 			{
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
+				if(!silent) printf("\tChild[%ld] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 			}
 		}
@@ -4877,15 +4920,16 @@ char sverify;
 	      {
 		   file_position = (off64_t)( (recnum * recsize)+ i);
 	printf("\n\n");
-	printf("Error in file: Found ?%llx? Expecting ?%llx? addr %llx\n",*where, (long long)((patt<<32)|patt),where);
 #ifdef NO_PRINT_LLD
+	printf("Error in file: Found ?%lx? Expecting ?%lx? addr %lx\n",*where, (long long)((patt<<32)|patt),where);
 	printf("Error in file: Position %ld \n",file_position);
 	printf("Record # %ld Record size %ld kb \n",recnum,recsize/1024);
 	printf("where %8.8llx loop %ld\n",where,i);
 #else
+	printf("Error in file: Found ?%llx? Expecting ?%llx? addr %lx\n",*where, (long long)((patt<<32)|patt),((long)where));
 	printf("Error in file: Position %lld \n",file_position);
 	printf("Record # %lld Record size %lld kb \n",recnum,recsize/1024);
-	printf("where %8.8llx loop %lld\n",where,i);
+	printf("where %8.8lx loop %lld\n",(long)where,(long long)i);
 #endif
 		   return(1);
 	      }
@@ -4956,7 +5000,6 @@ char sverify;
 	unsigned long long *where;
 	long long i,j;
 	long long mpattern;
-	long time1;
 	unsigned int seed;
 	unsigned long x;
 
@@ -5097,7 +5140,7 @@ long long *data2;
 	char *wmaddr,*free_addr;
 	char *pbuff;
 	char *nbuff;
-	int fd,returnval,foo,wval;
+	int fd,wval;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -5105,6 +5148,15 @@ long long *data2;
 #endif
 	int test_foo;
 
+#ifdef unix
+	qtime_u_start=qtime_u_stop=0;
+	qtime_s_start=qtime_s_stop=0;
+#endif
+	nbuff=wmaddr=free_addr=0;
+	traj_offset=0;
+	test_foo=0;
+	qtime_start=qtime_stop=0;
+	maddr=0;
 	pbuff=mainbuffer;
 	if(w_traj_flag)
 	{
@@ -5414,7 +5466,6 @@ long long *data2;
 	}else
 	   filebytes64=w_traj_bytes_completed;
 		
-out:
         for(j=0;j<2;j++)
         {
 		writerate[j] = 
@@ -5503,10 +5554,10 @@ long long *data2;
 		if((stream=(FILE *)I_FOPEN(filename,how)) == 0)
 		{
 #ifdef NO_PRINT_LLD
-			printf("\nCan not fdopen temp file: %s %ld\n", 
+			printf("\nCan not fdopen temp file: %s %d\n", 
 				filename,errno);
 #else
-			printf("\nCan not fdopen temp file: %s %lld\n", 
+			printf("\nCan not fdopen temp file: %s %d\n", 
 				filename,errno);
 #endif
 			perror("fdopen");
@@ -5715,10 +5766,10 @@ long long *data1,*data2;
 #endif
 #else
 #ifdef NO_PRINT_LLD
-				printf("\nError freading block %ld %x\n", i,
+				printf("\nError freading block %ld %lx\n", i,
 					(long)buffer);
 #else
-				printf("\nError freading block %lld %x\n", i,
+				printf("\nError freading block %lld %lx\n", i,
 					(long)buffer);
 #endif
 #endif
@@ -5840,6 +5891,14 @@ long long *data1,*data2;
 #else
 	long long *gc=0;
 #endif
+#ifdef unix
+	qtime_u_start=qtime_u_stop=0;
+	qtime_s_start=qtime_s_stop=0;
+#endif
+	qtime_start=qtime_stop=0;
+	maddr=0;
+	traj_offset=0;
+	test_foo=0;
 	numrecs64 = (kilo64*1024)/reclen;
 
 	open_flags = O_RDONLY;
@@ -5936,7 +5995,7 @@ long long *data1,*data2;
 			printf("\nError reading block %d %x\n", 0,
 				(unsigned long long)nbuff);
 #else
-			printf("\nError reading block %d %x\n", 0,
+			printf("\nError reading block %d %lx\n", 0,
 				(long)nbuff);
 #endif
 			perror("read");
@@ -6021,10 +6080,10 @@ long long *data1,*data2;
 #endif
 #else
 #ifdef NO_PRINT_LLD
-				printf("\nError reading block %lld %x\n", i,
+				printf("\nError reading block %ld %x\n", i,
 					(long)nbuff);
 #else
-				printf("\nError reading block %ld %x\n", i,
+				printf("\nError reading block %lld %lx\n", i,
 					(long)nbuff);
 #endif
 #endif
@@ -6206,13 +6265,14 @@ long long *data1, *data2;
 	char *wmaddr,*nbuff;
 	char *maddr,*free_addr;
 	int fd,wval;
-	int test_foo;
+	int test_foo=0;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
 	long long *gc=0;
 #endif
 
+	maddr=free_addr=0;
 	numrecs64 = (kilo64*1024)/reclen;
 	flags = O_RDWR;
 #if defined(linux)
@@ -6553,16 +6613,17 @@ long long *data1,*data2;
 	unsigned long long revreadrate[2];
 	off64_t filebytes64;
 	int fd,open_flags;
-	int test_foo;
 	char *maddr,*wmaddr;
 	volatile char *buffer1;
 	char *nbuff;
+	int test_foo=0;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
 	long long *gc=0;
 #endif
 
+	maddr=wmaddr=0;
 	open_flags=O_RDONLY;
 #if defined(linux)
 	if(direct_flag)
@@ -6792,15 +6853,17 @@ long long *data1,*data2;
 	unsigned long long writeinrate;
 	off64_t filebytes64;
 	int fd,wval;
-	int test_foo;
 	char *maddr;
 	char *wmaddr,*free_addr,*nbuff;
+	int test_foo=0;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
 	long long *gc=0;
 #endif
 
+	walltime=cputime=0;
+	maddr=wmaddr=free_addr=nbuff=0;
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	flags = O_RDWR|O_CREAT|O_TRUNC;
@@ -7027,27 +7090,27 @@ long long *data1, *data2;
 	double starttime1;
 	double compute_val = (double)0;
 	double walltime, cputime;
-	off64_t i,xx;
 	off64_t numrecs64,current_position;
 	long long Index = 0;
-	off64_t savepos64 = 0;
+	off64_t i,savepos64 = 0;
 	unsigned long long strideinrate;
 	off64_t filebytes64;
 	long long uu;
-	off64_t internal_offset = 0;
 	off64_t stripewrap=0;
 	int fd,open_flags;
-	int test_foo;
 	volatile char *buffer1;
 	char *nbuff;
 	char *maddr;
 	char *wmaddr;
+	int test_foo=0;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
 	long long *gc=0;
 #endif
 
+	walltime=cputime=0;
+	nbuff=maddr=wmaddr=0;
 	open_flags=O_RDONLY;
 #if defined(linux)
 	if(direct_flag)
@@ -7316,7 +7379,8 @@ long long *data1,*data2;
 	unsigned long long pwriterate[2];
 	off64_t filebytes64;
 	long long flags_here = 0;
-	int fd,test_foo;
+	int fd;
+	int test_foo=0;
 	char *nbuff;
 
 	nbuff=mainbuffer;
@@ -7527,6 +7591,7 @@ long long *data1, *data2;
 	int fd,open_flags,test_foo;
 	char *nbuff
 
+	test_foo=0;
 	nbuff=mainbuffer;
 	open_flags=O_RDONLY;
 #if defined(linux)
@@ -7695,6 +7760,7 @@ long long *data1,*data2;
 	long long flags_here;
 	char *nbuff;
 
+	test_foo=0;
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	nbuff = mainbuffer;
@@ -7965,6 +8031,7 @@ long long *data1,*data2;
 	int fd,open_flags,test_foo;
 	char *nbuff;
 
+	test_foo=0;
 	open_flags=O_RDONLY;
 #if defined(linux)
 	if(direct_flag)
@@ -8145,8 +8212,9 @@ void print_header()
 		" ",
 		" ",
 		" ",
-		" ",
-		" ",
+		" "
+#ifdef HAVE_PREAD
+		," ",
 		" ",
 		" ",
 		" ",
@@ -8154,6 +8222,8 @@ void print_header()
 		" ",
 		" ",
 		" "
+		" "
+#endif
 		);
     	if(!silent) printf(CONTROL_STRING2,
 		"KB", 
@@ -8170,8 +8240,9 @@ void print_header()
 		"fwrite",
 		"frewrite",
 		"fread",
-		"freread",
-		"pwrite",
+		"freread"
+#ifdef HAVE_PREAD
+		,"pwrite",
 		"repwrite",
 		"pread",
 		"repread",
@@ -8179,6 +8250,7 @@ void print_header()
 		"repwritev",
 		"preadv",
 		"repreadv"
+#endif
 		);
 	}else 
 	if(RWONLYflag){				/*kcollins 8-21-96*/
@@ -8337,9 +8409,8 @@ dump_report(who)
 long long who;
 #endif
 {
-	long long i,j;
+	long long i;
 	off64_t current_file_size;
-	long long counter=0;
 	off64_t rec_size;
 
 	if(bif_flag)
@@ -8786,9 +8857,8 @@ long long size;
 	char *addr;
 	int shmid;
 	int tfd;
-	char *dumb;
-	
 
+	tfd=0;
 	size1=l_max(size,page_size);
 	if(!distributed)
 	{
@@ -8971,7 +9041,7 @@ void multi_throughput_test(mint, maxt)
 long long mint, maxt;
 #endif
 {
-	long long i,xx;
+	long long i;
 	for(i=mint;i<=maxt;i++){
 		num_child =i;
 		current_client_number=0; /* Need to start with 1 */
@@ -9025,7 +9095,7 @@ thread_write_test( x)
 	float delay = (float)0;
 	double thread_qtime_stop,thread_qtime_start;
 	off64_t traj_offset;
-	long long tt,flags,traj_size;
+	long long flags,traj_size;
 	long long w_traj_bytes_completed;
 	long long w_traj_ops_completed;
 	FILE *w_traj_fd;
@@ -9050,6 +9120,11 @@ thread_write_test( x)
 	long long *gc=0;
 #endif
 
+	nbuff=maddr=wmaddr=free_addr=0;
+	thread_qtime_stop=thread_qtime_start=0;
+	thread_wqfd=w_traj_fd=(FILE *)0;
+	traj_offset=walltime=cputime=0;
+	anwser=bind_cpu=test_foo=0;
 	if(w_traj_flag)
 	{
 		filebytes64 = w_traj_fsize;
@@ -9526,7 +9601,6 @@ thread_rwrite_test(x)
 	/************************/
 	struct child_stats *child_stat;
 	long long xx;
-	long long tt;
 	double compute_val = (double)0;
 	double walltime, cputime;
 	float delay = (float)0;
@@ -9557,6 +9631,11 @@ thread_rwrite_test(x)
 	long long *gc=0;
 #endif
 
+	wmaddr=nbuff=maddr=free_addr=0;
+	thread_rwqfd=w_traj_fd=(FILE *)0;
+	traj_offset=thread_qtime_stop=thread_qtime_start=0;
+	walltime=cputime=0;
+	anwser=bind_cpu=test_foo=0;
 	w_traj_bytes_completed=w_traj_ops_completed=0;
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
@@ -9938,7 +10017,6 @@ thread_read_test(x)
 {
 	long long xx;
 	struct child_stats *child_stat;
-	long long tt;
 	double walltime, cputime;
 	long long r_traj_bytes_completed;
 	long long r_traj_ops_completed;
@@ -9955,9 +10033,9 @@ thread_read_test(x)
 	long long recs_per_buffer,traj_size;
 	off64_t i;
 	char *dummyfile[MAXSTREAMS];           /* name of dummy file     */
-	char *nbuff;
-	char *maddr;
-	char *wmaddr;
+	char *nbuff=0;
+	char *maddr=0;
+	char *wmaddr=0;
 	char tmpname[256];
 	volatile char *buffer1;
 	int anwser,bind_cpu;
@@ -9968,6 +10046,10 @@ thread_read_test(x)
 	long long *gc=0;
 #endif
 
+	thread_rqfd=r_traj_fd=(FILE *)0;
+	traj_offset=thread_qtime_stop=thread_qtime_start=0;
+	walltime=cputime=0;
+	anwser=bind_cpu=test_foo=0;
 	r_traj_bytes_completed=r_traj_ops_completed=0;
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
@@ -10344,7 +10426,6 @@ thread_rread_test(x)
 	long long xx;
 	char *nbuff;
 	struct child_stats *child_stat;
-	long long tt;
 	int fd;
 	FILE *r_traj_fd,*thread_rrqfd;
 	long long r_traj_bytes_completed;
@@ -10362,8 +10443,8 @@ thread_rread_test(x)
 	off64_t written_so_far, read_so_far, re_written_so_far,
 		re_read_so_far;
 	char *dummyfile[MAXSTREAMS];           /* name of dummy file     */
-	char *maddr;
-	char *wmaddr;
+	char *maddr=0;
+	char *wmaddr=0;
 	volatile char *buffer1;
 	int anwser,bind_cpu;
 	char tmpname[256];
@@ -10376,6 +10457,10 @@ thread_rread_test(x)
 	/*****************/
 	/* Children only */
 	/*****************/
+	thread_qtime_stop=thread_qtime_start=0;
+	thread_rrqfd=r_traj_fd=(FILE *)0;
+	traj_offset=walltime=cputime=0;
+	anwser=bind_cpu=test_foo=0;
 	r_traj_bytes_completed=r_traj_ops_completed=0;
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
@@ -10747,7 +10832,6 @@ thread_reverse_read_test(x)
 	long long xx;
 	char *nbuff;
 	struct child_stats *child_stat;
-	long long tt;
 	int fd;
 	long long flags = 0;
 	double walltime, cputime;
@@ -10757,19 +10841,17 @@ thread_reverse_read_test(x)
 	double temp_time;
 	double compute_val = (double)0;
 	long long recs_per_buffer;
-	off64_t i,t_offset,here;
-	off64_t zoffset=0;
+	off64_t i,t_offset;
 	off64_t current_position=0;
-	off64_t written_so_far, reverse_read, re_written_so_far,
-		re_read_so_far,read_so_far;
+	off64_t written_so_far, reverse_read, re_read_so_far,read_so_far;
 	char *dummyfile[MAXSTREAMS];           /* name of dummy file     */
-	char *maddr;
-	char *wmaddr;
+	char *maddr=0;
+	char *wmaddr=0;
 	volatile char *buffer1;
 	int anwser,bind_cpu;
 	off64_t traj_offset;
 	char tmpname[256];
-	FILE *thread_revqfd;
+	FILE *thread_revqfd=0;
 	int test_foo;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -10779,6 +10861,9 @@ thread_reverse_read_test(x)
 	/*****************/
 	/* Children only */
 	/*****************/
+	thread_qtime_stop=thread_qtime_start=0;
+	traj_offset=walltime=cputime=0;
+	anwser=bind_cpu=test_foo=0;
 	written_so_far=read_so_far=reverse_read=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
 #ifdef NO_THREADS
@@ -11129,11 +11214,9 @@ thread_stride_read_test(x)
 #endif
 {
 	long long xx;
-	off64_t xx64;
-	char *nbuff;
+	char *nbuff=0;
 	struct child_stats *child_stat;
 	double walltime, cputime;
-	long long tt;
 	int fd;
 	long long flags = 0;
 	double thread_qtime_stop,thread_qtime_start;
@@ -11144,19 +11227,17 @@ thread_stride_read_test(x)
 	long long recs_per_buffer;
 	off64_t i;
 	off64_t savepos64=0;
-	off64_t written_so_far, stride_read, re_written_so_far,
-		re_read_so_far,read_so_far;
-	off64_t internal_offset = 0;
+	off64_t written_so_far, stride_read,re_read_so_far,read_so_far;
 	off64_t stripewrap = 0;
 	off64_t current_position = 0;
 	char *dummyfile[MAXSTREAMS];           /* name of dummy file     */
-	char *maddr;
-	char *wmaddr;
+	char *maddr=0;
+	char *wmaddr=0;
 	volatile char *buffer1;
 	int anwser,bind_cpu;
 	off64_t traj_offset;
 	char tmpname[256];
-	FILE *thread_strqfd;
+	FILE *thread_strqfd=0;
 	int test_foo;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -11166,6 +11247,9 @@ thread_stride_read_test(x)
 	/*****************/
 	/* Children only */
 	/*****************/
+	thread_qtime_stop=thread_qtime_start=0;
+	traj_offset=walltime=cputime=0;
+	anwser=bind_cpu=test_foo=0;
 	written_so_far=read_so_far=stride_read=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
 #ifdef NO_THREADS
@@ -11540,7 +11624,6 @@ thread_ranread_test(x)
 {
 	long long xx;
 	struct child_stats *child_stat;
-	long long tt;
 	double walltime, cputime;
 	int fd;
 	long long flags = 0;
@@ -11554,14 +11637,14 @@ thread_ranread_test(x)
 	off64_t current_offset=0;
 	off64_t i;
 	char *dummyfile[MAXSTREAMS];           /* name of dummy file     */
-	char *nbuff;
-	char *maddr;
-	char *wmaddr;
+	char *nbuff=0;
+	char *maddr=0;
+	char *wmaddr=0;
 	volatile char *buffer1;
 	int anwser,bind_cpu;
 	off64_t traj_offset;
 	char tmpname[256];
-	FILE *thread_randrfd;
+	FILE *thread_randrfd=0;
 	int test_foo;
 	long long save_pos;
 #ifdef ASYNC_IO
@@ -11570,6 +11653,9 @@ thread_ranread_test(x)
 	long long *gc=0;
 #endif
 
+	thread_qtime_stop=thread_qtime_start=0;
+	traj_offset=walltime=cputime=0;
+	anwser=bind_cpu=test_foo=0;
 	written_so_far=ranread_so_far=re_written_so_far=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
 #ifdef NO_THREADS
@@ -11946,23 +12032,23 @@ thread_ranwrite_test( x)
 	double thread_qtime_stop,thread_qtime_start;
 	off64_t traj_offset;
 	off64_t current_offset=0;
-	long long tt,flags,traj_size;
+	long long flags;
 	long long w_traj_bytes_completed;
 	long long w_traj_ops_completed;
-	FILE *w_traj_fd;
 	int fd;
 	long long recs_per_buffer;
 	long long stopped,i;
 	off64_t written_so_far, read_so_far, re_written_so_far,re_read_so_far;
 	long long xx;
 	char *dummyfile [MAXSTREAMS];           /* name of dummy file     */
-	char *nbuff;
-	char *maddr;
-	char *wmaddr,*free_addr;
+	char *nbuff=0;
+	char *maddr=0;
+	char *wmaddr=0;
+	char *free_addr=0;
 	int anwser,bind_cpu,wval;
 	off64_t filebytes64;
 	char tmpname[256];
-	FILE *thread_randwqfd;
+	FILE *thread_randwqfd=0;
 	int test_foo;
 
 #ifdef ASYNC_IO
@@ -11972,6 +12058,9 @@ thread_ranwrite_test( x)
 	long long *gc=0;
 #endif
 
+	thread_qtime_stop=thread_qtime_start=0;
+	traj_offset=walltime=cputime=0;
+	anwser=bind_cpu=test_foo=0;
 	filebytes64 = numrecs64*reclen;
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
 	w_traj_bytes_completed=w_traj_ops_completed=0;
@@ -12426,7 +12515,6 @@ thread_cleanup_test(x)
 {
 	long long xx;
 	struct child_stats *child_stat;
-	off64_t i;
 	char *dummyfile[MAXSTREAMS];           /* name of dummy file     */
 
 	
@@ -12528,8 +12616,8 @@ mythread_create( func,x)
 		printf("Thread create failed. Returned %d Errno = %d\n",xx,errno);
 	if(debug1 )
 	{
-		printf("\nthread created has an id of %d\n",ts);
-		printf("meme %d\n",meme);
+		printf("\nthread created has an id of %lx\n",ts);
+		printf("meme %ld\n",meme);
 	}
 	return((long long)meme);
 }
@@ -12546,8 +12634,10 @@ mythread_create( func,x)
 /************************************************************************/
 #ifndef NO_THREADS
 #ifdef HAVE_ANSIC_C
+int
 thread_exit(void)
 #else
+int
 thread_exit()
 #endif
 {
@@ -12555,6 +12645,7 @@ thread_exit()
 return(0);
 }
 #else
+int
 thread_exit()
 {
 	printf("This version does not support threads\n");
@@ -12573,6 +12664,7 @@ mythread_self()
 	return(xx);
 }
 #else
+int
 mythread_self()
 {
 	printf("This version does not support threads\n");
@@ -12815,7 +12907,6 @@ int flag, prot;
 {
 	 char *pa;
 	 int mflags=0;
-	 size_t tfilebytes;
 	 long long x;
 	 if(flag)
 	 {
@@ -12904,9 +12995,9 @@ long long size;
 {
 	if(munmap(buffer,(size_t)size)<0)
 #ifdef NO_PRINT_LLD
-		printf("munmap buffer %llx, size %ld failed.\n",buffer,size);
+		printf("munmap buffer %lx, size %ld failed.\n",(long)buffer,size);
 #else
-		printf("munmap buffer %llx, size %lld failed.\n",buffer,size);
+		printf("munmap buffer %lx, size %lld failed.\n",(long)buffer,size);
 #endif
 	
 }
@@ -12969,6 +13060,7 @@ async_release()
 /************************************************************************/
 /* Nap in microseconds.							*/
 /************************************************************************/
+void
 my_nap( ntime )
 int ntime;
 {
@@ -12997,7 +13089,6 @@ get_resolution()
 	double starttime, finishtime;
 	long  j;
 
-again:
 	finishtime=time_so_far1(); /* Warm up the instruction cache */
 	starttime=time_so_far1();  /* Warm up the instruction cache */
 	delay=j=0;		   /* Warm up the data cache */
@@ -13031,7 +13122,6 @@ get_rusage_resolution()
 	double starttime, finishtime;
 	long  j;
 
-again:
 	finishtime=cputime_so_far(); /* Warm up the instruction cache */
 	starttime=cputime_so_far();  /* Warm up the instruction cache */
 	delay=j=0;		   /* Warm up the data cache */
@@ -13340,7 +13430,7 @@ long which;
 	long long traj_offset = 0;
 	int tmp = 0;
 	int tokens;
-	int ret;
+	int ret=0;
 	char *ret1,*where;
 	char buf[200];
 	char sbuf[200];
@@ -13795,7 +13885,6 @@ off64_t size;
 #endif
 {
 	struct size_entry *size_listp;
-	struct size_entry *nsize_list;
 	
 	size_listp=size_list;
 	
@@ -13907,7 +13996,6 @@ off64_t size;
 #endif
 {
 	struct size_entry *size_listp;
-	struct size_entry *nsize_list;
 	
 	size_listp=rec_size_list;
 	
@@ -13993,12 +14081,10 @@ int
 start_master_listen()
 #endif
 {
-	int tsize;
-	int rcvd;
 	int s;
 	int rc;
 	int tmp_port;
-	struct sockaddr_in addr, raddr;
+	struct sockaddr_in addr;
 
         s = socket(AF_INET, SOCK_DGRAM, 0);
         if (s < 0)
@@ -14048,8 +14134,7 @@ int sock, size_of_message;
 	int tsize;
 	int rcvd;
 	int s;
-	int rc;
-	struct sockaddr_in addr, raddr;
+	int rc=0;
 
 	tsize = size_of_message;
 	s = sock;
@@ -14097,11 +14182,7 @@ struct master_command *send_buffer;
 int send_size;
 #endif
 {
-	int rc,tsize;
-	struct sockaddr_in addr,raddr;
-	struct hostent *he;
-	int port;
-	struct in_addr *ip;
+	int rc;
 	struct master_neutral_command outbuf;
 	
 	if(cdebug>=1)
@@ -14162,11 +14243,7 @@ struct client_command *send_buffer;
 int send_size;
 #endif
 {
-	int rc,tsize;
-	struct sockaddr_in addr,raddr;
-	struct hostent *he;
-	int port;
-	struct in_addr *ip;
+	int rc;
 	struct client_neutral_command outbuf;
 
 	if(mdebug)
@@ -14267,10 +14344,10 @@ start_child_send(controlling_host_name)
 char *controlling_host_name;
 #endif
 {
-	int rc,child_socket_val,tsize;
+	int rc,child_socket_val;
 	struct sockaddr_in addr,raddr;
 	struct hostent *he;
-	int port, tmp_port;
+	int tmp_port;
 	struct in_addr *ip;
 
         he = gethostbyname(controlling_host_name);
@@ -14423,10 +14500,9 @@ int size_of_message;
 #endif
 {
 	int tsize;
-	int rcvd;
-	int s,ns;
+	int s;
 	int rc;
-	int xx,me;
+	int xx;
 	int tmp_port;
 	xx = 0;
 	tsize=size_of_message; /* Number of messages to receive */
@@ -14501,7 +14577,7 @@ child_attach(int s, int flag)
 		fprintf(newstdout,"Child enters accept\n");
 		fflush(newstdout);
 	}
-	ns=accept(s,addr,&me);
+	ns=accept(s,(void *)addr,&me);
 	if(cdebug)
 	{
 		fprintf(newstdout,"Child attached for receive. Sock %d  %d\n",ns,errno);
@@ -14571,8 +14647,7 @@ int size_of_message;
 #endif
 {
 	int tsize;
-	int rcvd;
-	int s,ns;
+	int s;
 	int rc;
 	int xx;
 	int tmp_port;
@@ -14678,7 +14753,7 @@ int child_port;
 struct in_addr *my_s_addr;
 #endif
 {
-	int rc,master_socket_val,tsize;
+	int rc,master_socket_val;
 	struct sockaddr_in addr,raddr;
 	struct hostent *he;
 	int port,tmp_port;
@@ -14777,14 +14852,9 @@ int child_port;
 struct in_addr my_s_addr;
 #endif
 {
-	int rc,master_socket_val,tsize;
+	int rc,master_socket_val;
 	struct sockaddr_in addr,raddr;
-	int dummy;
 	int port,tmp_port;
-	struct in_addr *ip;
-	int dummy1;
-	struct hostent *ho;
-	int dummy2;
 
 	port=child_port;
 
