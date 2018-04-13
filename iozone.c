@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.343 $"
+#define THISVERSION "        Version $Revision: 3.344 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -22875,7 +22875,12 @@ int main(void)
 /*
 ** Type definitions (for convenience).
 */
+#if defined(Windows)
+int false = 0;
+int true = 1;
+#else
 typedef enum { false = 0, true } boolean;
+#endif
 typedef struct sockaddr_in       sockaddr_in_t;
 typedef struct sockaddr_in6      sockaddr_in6_t;
 

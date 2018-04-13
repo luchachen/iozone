@@ -2264,4 +2264,7 @@ Add support for the programmable interdimensional timer.
 Revision 3.343
 Bug fix for PIT on remote clients.
 =============================================================================
+Revision 3.344
+Bug fix for PIT on remote clients.
+=============================================================================
 
