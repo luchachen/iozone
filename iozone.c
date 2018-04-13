@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.165 $"
+#define THISVERSION "        Version $Revision: 3.166 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -856,6 +856,8 @@ void pwritev_perf_test();	/* pwritev/re-pwritev test	  */
 void store_dvalue();		/* Store doubles array 		  */
 void dump_excel();
 void dump_throughput();
+int sp_start_child_send();
+int sp_start_master_listen();
 #ifdef HAVE_ANSIC_C
 char *getenv();
 char *inet_ntoa();
@@ -983,21 +985,21 @@ void del_record_sizes();
 #endif
 
 #ifdef _LARGEFILE64_SOURCE
-#define I_LSEEK(x,y,z) 	lseek64(x,(off64_t)y,z)
-#define I_OPEN(x,y,z) 	open64(x,(int)y,(int)z)
-#define I_CREAT(x,y) 	creat64(x,(int)y)
+#define I_LSEEK(x,y,z) 	lseek64(x,(off64_t)(y),z)
+#define I_OPEN(x,y,z) 	open64(x,(int)(y),(int)(z))
+#define I_CREAT(x,y) 	creat64(x,(int)(y))
 #define I_FOPEN(x,y) 	fopen64(x,y)
-#define I_PREAD(a,b,c,d)	pread64(a,b,(size_t)c,(off64_t)d)
-#define I_PWRITE(a,b,c,d)	pwrite64(a,b,(size_t)c,(off64_t)d)
-#define I_MMAP(a,b,c,d,e,f) 	mmap64((int)a,(size_t)b,(int)c,(int)d,(int)e,(off64_t)f)
+#define I_PREAD(a,b,c,d)	pread64(a,b,(size_t)(c),(off64_t)(d))
+#define I_PWRITE(a,b,c,d)	pwrite64(a,b,(size_t)(c),(off64_t)(d))
+#define I_MMAP(a,b,c,d,e,f) 	mmap64((int)(a),(size_t)(b),(int)(c),(int)(d),(int)(e),(off64_t)(f))
 #else
-#define I_LSEEK(x,y,z) 	lseek(x,(off_t)y,z)
-#define I_OPEN(x,y,z) 	open(x,(int)y,(int)z)
-#define I_CREAT(x,y) 	creat(x,(int)y)
+#define I_LSEEK(x,y,z) 	lseek(x,(off_t)(y),z)
+#define I_OPEN(x,y,z) 	open(x,(int)(y),(int)(z))
+#define I_CREAT(x,y) 	creat(x,(int)(y))
 #define I_FOPEN(x,y) 	fopen(x,y)
-#define I_PREAD(a,b,c,d)	pread(a,b,(size_t)c,(off_t)d)
-#define I_PWRITE(a,b,c,d)	pwrite(a,b,(size_t)c,(off_t)d)
-#define I_MMAP(a,b,c,d,e,f) 	mmap((int)a,(size_t)b,(int)c,(int)d,(int)e,(off_t)f)
+#define I_PREAD(a,b,c,d)	pread(a,b,(size_t)(c),(off_t)(d))
+#define I_PWRITE(a,b,c,d)	pwrite(a,b,(size_t)(c),(off_t)(d))
+#define I_MMAP(a,b,c,d,e,f) 	mmap((int)(a),(size_t)(b),(int)(c),(int)(d),(int)(e),(off_t)(f))
 #endif
 
 
