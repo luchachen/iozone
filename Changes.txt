@@ -1157,6 +1157,28 @@ Revision 3.41
 =============================================================================
 Bug fix for ops/sec in rewrite throughput testing.
 Added average throughput to output in throughput mode.
+=============================================================================
+Revision 3.42 
+=============================================================================
+Bug fix for read and re-read. Usage of un-initialized variable that
+caused results to be wrong.
+=============================================================================
+Revision 3.43 
+=============================================================================
+Add support for latency plot data for throughput testing.
+Each child thread/process gets its own data file.
+=============================================================================
+Revision 3.44 
+=============================================================================
+Enhance compatibility of multi-thread/proc latency offsets with 
+telemetry file support.
+=============================================================================
+Revision 3.45 through 3.48
+=============================================================================
+Added latency/offset plot data files for all throughput tests.
+
+
+
 
 
 

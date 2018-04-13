@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.42 $"
+#define THISVERSION "        Version $Revision: 3.48 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -528,6 +528,7 @@ void *(thread_rwrite_test)(void *);
 void *(thread_write_test)(void *);
 void *(thread_read_test)(void*);
 void *(thread_ranread_test)(void *);
+void *(thread_ranwrite_test)(void *);
 void *(thread_rread_test)(void *);
 void *(thread_reverse_read_test)(void *);
 void *(thread_stride_read_test)(void *);
@@ -554,6 +555,7 @@ void *(thread_rwrite_test)();
 void *(thread_write_test)();
 void *(thread_read_test)();
 void *(thread_ranread_test)();
+void *(thread_ranwrite_test)();
 void *(thread_rread_test)();
 void *(thread_reverse_read_test)();
 void *(thread_stride_read_test)();
@@ -740,7 +742,7 @@ char **argv;
     	printf("\t%s\n\t%s\n\n", THISVERSION,MODE);
     	printf("\tContributors:William Norcott, Don Capps, Isom Crawford, Kirby Collins\n");
 	printf("\t             Al Slater, Scott Rhine, Mike Wisner, Ken Goss\n");
-    	printf("\t             Steve Landherr, Brad Smith, Mark Kelly.\n\n");
+    	printf("\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR.\n\n");
 	printf("\tRun began: %s\n",ctime(&time_run));
 
     	signal(SIGINT, signal_handler);	 /* handle user interrupt */
@@ -2844,7 +2846,7 @@ next2:
 		}
 
 	/**************************************************************/
-	/*** random reader throughput tests **************************/
+	/*** random reader throughput tests ***************************/
 	/**************************************************************/
 next3:
 	if(include_tflag)
@@ -2984,6 +2986,146 @@ next3:
 		}
 
 next4:
+	/**************************************************************/
+	/*** random writer throughput tests  **************************/
+	/**************************************************************/
+	if(include_tflag)
+		if(!(include_mask & 4))
+			goto next5;
+	
+	jstarttime=0;
+	sync();
+	sleep(2);
+	*stop_flag=0;
+	total_kilos=0;
+	if(!use_thread)
+	{
+	   for(xx = 0; xx< num_child ; xx++){
+		chid=xx;
+		childids[xx] = fork();
+		if(childids[xx]==-1){
+			printf("\nFork failed\n");
+			for(xy = 0; xy< xx ; xy++){
+				Kill((long long)childids[xy],(long long)SIGTERM);
+			}
+			exit(38);
+		}
+		if(childids[xx]==0){
+#ifdef __LP64__
+			thread_ranwrite_test((void *)xx);
+#else
+			thread_ranwrite_test((void *)((long)xx));
+#endif
+		}	
+	   }
+	}
+#ifndef NO_THREADS
+	else
+	{
+	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
+		chid=xx;
+#ifdef __LP64__
+		childids[xx] = mythread_create( thread_ranwrite_test,xx);
+#else
+		childids[xx] = mythread_create( thread_ranwrite_test,(void *)(long)xx);
+#endif
+		if(childids[xx]==-1){
+			printf("\nThread create failed\n");
+			for(xy = 0; xy< xx ; xy++){
+				kill((pid_t)myid,(int)SIGTERM);
+			}
+			exit(39);
+		}
+	   }
+	}
+#endif
+	if(myid == (long long)getpid()){
+		for(i=0;i<num_child; i++){ /* wait for children to start */
+			child_stat = (struct child_stats *)&shmaddr[i];
+			while(child_stat->flag==0)
+				Poll((long long)1);
+		}
+		for(i=0;i<num_child; i++){
+			child_stat = (struct child_stats *)&shmaddr[i];
+			child_stat->flag = 2;	/* tell children to go */
+			if(delay_start!=0)
+				Poll((long long)delay_start);
+		}
+		starttime1 = time_so_far();
+	}
+	
+	getout=0;
+	if(myid == (long long)getpid()){	 /* Parent here */
+		for( i = 0; i < num_child; i++){ /* wait for children to stop */
+			child_stat = (struct child_stats *)&shmaddr[i];
+			if(use_thread)
+			{
+				thread_join(childids[i],(void *)&pstatus);
+			}
+			else
+			{
+				wait(0);
+			}
+			if(!jstarttime)
+				jstarttime = time_so_far(); 
+		}
+		jtime = (time_so_far()-jstarttime)-time_res;
+		if(jtime < (double).000001) 
+		{
+			jtime=time_res; 
+		}
+	}
+	total_time = (time_so_far() - starttime1)-time_res; /* Parents time */
+	if(total_time < (double).000001) 
+	{
+		total_time=time_res;
+		if(rec_prob < reclen)
+			rec_prob = reclen;
+		res_prob=1;
+	}
+#ifdef JTIME
+	total_time=total_time-jtime;/* Remove the join time */
+	printf("\nJoin time %10.2f\n",jtime);
+#endif
+	total_kilos=0;
+	ptotal=0;
+	min_throughput=max_throughput=min_xfer=0;
+	printf("\n");
+	for(xyz=0;xyz<num_child;xyz++){
+		child_stat = (struct child_stats *)&shmaddr[xyz];
+		total_kilos+=child_stat->throughput;
+		ptotal+=child_stat->actual;
+		if(!min_xfer)
+			min_xfer=child_stat->actual;
+		if(child_stat->actual < min_xfer)
+			min_xfer=child_stat->actual;
+		if(!min_throughput)
+			min_throughput=child_stat->throughput;
+		if(child_stat->throughput < min_throughput)
+			min_throughput=child_stat->throughput;
+		if(child_stat->throughput > max_throughput)
+			max_throughput=child_stat->throughput;
+	}
+	avg_throughput=total_kilos/num_child;
+	store_dvalue(total_kilos);
+#ifdef NO_PRINT_LLD
+	printf("\tChildren see throughput for %ld random writers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
+	printf("\tParent sees throughput for %ld random writers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+#else
+	printf("\tChildren see throughput for %lld random writers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
+	printf("\tParent sees throughput for %lld random writers \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+#endif
+	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
+	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
+	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
+	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
+	if(Cflag)
+		for(xyz=0;xyz<num_child;xyz++){
+			child_stat = (struct child_stats *) &shmaddr[xyz];
+			printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
+		}
+
+next5:
 	if (!no_unlink) {
 		for(i=0;i<num_child;i++)
 		{
@@ -3323,13 +3465,13 @@ long long *data2;
 	if(Q_flag && (!wol_opened))
 	{
 		wol_opened++;
-		wqfd=fopen("wol.dat","w+");
+		wqfd=fopen("wol.dat","a");
 		if(wqfd==0)
 		{
 			printf("Unable to open wol.dat\n");
 			exit(40);
 		}
-		rwqfd=fopen("rwol.dat","w+");
+		rwqfd=fopen("rwol.dat","a");
 		if(rwqfd==0)
 		{
 			printf("Unable to open rwol.dat\n");
@@ -3452,6 +3594,14 @@ long long *data2;
 				lseek(fd,(off_t)traj_offset,SEEK_SET);
 #endif
 			}
+			if(Q_flag)
+			{
+#ifdef _LARGEFILE64_SOURCE
+				traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
+#else
+				traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
+#endif
+			}
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
 			if(multi_buffer)
@@ -3516,13 +3666,13 @@ long long *data2;
 				qtime_stop=time_so_far();
 				if(j==0)
 #ifdef NO_PRINT_LLD
-				fprintf(wqfd,"%10.1ld %10.0f\n",(i*reclen)/1024,((qtime_stop-qtime_start-time_res))*1000000);
+				fprintf(wqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000);
 				else
-				fprintf(rwqfd,"%10.1ld %10.0f\n",(i*reclen)/1024,((qtime_stop-qtime_start-time_res))*1000000);
+				fprintf(rwqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000);
 #else
-				fprintf(wqfd,"%10.1lld %10.0f\n",(i*reclen)/1024,((qtime_stop-qtime_start-time_res))*1000000);
+				fprintf(wqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000);
 				else
-				fprintf(rwqfd,"%10.1lld %10.0f\n",(i*reclen)/1024,((qtime_stop-qtime_start-time_res))*1000000);
+				fprintf(rwqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000);
 #endif
 			}
 			w_traj_ops_completed++;
@@ -4017,13 +4167,13 @@ long long *data1,*data2;
 	if(Q_flag && (!rol_opened))
 	{
 		rol_opened++;
-		rqfd=fopen("rol.dat","w+");
+		rqfd=fopen("rol.dat","a");
 		if(rqfd==0)
 		{
 			printf("Unable to open rol.dat\n");
 			exit(56);
 		}
-		rrqfd=fopen("rrol.dat","w+");
+		rrqfd=fopen("rrol.dat","a");
 		if(rrqfd==0)
 		{
 			printf("Unable to open rrol.dat\n");
@@ -4149,6 +4299,14 @@ long long *data1,*data2;
 				lseek(fd,(off_t)traj_offset,SEEK_SET);
 #endif
 			}
+			if(Q_flag)
+			{
+#ifdef _LARGEFILE64_SOURCE
+				traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
+#else
+				traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
+#endif
+			}
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
                         if(multi_buffer)
@@ -4226,13 +4384,13 @@ long long *data1,*data2;
 				qtime_stop=time_so_far();
 				if(j==0)
 #ifdef NO_PRINT_LLD
-				fprintf(rqfd,"%10.1ld %10.0f\n",(i*reclen)/1024,(qtime_stop-qtime_start-time_res)*1000000);
+				fprintf(rqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000);
 				else
-				fprintf(rrqfd,"%10.1ld %10.0f\n",(i*reclen)/1024,(qtime_stop-qtime_start-time_res)*1000000);
+				fprintf(rrqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000);
 #else
-				fprintf(rqfd,"%10.1lld %10.0f\n",(i*reclen)/1024,(qtime_stop-qtime_start-time_res)*1000000);
+				fprintf(rqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000);
 				else
-				fprintf(rrqfd,"%10.1lld %10.0f\n",(i*reclen)/1024,(qtime_stop-qtime_start-time_res)*1000000);
+				fprintf(rrqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000);
 #endif
 			}
 			r_traj_ops_completed++;
@@ -6816,6 +6974,7 @@ thread_write_test( x)
 	double temp_time;
 	double compute_val = (double)0;
 	double delay = (double)0;
+	double thread_qtime_stop,thread_qtime_start;
 	off64_t traj_offset;
 	long long tt,flags,traj_size;
 	long long w_traj_bytes_completed;
@@ -6832,6 +6991,8 @@ thread_write_test( x)
 	char *wmaddr,*free_addr;
 	int anwser,bind_cpu;
 	off64_t filebytes64;
+	char tmpname[256];
+	FILE *thread_wqfd;
 
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -6986,6 +7147,16 @@ thread_write_test( x)
 	if(file_lock)
 		if(mylockf((int) fd, (int) 1, (int)0) != 0)
 			printf("File lock for write failed. %d\n",errno);
+	if(Q_flag)
+	{
+		sprintf(tmpname,"Child_%d_wol.dat",(int)xx);
+		thread_wqfd=fopen(tmpname,"a");
+		if(thread_wqfd==0)
+		{
+			printf("Unable to open %s\n",tmpname);
+			exit(40);
+		}
+	}
 	starttime1 = time_so_far();
 	child_stat->start_time = starttime1;
 	if(w_traj_flag)
@@ -6999,6 +7170,14 @@ thread_write_test( x)
 			lseek64(fd,(off64_t)traj_offset,SEEK_SET);
 #else
 			lseek(fd,(off_t)traj_offset,SEEK_SET);
+#endif
+		}
+		if(Q_flag)
+		{
+#ifdef _LARGEFILE64_SOURCE
+			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
+#else
+			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
 #endif
 		}
 		if(compute_flag)
@@ -7036,6 +7215,10 @@ thread_write_test( x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
+		if(Q_flag)
+		{
+			thread_qtime_start=time_so_far();
+		}
 again:		
 		if(mmapflag)
 		{
@@ -7123,6 +7306,15 @@ again:
 		      }
 		    }
 		}
+		if(Q_flag)
+		{
+			thread_qtime_stop=time_so_far();
+#ifdef NO_PRINT_LLD
+			fprintf(thread_wqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#else
+			fprintf(thread_wqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#endif
+		}
 		w_traj_ops_completed++;
 		w_traj_bytes_completed+=reclen;
 		written_so_far+=reclen/1024;
@@ -7132,6 +7324,8 @@ again:
 			w_traj_bytes_completed-=reclen;
 		}
 	}
+	
+
 	if(file_lock)
 		if(mylockf((int) fd, (int) 0, (int)0))
 			printf("Write unlock failed. %d\n",errno);
@@ -7203,6 +7397,8 @@ again:
 			
 		close(fd);
 	}
+	if(Q_flag && (thread_wqfd !=0) )
+		fclose(thread_wqfd);
 	free(dummyfile[xx]);
 	if(w_traj_flag)
 		fclose(w_traj_fd);
@@ -7236,6 +7432,7 @@ thread_rwrite_test(x)
 	long long tt;
 	double compute_val = (double)0;
 	double delay = (double)0;
+	double thread_qtime_stop,thread_qtime_start;
 	off64_t traj_offset;
 	long long w_traj_bytes_completed;
 	long long w_traj_ops_completed;
@@ -7252,6 +7449,8 @@ thread_rwrite_test(x)
 	char *maddr,*free_addr;
 	char *wmaddr;
 	int anwser,bind_cpu;
+	FILE *thread_rwqfd;
+	char tmpname[256];
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 
@@ -7370,6 +7569,16 @@ thread_rwrite_test(x)
 		fetchit(nbuff,reclen);
 	if(w_traj_flag)
 		w_traj_fd=open_w_traj();
+	if(Q_flag)
+	{
+		sprintf(tmpname,"Child_%d_rwol.dat",(int)xx);
+		thread_rwqfd=fopen(tmpname,"a");
+		if(thread_rwqfd==0)
+		{
+			printf("Unable to open %s\n",tmpname);
+			exit(40);
+		}
+	}
 	child_stat->flag = 1;
 	while(child_stat->flag==1)	/* Wait for parent to say go */
 		Poll((long long)1);
@@ -7391,6 +7600,14 @@ thread_rwrite_test(x)
 			lseek(fd,(off_t)traj_offset,SEEK_SET);
 #endif
 		}
+		if(Q_flag)
+		{
+#ifdef _LARGEFILE64_SOURCE
+			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
+#else
+			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
+#endif
+		}
 		if(compute_flag)
 			compute_val+=do_compute(delay);
 		if(*stop_flag)
@@ -7408,6 +7625,10 @@ thread_rwrite_test(x)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify);
 		if(purge)
 			purgeit(nbuff,reclen);
+		if(Q_flag)
+		{
+			thread_qtime_start=time_so_far();
+		}
 		if(mmapflag)
 		{
 			wmaddr = &maddr[i*reclen];
@@ -7461,6 +7682,15 @@ thread_rwrite_test(x)
 		{
 			re_written_so_far-=reclen/1024;
 			w_traj_bytes_completed-=reclen;
+		}
+		if(Q_flag)
+		{
+			thread_qtime_stop=time_so_far();
+#ifdef NO_PRINT_LLD
+			fprintf(thread_rwqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#else
+			fprintf(thread_rwqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#endif
 		}
 	}
 	if(file_lock)
@@ -7524,6 +7754,10 @@ thread_rwrite_test(x)
 		close(fd);
 	}
 	free(dummyfile[xx]);
+
+	if(Q_flag && (thread_rwqfd !=0) )
+		fclose(thread_rwqfd);
+
 	if(w_traj_flag)
 		fclose(w_traj_fd);
 	if(debug1)
@@ -7560,12 +7794,13 @@ thread_read_test(x)
 	long long r_traj_bytes_completed;
 	long long r_traj_ops_completed;
 	int fd;
-	FILE *r_traj_fd;
+	FILE *r_traj_fd,*thread_rqfd;
 	long long flags = 0;
 	off64_t traj_offset;
 	double starttime1 = 0;
 	double delay = 0;
 	double temp_time;
+	double thread_qtime_start,thread_qtime_stop;
 	double compute_val = (double)0;
 	off64_t written_so_far, read_so_far, re_written_so_far,re_read_so_far;
 	long long recs_per_buffer,traj_size;
@@ -7574,6 +7809,7 @@ thread_read_test(x)
 	char *nbuff;
 	char *maddr;
 	char *wmaddr;
+	char tmpname[256];
 	volatile char *buffer1;
 	int anwser,bind_cpu;
 #ifdef ASYNC_IO
@@ -7696,6 +7932,17 @@ thread_read_test(x)
 	/*****************/
 	/* Children only */
 	/*****************/
+	if(Q_flag)
+	{
+		sprintf(tmpname,"Child_%d_rol.dat",(int)xx);
+		thread_rqfd=fopen(tmpname,"a");
+		if(thread_rqfd==0)
+		{
+			printf("Unable to open %s\n",tmpname);
+			exit(40);
+		}
+	}
+
 	if(r_traj_flag)
 		r_traj_fd=open_r_traj();
 	if(fetchon)
@@ -7727,6 +7974,14 @@ thread_read_test(x)
 			lseek(fd,(off_t)traj_offset,SEEK_SET);
 #endif
 		}
+		if(Q_flag)
+		{
+#ifdef _LARGEFILE64_SOURCE
+			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
+#else
+			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
+#endif
+		}
 		if(compute_flag)
 			compute_val+=do_compute(delay);
 		if(*stop_flag)
@@ -7737,6 +7992,10 @@ thread_read_test(x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
+		if(Q_flag)
+                {
+                        thread_qtime_start=time_so_far();
+                }
 		if(mmapflag)
 		{
 			wmaddr = &maddr[i*reclen];
@@ -7808,6 +8067,16 @@ thread_read_test(x)
 			read_so_far-=reclen/1024;
 			r_traj_bytes_completed-=reclen;
 		}
+                if(Q_flag)
+                {
+                        thread_qtime_stop=time_so_far();
+#ifdef NO_PRINT_LLD
+                        fprintf(thread_rqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#else
+                        fprintf(thread_rqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#endif
+                }
+
 	}
 	if(file_lock)
 		if(mylockf((int) fd, (int) 0, (int)1))
@@ -7868,6 +8137,8 @@ thread_read_test(x)
 			fsync(fd);
 		close(fd);
 	}
+        if(Q_flag && (thread_rqfd !=0) )
+                fclose(thread_rqfd);
 	free(dummyfile[xx]);
 	if(r_traj_flag)
 		fclose(r_traj_fd);
@@ -7904,7 +8175,7 @@ thread_rread_test(x)
 	struct child_stats *child_stat;
 	long long tt;
 	int fd;
-	FILE *r_traj_fd;
+	FILE *r_traj_fd,*thread_rrqfd;
 	long long r_traj_bytes_completed;
 	long long r_traj_ops_completed;
 	off64_t traj_offset;
@@ -7912,6 +8183,7 @@ thread_rread_test(x)
 	double starttime1 = 0;
 	double delay = 0;
 	double temp_time;
+	double thread_qtime_start,thread_qtime_stop;
 	double compute_val = (double)0;
 	long long recs_per_buffer,traj_size;
 	off64_t i;
@@ -7922,6 +8194,7 @@ thread_rread_test(x)
 	char *wmaddr;
 	volatile char *buffer1;
 	int anwser,bind_cpu;
+	char tmpname[256];
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -8040,6 +8313,17 @@ thread_rread_test(x)
 		r_traj_fd=open_r_traj();
 	if(fetchon)
 		fetchit(nbuff,reclen);
+        if(Q_flag)
+        {
+                sprintf(tmpname,"Child_%d_rrol.dat",(int)xx);
+                thread_rrqfd=fopen(tmpname,"a");
+                if(thread_rrqfd==0)
+                {
+                        printf("Unable to open %s\n",tmpname);
+                        exit(40);
+                }
+        }
+
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = 0;
 	child_stat->actual = 0;
@@ -8069,6 +8353,14 @@ thread_rread_test(x)
 			lseek(fd,(off_t)traj_offset,SEEK_SET);
 #endif
 		}
+		if(Q_flag)
+		{
+#ifdef _LARGEFILE64_SOURCE
+			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
+#else
+			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
+#endif
+		}
 		if(compute_flag)
 			compute_val+=do_compute(delay);
 		if(*stop_flag)
@@ -8079,6 +8371,10 @@ thread_rread_test(x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
+                if(Q_flag)
+                {
+                        thread_qtime_start=time_so_far();
+                }
 		if(mmapflag)
 		{
 			wmaddr = &maddr[i*reclen];
@@ -8150,6 +8446,16 @@ thread_rread_test(x)
 			re_read_so_far-=reclen/1024;
 			r_traj_bytes_completed-=reclen;
 		}
+                if(Q_flag)
+                {
+                        thread_qtime_stop=time_so_far();
+#ifdef NO_PRINT_LLD
+                        fprintf(thread_rrqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#else
+                        fprintf(thread_rrqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#endif
+                }
+
 	}
 	if(file_lock)
 		if(mylockf((int) fd, (int) 0, (int)1))
@@ -8209,6 +8515,8 @@ thread_rread_test(x)
 			fsync(fd);
 		close(fd);
 	}
+        if(Q_flag && (thread_rrqfd !=0) )
+                fclose(thread_rrqfd);
 	free(dummyfile[xx]);
 	if(r_traj_flag)
 		fclose(r_traj_fd);
@@ -8247,6 +8555,7 @@ thread_reverse_read_test(x)
 	long long tt;
 	int fd;
 	long long flags = 0;
+	double thread_qtime_stop,thread_qtime_start;
 	double starttime2 = 0;
 	double delay = 0;
 	double temp_time;
@@ -8262,6 +8571,9 @@ thread_reverse_read_test(x)
 	char *wmaddr;
 	volatile char *buffer1;
 	int anwser,bind_cpu;
+	off64_t traj_offset;
+	char tmpname[256];
+	FILE *thread_revqfd;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -8369,6 +8681,16 @@ thread_reverse_read_test(x)
 	}
 	if(fetchon)
 		fetchit(nbuff,reclen);
+        if(Q_flag)
+        {
+                sprintf(tmpname,"Child_%d_revol.dat",(int)xx);
+                thread_revqfd=fopen(tmpname,"a");
+                if(thread_revqfd==0)
+                {
+                        printf("Unable to open %s\n",tmpname);
+                        exit(40);
+                }
+        }
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = 0;
 	child_stat->actual = 0;
@@ -8410,6 +8732,14 @@ thread_reverse_read_test(x)
 		}
 		if(compute_flag)
 			compute_val+=do_compute(delay);
+		if(Q_flag)
+		{
+#ifdef _LARGEFILE64_SOURCE
+			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
+#else
+			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
+#endif
+		}
 		if(*stop_flag)
 		{
 			if(debug1)
@@ -8418,6 +8748,10 @@ thread_reverse_read_test(x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
+                if(Q_flag)
+                {
+                        thread_qtime_start=time_so_far();
+                }
 		if(mmapflag)
 		{
 			wmaddr = &maddr[current_position];
@@ -8498,6 +8832,15 @@ thread_reverse_read_test(x)
 		{
 			reverse_read -=reclen/1024;
 		}
+                if(Q_flag)
+                {
+                        thread_qtime_stop=time_so_far();
+#ifdef NO_PRINT_LLD
+                        fprintf(thread_revqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#else
+                        fprintf(thread_revqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#endif
+                }
 	}
 	if(file_lock)
 		if(mylockf((int) fd,(int)0, (int)1))
@@ -8555,6 +8898,8 @@ thread_reverse_read_test(x)
 		close(fd);
 	}
 	free(dummyfile[xx]);
+        if(Q_flag && (thread_revqfd !=0) )
+                fclose(thread_revqfd);
 	if(debug1)
 #ifdef NO_PRINT_LLD
 		printf("\nChild finished %ld\n",xx);
@@ -8589,6 +8934,7 @@ thread_stride_read_test(x)
 	long long tt;
 	int fd;
 	long long flags = 0;
+	double thread_qtime_stop,thread_qtime_start;
 	double starttime2 = 0;
 	double delay = 0;
 	double compute_val = (double)0;
@@ -8606,6 +8952,9 @@ thread_stride_read_test(x)
 	char *wmaddr;
 	volatile char *buffer1;
 	int anwser,bind_cpu;
+	off64_t traj_offset;
+	char tmpname[256];
+	FILE *thread_strqfd;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -8714,6 +9063,16 @@ thread_stride_read_test(x)
 	}
 	if(fetchon)
 		fetchit(nbuff,reclen);
+        if(Q_flag)
+        {
+                sprintf(tmpname,"Child_%d_strol.dat",(int)xx);
+                thread_strqfd=fopen(tmpname,"a");
+                if(thread_strqfd==0)
+                {
+                        printf("Unable to open %s\n",tmpname);
+                        exit(40);
+                }
+        }
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = 0;
 	child_stat->actual = 0;
@@ -8732,6 +9091,14 @@ thread_stride_read_test(x)
 		}
 		if(compute_flag)
 			compute_val+=do_compute(delay);
+		if(Q_flag)
+		{
+#ifdef _LARGEFILE64_SOURCE
+			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
+#else
+			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
+#endif
+		}
 		if(*stop_flag)
 		{
 			if(debug1)
@@ -8740,6 +9107,10 @@ thread_stride_read_test(x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
+                if(Q_flag)
+                {
+                        thread_qtime_start=time_so_far();
+                }
 		if(verify)
 			savepos64=current_position/(off64_t)reclen;
 		if(mmapflag)
@@ -8864,6 +9235,15 @@ thread_stride_read_test(x)
 		{
 			stride_read -=reclen/1024;
 		}
+                if(Q_flag)
+                {
+                        thread_qtime_stop=time_so_far();
+#ifdef NO_PRINT_LLD
+                        fprintf(thread_strqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#else
+                        fprintf(thread_strqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#endif
+                }
 	}
 	if(file_lock)
 		if(mylockf((int) fd,(int)0,(int)1))
@@ -8920,6 +9300,8 @@ thread_stride_read_test(x)
 			fsync(fd);
 		close(fd);
 	}
+        if(Q_flag && (thread_strqfd !=0) )
+                fclose(thread_strqfd);
 	free(dummyfile[xx]);
 	if(debug1)
 #ifdef NO_PRINT_LLD
@@ -8954,6 +9336,7 @@ thread_ranread_test(x)
 	long long tt;
 	int fd;
 	long long flags = 0;
+	double thread_qtime_stop,thread_qtime_start;
 	double starttime1 = 0;
 	double delay = 0;
 	double temp_time;
@@ -8968,6 +9351,9 @@ thread_ranread_test(x)
 	char *wmaddr;
 	volatile char *buffer1;
 	int anwser,bind_cpu;
+	off64_t traj_offset;
+	char tmpname[256];
+	FILE *thread_randrfd;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -9081,6 +9467,16 @@ thread_ranread_test(x)
 	/*****************/
 	if(fetchon)
 		fetchit(nbuff,reclen);
+        if(Q_flag)
+        {
+                sprintf(tmpname,"Child_%d_randrol.dat",(int)xx);
+                thread_randrfd=fopen(tmpname,"a");
+                if(thread_randrfd==0)
+                {
+                        printf("Unable to open %s\n",tmpname);
+                        exit(40);
+                }
+        }
 	child_stat=(struct child_stats *)&shmaddr[xx];
 	child_stat->flag = 1;
 	while(child_stat->flag==1)	/* wait for parent to say go */
@@ -9136,6 +9532,15 @@ thread_ranread_test(x)
 			exit(159);
 		  };
 #endif
+		}
+		if(Q_flag)
+		{
+#ifdef _LARGEFILE64_SOURCE
+			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
+#else
+			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
+#endif
+                        thread_qtime_start=time_so_far();
 		}
 		if(mmapflag)
 		{
@@ -9206,6 +9611,15 @@ thread_ranread_test(x)
 		{
 			ranread_so_far-=reclen/1024;
 		}
+                if(Q_flag)
+                {
+                        thread_qtime_stop=time_so_far();
+#ifdef NO_PRINT_LLD
+                        fprintf(thread_randrfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#else
+                        fprintf(thread_randrfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#endif
+                }
 	}
 	if(file_lock)
 		if(mylockf((int) fd,(int)0,(int)1))
@@ -9263,6 +9677,8 @@ thread_ranread_test(x)
 			fsync(fd);
 		close(fd);
 	}
+        if(Q_flag && (thread_randrfd !=0) )
+                fclose(thread_randrfd);
 	free(dummyfile[xx]);
 	if(debug1)
 #ifdef NO_PRINT_LLD
@@ -9280,6 +9696,468 @@ thread_ranread_test(x)
 #endif
 return(0);
 }
+
+/************************************************************************/
+/* Thread random write test			        		*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+void *
+thread_ranwrite_test(void *x)
+#else
+void *
+thread_ranwrite_test( x)
+#endif
+{
+
+	struct child_stats *child_stat;
+	double starttime1 = 0;
+	double temp_time;
+	double compute_val = (double)0;
+	double delay = (double)0;
+	double thread_qtime_stop,thread_qtime_start;
+	off64_t traj_offset;
+	off64_t current_offset=0;
+	long long tt,flags,traj_size;
+	long long w_traj_bytes_completed;
+	long long w_traj_ops_completed;
+	FILE *w_traj_fd;
+	int fd;
+	long long recs_per_buffer;
+	long long stopped,i;
+	off64_t written_so_far, read_so_far, re_written_so_far,re_read_so_far;
+	long long xx;
+	char *dummyfile [MAXSTREAMS];           /* name of dummy file     */
+	char *nbuff;
+	char *maddr;
+	char *wmaddr,*free_addr;
+	int anwser,bind_cpu;
+	off64_t filebytes64;
+	char tmpname[256];
+	FILE *thread_randwqfd;
+
+#ifdef ASYNC_IO
+	struct cache *gc=0;
+
+#else
+	long long *gc=0;
+#endif
+
+	filebytes64 = numrecs64*reclen;
+	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
+	w_traj_bytes_completed=w_traj_ops_completed=0;
+	recs_per_buffer = cache_size/reclen ;
+#ifdef NO_THREADS
+	xx=chid;
+#else
+	if(use_thread)
+	{
+		xx = (long long)((long)x);
+	}
+	else
+	{
+		xx=chid;
+	}
+#endif
+#ifndef NO_THREADS
+#ifdef _HPUX_SOURCE
+	if(ioz_processor_bind)
+	{
+		 bind_cpu=(begin_proc+(int)xx)%num_processors;
+		 pthread_processor_bind_np(PTHREAD_BIND_FORCED_NP,
+                         (pthread_spu_t *)&anwser, (pthread_spu_t)bind_cpu, pthread_self());
+		my_nap(40);	/* Switch to new cpu */
+	}
+#endif
+#endif
+	if(use_thread)
+		nbuff=barray[xx];
+	else
+		nbuff=buffer;
+	if(debug1 )
+	{
+	   if(use_thread)
+#ifdef NO_PRINT_LLD
+		printf("\nStarting child %ld\n",xx);
+#else
+		printf("\nStarting child %lld\n",xx);
+#endif
+	   else
+#ifdef NO_PRINT_LLD
+		printf("\nStarting process %d slot %ld\n",getpid(),xx);
+#else
+		printf("\nStarting process %d slot %lld\n",getpid(),xx);
+#endif
+		
+	}
+	dummyfile[xx]=(char *)malloc((size_t)MAXNAMESIZE);
+#ifdef NO_PRINT_LLD
+	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],xx);
+#else
+	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
+#endif
+	/*****************/
+	/* Children only */
+	/*******************************************************************/
+	/* Random write throughput performance test. **********************/
+	/*******************************************************************/
+#ifdef foobar
+#ifdef _LARGEFILE64_SOURCE
+	if((fd = creat64(dummyfile[xx], 0640))<0)
+	{
+		perror(dummyfile[xx]);
+		exit(123);
+	}
+#else
+	if((fd = creat(dummyfile[xx], 0640))<0)
+	{
+		perror(dummyfile[xx]);
+		exit(124);
+	}
+#endif
+	close(fd);
+#endif
+	if(oflag)
+		flags=O_RDWR|O_SYNC;
+	else
+		flags=O_RDWR;
+#ifdef _LARGEFILE64_SOURCE
+	if((fd = open64(dummyfile[xx], (int)flags))<0)
+	{
+		printf("\nCannot open temp file: %s\n", 
+			filename);
+		perror("open");
+		exit(125);
+	}
+#else
+	if((fd = open(dummyfile[xx], (int)flags))<0)
+	{
+		printf("\nCannot open temp file: %s\n", 
+			filename);
+		perror("open");
+		exit(126);
+	}
+#endif
+#ifdef VXFS
+	if(direct_flag)
+		ioctl(fd,VX_SETCACHE,VX_DIRECT);
+#endif
+#ifdef ASYNC_IO
+#ifdef _HPUX_SOURCE
+	if(async_flag)
+		async_init(&gc,fd,direct_flag);
+#else
+	if(async_flag)
+		async_init(&gc,fd,0);
+#endif
+#endif
+	if(mmapflag)
+	{
+		maddr=(char *)initfile(fd,(filebytes64),1,PROT_READ|PROT_WRITE);
+	}
+	if(reclen < cache_size )
+	{
+		recs_per_buffer = cache_size/reclen ;
+		nbuff=&nbuff[(xx%recs_per_buffer)*reclen];
+	}
+	if(fetchon)			/* Prefetch into processor cache */
+		fetchit(nbuff,reclen);
+	if(verify)
+		fill_buffer(nbuff,reclen,(long long)pattern,sverify);
+
+	child_stat = (struct child_stats *)&shmaddr[xx];	
+	child_stat->throughput = 0;
+	child_stat->actual = 0;
+	child_stat->flag=1; /* Tell parent child is ready to go */
+	while(child_stat->flag!=2)   /* Wait for signal from parent */
+		Poll((long long)1);
+
+	written_so_far=0;
+	child_stat = (struct child_stats *)&shmaddr[xx];
+	child_stat->actual = 0;
+	child_stat->throughput = 0;
+	stopped=0;
+	if(file_lock)
+		if(mylockf((int) fd, (int) 1, (int)0) != 0)
+			printf("File lock for write failed. %d\n",errno);
+	if(Q_flag)
+	{
+		sprintf(tmpname,"Child_%d_randwol.dat",(int)xx);
+		thread_randwqfd=fopen(tmpname,"a");
+		if(thread_randwqfd==0)
+		{
+			printf("Unable to open %s\n",tmpname);
+			exit(40);
+		}
+	}
+	starttime1 = time_so_far();
+	child_stat->start_time = starttime1;
+	for(i=0; i<numrecs64; i++){
+		if(compute_flag)
+			compute_val+=do_compute(delay);
+#ifdef bsd4_2
+		current_offset = (off64_t)reclen * (rand()%numrecs64);
+#else
+#ifdef Windows
+                current_offset = (off64_t)reclen * (rand()%numrecs64);
+#else
+		current_offset = reclen * (lrand48()%numrecs64);
+#endif
+#endif
+
+		if (!(h_flag || k_flag || mmapflag))
+		{
+#ifdef _LARGEFILE64_SOURCE
+		  if(lseek64( fd, current_offset, SEEK_SET )<0)
+		  {
+			perror("lseek64");
+			exit(158);
+		  };
+#else
+		  if(lseek( fd, (off_t)current_offset, SEEK_SET )<0)
+		  {
+			perror("lseek");
+			exit(159);
+		  };
+#endif
+		}
+		if(Q_flag)
+		{
+#ifdef _LARGEFILE64_SOURCE
+			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
+#else
+			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
+#endif
+                        thread_qtime_start=time_so_far();
+		}
+		if(*stop_flag && !stopped){
+			if(include_flush)
+			{
+				if(mmapflag)
+					msync(maddr,(size_t)filebytes64,MS_SYNC);
+				else
+					fsync(fd);
+			}
+			child_stat->throughput = 
+				(time_so_far() - starttime1)-time_res;
+			if(child_stat->throughput < (double).000001) 
+			{
+				child_stat->throughput = time_res;
+				if(rec_prob < reclen)
+					rec_prob = reclen;
+				res_prob=1;
+			}
+
+			if(OPS_flag){
+			   /*written_so_far=(written_so_far*1024)/reclen;*/
+			   written_so_far=w_traj_ops_completed;
+			}
+			child_stat->throughput = 
+			  (double)written_so_far/child_stat->throughput;
+			child_stat->actual = (double)written_so_far;
+			if(debug1)
+			{
+				printf("\nStopped by another\n");
+			}
+			stopped=1;
+		}
+		if(purge)
+			purgeit(nbuff,reclen);
+		if(Q_flag)
+		{
+			thread_qtime_start=time_so_far();
+		}
+again:		
+		if(mmapflag)
+		{
+			wmaddr = &maddr[current_offset];
+			fill_area((long long*)nbuff,(long long*)wmaddr,(long long)reclen);
+			if(!mmapnsflag)
+			{
+			  if(mmapasflag)
+			    msync(wmaddr,(size_t)reclen,MS_ASYNC);
+			  if(mmapssflag)
+			    msync(wmaddr,(size_t)reclen,MS_SYNC);
+			}
+		}
+		else
+		{
+		   if(async_flag)
+		   {
+			     if(no_copy_flag)
+			     {
+				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
+				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
+				if(verify)
+					fill_buffer(nbuff,reclen,(long long)pattern,sverify);
+			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (current_offset), depth,free_addr);
+			     }
+			     else
+				async_write(gc, (long long)fd, nbuff, reclen, (current_offset), depth);
+		   }
+		   else
+		   {
+		      if(write(fd, nbuff, (size_t) reclen) != reclen)
+		      {
+			if(*stop_flag && !stopped){
+				if(include_flush)
+				{
+					if(mmapflag)
+						msync(maddr,(size_t)filebytes64,MS_SYNC);
+					else
+						fsync(fd);
+				}
+				temp_time = time_so_far();
+				child_stat->stop_time = temp_time;
+				child_stat->throughput = 
+					(temp_time - starttime1)-time_res;
+				if(child_stat->throughput < (double).000001) 
+				{
+					child_stat->throughput= time_res;
+					if(rec_prob < reclen)
+						rec_prob = reclen;
+					res_prob=1;
+				}
+
+				if(OPS_flag){
+				   /*written_so_far=(written_so_far*1024)/reclen;*/
+				   written_so_far=w_traj_ops_completed;
+				}
+				child_stat->throughput = 
+				  (double)written_so_far/child_stat->throughput;
+				child_stat->actual = (double)written_so_far;
+				if(debug1)
+				{
+					printf("\nStopped by another\n");
+				}
+				stopped=1;
+				goto again;
+			}
+			/* Note: Writer must finish even though told
+			   to stop. Otherwise the readers will fail.
+			   The code will capture bytes transfered
+			   before told to stop but let the writer
+			   complete.
+			*/
+#ifdef NO_PRINT_LLD
+		    	printf("\nError writing block %ld, fd= %d\n", i,
+				 fd);
+#else
+		    	printf("\nError writing block %lld, fd= %d\n", i,
+				 fd);
+#endif
+			perror("write");
+			if (!no_unlink)
+				unlink(dummyfile[xx]);
+			child_stat->flag = 0;
+		    	exit(127);
+		      }
+		    }
+		}
+		if(Q_flag)
+		{
+			thread_qtime_stop=time_so_far();
+#ifdef NO_PRINT_LLD
+			fprintf(thread_randwqfd,"%10.1ld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#else
+			fprintf(thread_randwqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
+#endif
+		}
+		w_traj_ops_completed++;
+		w_traj_bytes_completed+=reclen;
+		written_so_far+=reclen/1024;
+		if(*stop_flag)
+		{
+			written_so_far-=reclen/1024;
+			w_traj_bytes_completed-=reclen;
+		}
+	}
+	
+
+	if(file_lock)
+		if(mylockf((int) fd, (int) 0, (int)0))
+			printf("Write unlock failed. %d\n",errno);
+	
+#ifdef ASYNC_IO
+	if(async_flag)
+	{
+		end_async(gc);
+		gc=0;
+	}
+#endif
+	if(!xflag)
+		*stop_flag=1;
+	
+	if(include_flush)
+	{
+		if(mmapflag)
+			msync(maddr,(size_t)filebytes64,MS_SYNC);
+		else
+			fsync(fd);
+	
+	}
+	if(include_close)
+	{
+		if(mmapflag)
+			mmap_end(maddr,(unsigned long long)filebytes64);
+		close(fd);
+	}
+	if(!stopped){
+		temp_time = time_so_far();
+		child_stat->throughput = ((temp_time - starttime1)-time_res)
+			-compute_val;
+		if(child_stat->throughput < (double).000001) 
+		{
+			child_stat->throughput= time_res;
+			if(rec_prob < reclen)
+				rec_prob = reclen;
+			res_prob=1;
+		}
+
+		if(OPS_flag){
+		   /*written_so_far=(written_so_far*1024)/reclen;*/
+		   written_so_far=w_traj_ops_completed;
+		}
+		child_stat->throughput =
+			(double)written_so_far/child_stat->throughput;
+		child_stat->actual = (double)written_so_far;
+		child_stat->stop_time = temp_time;
+	}
+	child_stat->flag = 3; /* Tell parent I'm done */
+	stopped=0;
+	/*******************************************************************/
+	/* End random write performance test. ******************************/
+	/*******************************************************************/
+	if(debug1)
+#ifdef NO_PRINT_LLD
+		printf("\nChild finished %ld\n",xx);
+#else
+		printf("\nChild finished %lld\n",xx);
+#endif
+	if(!include_close)
+	{
+		if(mmapflag)
+		{
+			msync(maddr,(size_t)numrecs64*reclen,MS_SYNC); /*Clean up before read starts running*/ 
+			mmap_end(maddr,(unsigned long long)numrecs64*reclen);
+		}else
+			fsync(fd);
+			
+		close(fd);
+	}
+	if(Q_flag && (thread_randwqfd !=0) )
+		fclose(thread_randwqfd);
+	free(dummyfile[xx]);
+#ifdef NO_THREADS
+	exit(0);
+#else
+	if(use_thread)
+		thread_exit();
+	else
+		exit(0);
+#endif
+return(0);
+}
+
 
 /************************************************************************/
 /* mythread_create() Internal routine that calls pthread_create()	*/
