@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.128 $"
+#define THISVERSION "        Version $Revision: 3.129 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -1016,7 +1016,7 @@ int begin_proc,num_processors,ioz_processor_bind;
 long long res_prob,rec_prob;
 char silent;
 char master_iozone, client_iozone,distributed;
-int bif_fd;
+int bif_fd,s_count;
 int bif_row,bif_column;
 char aflag, Eflag, hflag, Rflag, rflag, sflag;
 char diag_v,sent_stop;
@@ -15586,6 +15586,7 @@ long long child_flag;
 #endif
 {
 	struct master_command mc;
+	bzero(&mc,sizeof(struct master_command));
 	mc.m_client_number = (int) chid;
 	mc.m_throughput= throughput;
 	mc.m_testnum = testnum;
@@ -15638,6 +15639,7 @@ long long chid;
 #endif
 {
 	struct master_command mc;
+	bzero(&mc,sizeof(struct master_command));
 	if(cdebug>=1)
 	{
 		printf("Child %d: Tell master to go\n",(int)chid);
@@ -16043,7 +16045,14 @@ distribute_stop()
 	 * the socket buffer on the client.
 	 */
 	if(sent_stop)
+	{
+		if(mdebug)
+		{
+		  s_count++;
+		  printf("Master not send stop %d\n",s_count);
+		}
 		return;
+	}
 	bzero(&cc,sizeof(struct client_command));
 	cc.c_command = R_STOP_FLAG;
 	cc.c_stop_flag = 1;
@@ -16070,6 +16079,7 @@ send_stop()
 {
 	struct master_command mc;
 
+	bzero(&mc, sizeof(struct master_command));
 	mc.m_command = R_STOP_FLAG;
 	mc.m_version = proto_version;
 	mc.m_client_number = chid;
