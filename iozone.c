@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.152 $"
+#define THISVERSION "        Version $Revision: 3.153 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -981,7 +981,7 @@ void del_record_sizes();
 #define I_FOPEN(x,y) 	fopen64(x,y)
 #define I_PREAD(a,b,c,d)	pread64(a,b,(size_t)c,(off64_t)d)
 #define I_PWRITE(a,b,c,d)	pwrite64(a,b,(size_t)c,(off64_t)d)
-#define I_MMAP(a,b,c,d,e,f) 	mmap64((int)a,(off64_t)b,(int)c,(int)d,(int)e,(off64_t)f)
+#define I_MMAP(a,b,c,d,e,f) 	mmap64((int)a,(size_t)b,(int)c,(int)d,(int)e,(off64_t)f)
 #else
 #define I_LSEEK(x,y,z) 	lseek(x,(off_t)y,z)
 #define I_OPEN(x,y,z) 	open(x,(int)y,(int)z)
@@ -989,7 +989,7 @@ void del_record_sizes();
 #define I_FOPEN(x,y) 	fopen(x,y)
 #define I_PREAD(a,b,c,d)	pread(a,b,(size_t)c,(off_t)d)
 #define I_PWRITE(a,b,c,d)	pwrite(a,b,(size_t)c,(off_t)d)
-#define I_MMAP(a,b,c,d,e,f) 	mmap((int)a,(off_t)b,(int)c,(int)d,(int)e,(off_t)f)
+#define I_MMAP(a,b,c,d,e,f) 	mmap((int)a,(size_t)b,(int)c,(int)d,(int)e,(off_t)f)
 #endif
 
 
