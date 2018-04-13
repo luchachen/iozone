@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.196 $"
+#define THISVERSION "        Version $Revision: 3.198 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1219,11 +1219,12 @@ char remote_shell[256];
  */
 #define HOST_LIST_PORT 20000
 #define HOST_ESEND_PORT (HOST_LIST_PORT+MAXSTREAMS)
+#define HOST_ASEND_PORT (HOST_ESEND_PORT+MAXSTREAMS)
 
 /* 
  * Childs ports used to listen, and handle errors.
  */
-#define CHILD_ESEND_PORT (HOST_ESEND_PORT+MAXSTREAMS)
+#define CHILD_ESEND_PORT (HOST_ASEND_PORT+MAXSTREAMS)
 #define CHILD_LIST_PORT (CHILD_ESEND_PORT+MAXSTREAMS)
 
 /* Childs async message port. Used for stop flag and terminate */
@@ -1291,7 +1292,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 11;
+int proto_version = 12;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1455,7 +1456,8 @@ char **argv;
 	sprintf(splash[splash_line++],"\t             Al Slater, Scott Rhine, Mike Wisner, Ken Goss\n");
     	sprintf(splash[splash_line++],"\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR,\n");
     	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million, \n");
-    	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg.\n\n");
+    	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg.\n");
+    	sprintf(splash[splash_line++],"\t             Eric Habbinga.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
 	argvsave=argv;
@@ -3548,13 +3550,13 @@ jump3:
 	/**********************************************************/
 	/*************** End of rewrite throughput ****************/
 	/**********************************************************/
+	sync();
+	sleep(2);
 	if(distributed && master_iozone)
 	{
 		stop_master_listen(master_listen_socket);
 		cleanup_comm();
 	}
-	sync();
-	sleep(2);
 next0:
 	if(include_tflag)
 		if(!(include_mask & (long long)READER_MASK))
@@ -3762,13 +3764,13 @@ jumpend:
 	/**********************************************************/
 	/*************** End of readers throughput ****************/
 	/**********************************************************/
+	sync();
+	sleep(2);
 	if(distributed && master_iozone)
 	{
 		stop_master_listen(master_listen_socket);
 		cleanup_comm();
 	}
-	sync();
-	sleep(2);
 
 	if (no_unlink)
 	{
@@ -3991,6 +3993,8 @@ jumpend2:
 	/**********************************************************/
 	/*************** End of re-readers throughput ****************/
 	/**********************************************************/
+	sync();
+	sleep(2);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -4209,6 +4213,8 @@ next1:
 			}
 		}
 	}
+	sync();
+	sleep(2);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -4425,6 +4431,8 @@ next2:
 			}
 		}
 	}
+	sync();
+	sleep(2);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -4637,6 +4645,8 @@ next3:
 			}
 		}
 	}
+	sync();
+	sleep(2);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -4849,6 +4859,8 @@ next4:
 			}
 		}
 	}
+	sync();
+	sleep(2);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -5061,6 +5073,8 @@ next5:
 			}
 		}
 	}
+	sync();
+	sleep(2);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -5276,6 +5290,8 @@ next6:
 			}
 		}
 	}
+	sync();
+	sleep(2);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -5493,6 +5509,8 @@ next7:
 			}
 		}
 	}
+	sync();
+	sleep(2);
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -5609,9 +5627,15 @@ next8:
 			child_stat=(struct child_stats *)&shmaddr[xyz];
 			child_stat->flag = CHILD_STATE_HOLD;
 		}
+		sync();
+		sleep(2);
 		if(distributed && master_iozone)
 		{
 			stop_master_listen(master_listen_socket);
+#ifdef Windows
+			/* windows needs time before shutting down sockets */
+			sleep(1);
+#endif
 			cleanup_comm();
 		}
 	}
@@ -10726,6 +10750,9 @@ again:
 	free(dummyfile[xx]);
 	if(w_traj_flag)
 		fclose(w_traj_fd);
+
+	if(distributed && client_iozone)
+		return(0);
 #ifdef NO_THREADS
 	exit(0);
 #else
@@ -11242,6 +11269,9 @@ again:
 	free(dummyfile[xx]);
 	if(w_traj_flag)
 		fclose(w_traj_fd);
+
+	if(distributed && client_iozone)
+		return(0);
 #ifdef NO_THREADS
 	exit(0);
 #else
@@ -11667,6 +11697,9 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 #else
 		printf("\nChild Stopping  %lld\n",xx);
 #endif
+
+	if(distributed && client_iozone)
+		return(0);
 #ifdef NO_THREADS
 	exit(0);
 #else
@@ -12080,6 +12113,9 @@ thread_read_test(x)
 #else
 		printf("\nChild finished %lld\n",xx);
 #endif
+
+	if(distributed && client_iozone)
+		return(0);
 #ifdef NO_THREADS
 	exit(0);
 #else
@@ -12494,6 +12530,9 @@ thread_pread_test(x)
 #else
 		printf("\nChild finished %lld\n",xx);
 #endif
+
+	if(distributed && client_iozone)
+		return(0);
 #ifdef NO_THREADS
 	exit(0);
 #else
@@ -12905,6 +12944,9 @@ thread_rread_test(x)
 #else
 		printf("\nChild finished %lld\n",xx);
 #endif
+
+	if(distributed && client_iozone)
+		return(0);
 #ifdef NO_THREADS
 	exit(0);
 #else
@@ -13296,6 +13338,9 @@ thread_reverse_read_test(x)
 #else
 		printf("\nChild finished %lld\n",xx);
 #endif
+
+	if(distributed && client_iozone)
+		return(0);
 #ifdef NO_THREADS
 	exit(0);
 #else
@@ -13708,6 +13753,9 @@ thread_stride_read_test(x)
 #else
 		printf("\nChild finished %lld\n",xx);
 #endif
+
+	if(distributed && client_iozone)
+		return(0);
 #ifdef NO_THREADS
 	exit(0);
 #else
@@ -14187,6 +14235,9 @@ thread_ranread_test(x)
 #else
 		printf("\nChild finished %lld\n",xx);
 #endif
+
+	if(distributed && client_iozone)
+		return(0);
 #ifdef NO_THREADS
 	exit(0);
 #else
@@ -14691,6 +14742,9 @@ again:
 	if(Q_flag && (thread_randwqfd !=0) )
 		fclose(thread_randwqfd);
 	free(dummyfile[xx]);
+
+	if(distributed && client_iozone)
+		return(0);
 #ifdef NO_THREADS
 	exit(0);
 #else
@@ -14768,6 +14822,9 @@ thread_cleanup_test(x)
                         (long long)CHILD_STATE_HOLD);
 	child_stat->flag = CHILD_STATE_HOLD; 	/* Tell parent I'm done */
 	free(dummyfile[xx]);
+
+	if(distributed && client_iozone)
+		return(0);
 #ifdef NO_THREADS
 	exit(0);
 #else
@@ -16451,7 +16508,7 @@ start_master_listen()
 	int tmp_port;
 	int sockerr;
 	struct sockaddr_in addr;
-	int recv_buf_size=65536;
+	int recv_buf_size=65536*4;
 
         s = socket(AF_INET, SOCK_DGRAM, 0);
         if (s < 0)
@@ -17000,6 +17057,7 @@ int sock, size_of_message;
 	char *cnc;
 
 	cnc = (char *)&child_rcv_buf[0];
+	bzero(cnc, sizeof(child_rcv_buf));
 	s = sock;
 	tsize=size_of_message; /* Number of messages to receive */
 	rcvd = 0;
@@ -17276,7 +17334,7 @@ struct in_addr my_s_addr;
                 exit(23);
         }
         bzero(&addr, sizeof(struct sockaddr_in));
-	tmp_port=HOST_ESEND_PORT;
+	tmp_port=HOST_ASEND_PORT;
         addr.sin_port = htons(tmp_port);
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
@@ -17642,6 +17700,7 @@ become_client()
 	}
 	child_listen(l_sock,sizeof(struct client_neutral_command));
 	cnc = (struct client_neutral_command *)&child_rcv_buf;
+	bzero(&cc, sizeof(struct client_command));
 	
 	/* Convert from string format to arch format */
 	sscanf(cnc->c_command,"%d",&cc.c_command);
@@ -18204,6 +18263,7 @@ start_child_listen_loop()
 			}
 			sleep(2);
 			/* Aync listener goes away */
+			stop_child_listen(l_async_sock);
 			exit(0);
 		case R_DEATH:
 			if(cdebug)
@@ -18215,6 +18275,8 @@ start_child_listen_loop()
 			i = cc.c_client_number;
 			child_remove_files(i);
 			sleep(2);
+			/* Aync listener goes away */
+			stop_child_listen(l_async_sock);
 			exit(0);
 		}
 			
