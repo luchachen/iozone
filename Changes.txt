@@ -1402,8 +1402,7 @@ Revision 3.108
 turn off cdebug
 Switch child comm to SOCK_STREAM. Avoid UDP fragment problems.
 =============================================================================
-
-
-
-
+Revision 3.109 
+=============================================================================
+Fix for "disrupt" and Direct I/O. Needs to be page size and aligned.
 

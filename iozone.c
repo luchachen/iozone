@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.108 $"
+#define THISVERSION "        Version $Revision: 3.109 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -13275,6 +13275,7 @@ float comp_delay;
 /* This function is intended to cause an interruption			*/
 /* in the read pattern. It will make a reader have			*/
 /* jitter in its access behavior.					*/
+/* When using direct I/O one must use a pagesize transfer.		*/
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 void
@@ -13284,23 +13285,36 @@ disrupt(fd)
 int fd;
 #endif
 {
-	char buf[1024];
+	char *nbuff,*free_addr;
 	off64_t current;
+
+	free_addr=nbuff=(char *)malloc((size_t)page_size+page_size);
+	nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
+
 	/* Save current position */
 	current = I_LSEEK(fd,0,SEEK_CUR);
 
 	/* Move to beginning of file */
 	I_LSEEK(fd,0,SEEK_SET);
-	/* Read a little of the file */
-	read(fd,buf,1);
 
-	/* Skip to 3k into the file */
-	I_LSEEK(fd,3096,SEEK_SET);
 	/* Read a little of the file */
-	read(fd,buf,1);
+	if(direct_flag)
+		read(fd,nbuff,page_size);
+	else
+		read(fd,nbuff,1);
+
+	/* Skip into the file */
+	I_LSEEK(fd,page_size,SEEK_SET);
+
+	/* Read a little of the file */
+	if(direct_flag)
+		read(fd,nbuff,page_size);
+	else
+		read(fd,nbuff,1);
 
 	/* Restore current position in file, before disruption */
 	I_LSEEK(fd,current,SEEK_SET);
+	free(free_addr);
 	
 }
 
