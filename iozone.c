@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.144 $"
+#define THISVERSION "        Version $Revision: 3.145 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -2374,7 +2374,7 @@ char **argv;
 	if(uflag && !lflag)
 		num_child=mint = 1;
 	if(lflag && !uflag)
-		maxt = 8;
+		maxt = mint;
 	if(use_thread)
 		port="thread";
 	else
