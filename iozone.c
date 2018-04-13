@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.118 $"
+#define THISVERSION "        Version $Revision: 3.120 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -107,7 +107,7 @@ char *help[] = {
 "                  [-n minfilesize_Kb] [-N] [-Q] [-P start_cpu] [-e] [-c] [-b Excel.xls]",
 "                  [-J milliseconds] [-X write_telemetry_filename] [-w] [-W]",
 "                  [-Y read_telemetry_filename] [-y minrecsize_Kb] [-q maxrecsize_Kb]",
-"                  [-+u] [-+m cluster_filename] [-+d]",
+"                  [-+u] [-+m cluster_filename] [-+d] [-+x multiplier]",
 " ",
 "           -a  Auto mode",
 "           -A  Auto2 mode",
@@ -173,6 +173,7 @@ char *help[] = {
 "           -+m  Cluster_filename   Enable Cluster testing",
 "           -+d  File I/O diagnostic mode. (To troubleshoot a broken file I/O subsystem)",
 "           -+u  Enable CPU utilization output (Experimental)",
+"           -+x # Multiplier to use for incrementing file and record sizes",
 "" };
 
 char *head1[] = {
@@ -426,6 +427,7 @@ struct client_command {
 	int c_testnum;
 	int c_no_unlink;
 	int c_file_lock;
+	int c_multiplier;
 	int c_pattern;
 	int c_version;
 	int c_base_time;
@@ -492,6 +494,7 @@ struct client_neutral_command {
 	char c_testnum[20]; 		/* int */
 	char c_no_unlink[20]; 		/* int */
 	char c_file_lock[20]; 		/* int */
+	char c_multiplier[20]; 		/* int */
 	char c_pattern[20]; 		/* int */
 	char c_version[20]; 		/* int */
 	char c_base_time[20]; 		/* int */
@@ -785,7 +788,7 @@ void purgeit();			/* Purge on chip cache		  */
 void throughput_test();		/* Multi process throughput 	  */
 void multi_throughput_test();	/* Multi process throughput 	  */
 void prepage();			/* Pre-fault user buffer	  */
-#if defined(linux) || defined(solaris) || defined(__AIX__) || defined(OSFV5) || defined(UWIN) || defined(Windows) || defined(__APPLE__)
+#if defined(linux) || defined(solaris) || defined(__AIX__) || defined(OSFV5) || defined(UWIN) || defined(Windows) || defined(__APPLE__) || defined(OSFV4) 
 float do_compute(float);	/* compute cycle simulation       */
 #else
 float do_compute();		/* compute cycle simulation       */
@@ -1161,7 +1164,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 2;
+int proto_version = 3;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1203,6 +1206,7 @@ long long reclen = RECLEN;
 long long delay_start,depth;
 VOLATILE char *stop_flag;		/* Used to stop all children */
 float compute_time;
+int multiplier = MULTIPLIER;
 /******************************************************************************/
 /* End of Tele-port zone.                                                     */
 /******************************************************************************/
@@ -2006,6 +2010,17 @@ char **argv;
     					sprintf(splash[splash_line++],"\tPerformance measurements are invalid in this mode.\n");
 					diag_v=1;
 					sverify=0;
+					break;
+				case 'x':  /* Argument is the multiplier for rec size and file size */
+					subarg=argv[optind++];
+					if(subarg==(char *)0)
+					{
+					     printf("-+c takes an operand !!\n");
+					     exit(200);
+					}
+					multiplier = atoi(subarg);
+					if(multiplier <=1)
+						multiplier = 2;
 					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
@@ -13835,7 +13850,7 @@ off64_t max_f_size;
 #endif
 {
     	off64_t kilosi;
-        for(kilosi=min_f_size;kilosi<=max_f_size;kilosi*=MULTIPLIER)
+        for(kilosi=min_f_size;kilosi<=max_f_size;kilosi*=multiplier)
 	{
 		add_file_size((off64_t)kilosi);
 	}
@@ -13922,7 +13937,7 @@ off64_t max_r_size;
 #endif
 {
     	off64_t size;
-        for(size=min_r_size;size<=max_r_size;size*=MULTIPLIER)
+        for(size=min_r_size;size<=max_r_size;size*=multiplier)
 	{
 		add_record_size((off64_t)size);
 	}
@@ -14308,6 +14323,7 @@ int send_size;
 	sprintf(outbuf.c_testnum,"%d",send_buffer->c_testnum);
 	sprintf(outbuf.c_no_unlink,"%d",send_buffer->c_no_unlink);
 	sprintf(outbuf.c_file_lock,"%d",send_buffer->c_file_lock);
+	sprintf(outbuf.c_multiplier,"%d",send_buffer->c_multiplier);
 	sprintf(outbuf.c_pattern,"%d",send_buffer->c_pattern);
 	sprintf(outbuf.c_version,"%d",send_buffer->c_version);
 	sprintf(outbuf.c_base_time,"%d",send_buffer->c_base_time);
@@ -15024,7 +15040,7 @@ long long numrecs64, reclen;
 	if(mdebug>=1)
 		printf("\nMaster listening for child to send join message.\n");
 	master_listen(master_listen_socket,sizeof(struct master_neutral_command));
-	mnc = (struct master_neutral_command *)&master_rcv_buf;
+	mnc = (struct master_neutral_command *)&master_rcv_buf[0];
 
 	/* 
 	 * Convert from string format back to internal representation
@@ -15091,6 +15107,7 @@ long long numrecs64, reclen;
 	cc.c_sverify = sverify;
 	cc.c_diag_v = diag_v;
 	cc.c_file_lock = file_lock;
+	cc.c_multiplier = multiplier;
 	cc.c_pattern = pattern;
 	cc.c_version = proto_version;
 	cc.c_base_time = base_time;
@@ -15131,7 +15148,7 @@ long long numrecs64, reclen;
 	if(mdebug>=1)
 	   printf("Master listening for child to send at barrier message.\n");
 	master_listen(master_listen_socket,sizeof(struct master_neutral_command));
-	mnc = (struct master_neutral_command *)&master_rcv_buf;
+	mnc = (struct master_neutral_command *)&master_rcv_buf[0];
 	/*
 	 * Convert from string back to arch specific 
 	 */
@@ -15309,6 +15326,7 @@ become_client()
 	sscanf(&cnc->c_sverify,"%c",&cc.c_sverify);
 	sscanf(&cnc->c_diag_v,"%c",&cc.c_diag_v);
 	sscanf(cnc->c_file_lock,"%d",&cc.c_file_lock);
+	sscanf(cnc->c_multiplier,"%d",&cc.c_multiplier);
 	sscanf(cnc->c_pattern,"%d",&cc.c_pattern);
 	sscanf(cnc->c_version,"%d",&cc.c_version);
 	sscanf(cnc->c_base_time,"%d",&cc.c_base_time);
@@ -15355,6 +15373,7 @@ become_client()
 	else
 		sverify = cc.c_sverify;
 	file_lock = cc.c_file_lock;
+	multiplier = cc.c_multiplier;
 	pattern = cc.c_pattern;
 	/* proto_version = cc.c_version; Don't copy it back. */
 	base_time=cc.c_base_time;
@@ -15641,7 +15660,7 @@ int num;
 	while(master_join_count)
 	{
 		master_listen(master_listen_socket,sizeof(struct master_neutral_command));
-		mnc=(struct master_neutral_command *)&master_rcv_buf;
+		mnc=(struct master_neutral_command *)&master_rcv_buf[0];
 		
 		/*
 		 * Convert from string format to arch format
