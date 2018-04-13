@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.158 $"
+#define THISVERSION "        Version $Revision: 3.159 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -14993,14 +14993,16 @@ int flag, prot;
 	 char *pa;
 	 int mflags=0;
 	 long long x;
+	 char *tmp;
+	 tmp=(char *)malloc((int)page_size);
 	 if(flag)
 	 {
 
 #ifdef _HPUX_SOURCE
 		prealloc(fd,filebytes);
 #else
-	 	I_LSEEK(fd,(filebytes-1),SEEK_SET);
-		x=write(fd,"b",1);
+	 	I_LSEEK(fd,(filebytes-page_size),SEEK_SET);
+		x=write(fd,tmp,(int)page_size);
 		if(x < 1)
 		{
 			printf("Unable to write file\n");
@@ -15008,6 +15010,7 @@ int flag, prot;
 	 	I_LSEEK(fd,0,SEEK_SET);
 #endif
 	 }
+	 free(tmp);
 
 #ifdef IRIX64
 	if((prot & PROT_WRITE)==PROT_WRITE)
