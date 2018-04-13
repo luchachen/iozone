@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.156 $"
+#define THISVERSION "        Version $Revision: 3.157 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -178,8 +178,10 @@ char *help[] = {
 "           -+p # Percentage of mix to be reads",
 "           -+r Enable O_RSYNC|O_SYNC for all testing.",
 "           -+t Enable network performance test. Requires -+m ",
+#ifndef Windows
 "           -+A #  Enable madvise. 0 = normal, 1=random, 2=sequential",
 "                                  3=dontneed, 4=willneed",
+#endif
 "" };
 
 char *head1[] = {
@@ -2150,12 +2152,14 @@ char **argv;
     					sprintf(splash[splash_line++],"\tRead & Write sync mode active.\n");
 					break;
 #endif
+#ifndef Windows
 				case 'A':  /* Argument is madvise selector */
 					subarg=argv[optind++];
 					advise_flag=1;
 					advise_op=atoi(subarg);
 					sprintf(splash[splash_line++],"\tMadvise enabled: %d\n",advise_op);
 					break;
+#endif
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
 					exit(0);
@@ -15060,6 +15064,7 @@ int flag, prot;
 #endif
 #endif
 #endif
+#ifndef Windows
 	if(advise_flag)
 	{
 		switch(advise_op){
@@ -15083,6 +15088,7 @@ int flag, prot;
 		};
 	}
 	
+#endif
 	return(pa);
 
 }
