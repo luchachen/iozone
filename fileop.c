@@ -81,7 +81,7 @@ void file_unlink(int);
 void splash(void);
 void usage(void);
 
-#define THISVERSION "        $Revision: 1.17 $"
+#define THISVERSION "        $Revision: 1.18 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;
@@ -286,7 +286,7 @@ dir_create(int x)
 	  chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
-	    sprintf(buf,"iozone_L2_%d",j);
+	    sprintf(buf,"iozone_L1_%d_L2_%d",i,j);
 	    stats[_STAT_DIR_CREATE].starttime=time_so_far();
 	    ret=mkdir(buf,0777);
 	    if(ret < 0)
@@ -336,7 +336,7 @@ file_create(int x)
 	  chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
-	    sprintf(buf,"iozone_L2_%d",j);
+	    sprintf(buf,"iozone_L1_%d_L2_%d",i,j);
 	    ret=mkdir(buf,0777);
 	    if(ret < 0)
 	    {
@@ -346,7 +346,7 @@ file_create(int x)
 	    chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
-	      sprintf(buf,"iozone_file%d",k);
+	      sprintf(buf,"iozone_file_%d_%d_%d",i,j,k);
 	      stats[_STAT_CREATE].starttime=time_so_far();
 	      fd=creat(buf,O_RDWR|0600);
 	      if(fd < 0)
@@ -411,11 +411,11 @@ file_stat(int x)
 	  chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
-	    sprintf(buf,"iozone_L2_%d",j);
+	    sprintf(buf,"iozone_L1_%d_L2_%d",i,j);
 	    chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
-	      sprintf(buf,"iozone_file%d",k);
+	      sprintf(buf,"iozone_file_%d_%d_%d",i,j,k);
 	      stats[_STAT_STAT].starttime=time_so_far();
 	      y=stat(buf,&mystat);
 	      if(y < 0)
@@ -453,11 +453,11 @@ file_access(int x)
 	  chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
-	    sprintf(buf,"iozone_L2_%d",j);
+	    sprintf(buf,"iozone_L1_%d_L2_%d",i,j);
 	    chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
-	      sprintf(buf,"iozone_file%d",k);
+	      sprintf(buf,"iozone_file_%d_%d_%d",i,j,k);
 	      stats[_STAT_ACCESS].starttime=time_so_far();
 	      y=access(buf,W_OK|F_OK);
 	      if(y < 0)
@@ -496,11 +496,11 @@ file_chmod(int x)
 	  chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
-	    sprintf(buf,"iozone_L2_%d",j);
+	    sprintf(buf,"iozone_L1_%d_L2_%d",i,j);
 	    chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
-	      sprintf(buf,"iozone_file%d",k);
+	      sprintf(buf,"iozone_file_%d_%d_%d",i,j,k);
 	      stats[_STAT_CHMOD].starttime=time_so_far();
 	      y=chmod(buf,0666);
 	      if(y < 0)
@@ -541,7 +541,7 @@ file_readdir(int x)
 	  chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
-	    sprintf(buf,"iozone_L2_%d",j);
+	    sprintf(buf,"iozone_L1_%d_L2_%d",i,j);
 	    chdir(buf);
 	    dirbuf=opendir(".");
 	    if(dirbuf==0)
@@ -592,12 +592,12 @@ file_link(int x)
 	  chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
-	    sprintf(buf,"iozone_L2_%d",j);
+	    sprintf(buf,"iozone_L1_%d_L2_%d",i,j);
 	    chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
-	      sprintf(buf,"iozone_file%d",k);
-	      sprintf(bufn,"iozone_file%dL",k);
+	      sprintf(buf,"iozone_file_%d_%d_%d",i,j,k);
+	      sprintf(bufn,"iozone_file_%d_%d_%dL",i,j,k);
 	      stats[_STAT_LINK].starttime=time_so_far();
 	      y=link(buf,bufn);
 	      if(y < 0)
@@ -636,12 +636,12 @@ file_unlink(int x)
 	  chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
-	    sprintf(buf,"iozone_L2_%d",j);
+	    sprintf(buf,"iozone_L1_%d_L2_%d",i,j);
 	    chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
-	      sprintf(buf,"iozone_file%d",k);
-	      sprintf(bufn,"iozone_file%dL",k);
+	      sprintf(buf,"iozone_file_%d_%d_%d",i,j,k);
+	      sprintf(bufn,"iozone_file_%d_%d_%dL",i,j,k);
 	      stats[_STAT_UNLINK].starttime=time_so_far();
 	      y=unlink(bufn);
 	      if(y < 0)
@@ -679,10 +679,10 @@ dir_delete(int x)
 	  chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
-	    sprintf(buf,"iozone_L2_%d",j);
+	    sprintf(buf,"iozone_L1_%d_L2_%d",i,j);
 	    chdir(buf);
 	    chdir("..");
-	    sprintf(buf,"iozone_L2_%d",j);
+	    sprintf(buf,"iozone_L1_%d_L2_%d",i,j);
 	    stats[_STAT_DIR_DELETE].starttime=time_so_far();
 	    rmdir(buf);
 	    stats[_STAT_DIR_DELETE].endtime=time_so_far();
@@ -726,11 +726,11 @@ file_delete(int x)
 	  chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
-	    sprintf(buf,"iozone_L2_%d",j);
+	    sprintf(buf,"iozone_L1_%d_L2_%d",i,j);
 	    chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
-	      sprintf(buf,"iozone_file%d",k);
+	      sprintf(buf,"iozone_file_%d_%d_%d",i,j,k);
 	      stats[_STAT_DELETE].starttime=time_so_far();
 	      unlink(buf);
 	      stats[_STAT_DELETE].endtime=time_so_far();
@@ -745,7 +745,7 @@ file_delete(int x)
 		 stats[_STAT_DELETE].worst=stats[_STAT_DELETE].speed;
 	    }
 	    chdir("..");
-	    sprintf(buf,"iozone_L2_%d",j);
+	    sprintf(buf,"iozone_L1_%d_L2_%d",i,j);
 	    rmdir(buf);
 	  }
 	  chdir("..");

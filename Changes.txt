@@ -1952,4 +1952,9 @@ Add the -+U for WIN32 API calls .. Unbuffered I/O. Sony studios.
 Revision 3.247
 =============================================================================
 Add support for -+U with -K (WIN32API calls + Jitter)
+=============================================================================
+Revision 3.248
+=============================================================================
+Bug fix. -J with -+m not passing compute delay correctly.
+
 

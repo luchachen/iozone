@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.247 $"
+#define THISVERSION "        Version $Revision: 3.248 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -10819,6 +10819,8 @@ thread_write_test( x)
 	long long *gc=0;
 #endif
 
+	if(compute_flag)
+		delay=compute_time;
 	nbuff=maddr=wmaddr=free_addr=0;
 	thread_qtime_stop=thread_qtime_start=0;
 	thread_wqfd=w_traj_fd=thread_Lwqfd=(FILE *)0;
@@ -11449,6 +11451,8 @@ thread_pwrite_test( x)
 	long long *gc=0;
 #endif
 
+	if(compute_flag)
+		delay=compute_time;
 	nbuff=maddr=wmaddr=free_addr=0;
 	thread_qtime_stop=thread_qtime_start=0;
 	thread_wqfd=w_traj_fd=thread_Lwqfd=(FILE *)0;
@@ -12002,6 +12006,8 @@ thread_rwrite_test(x)
 	long long *gc=0;
 #endif
 
+	if(compute_flag)
+		delay=compute_time;
 	wmaddr=nbuff=maddr=free_addr=0;
 	thread_rwqfd=w_traj_fd=thread_Lwqfd=(FILE *)0;
 	traj_offset=thread_qtime_stop=thread_qtime_start=0;
@@ -12509,6 +12515,8 @@ thread_read_test(x)
 	long long *gc=0;
 #endif
 
+	if(compute_flag)
+		delay=compute_time;
 	thread_rqfd=thread_Lwqfd=r_traj_fd=(FILE *)0;
 	traj_offset=thread_qtime_stop=thread_qtime_start=0;
 	walltime=cputime=0;
@@ -13015,6 +13023,8 @@ thread_pread_test(x)
 	long long *gc=0;
 #endif
 
+	if(compute_flag)
+		delay=compute_time;
 	thread_rqfd=thread_Lwqfd=r_traj_fd=(FILE *)0;
 	traj_offset=thread_qtime_stop=thread_qtime_start=0;
 	walltime=cputime=0;
@@ -13473,6 +13483,8 @@ thread_rread_test(x)
 	/*****************/
 	/* Children only */
 	/*****************/
+	if(compute_flag)
+		delay=compute_time;
 	thread_qtime_stop=thread_qtime_start=0;
 	thread_rrqfd=r_traj_fd=thread_Lwqfd=(FILE *)0;
 	traj_offset=walltime=cputime=0;
@@ -13974,6 +13986,8 @@ thread_reverse_read_test(x)
 	/*****************/
 	/* Children only */
 	/*****************/
+	if(compute_flag)
+		delay=compute_time;
 	thread_qtime_stop=thread_qtime_start=0;
 	traj_offset=walltime=cputime=0;
 	anwser=bind_cpu=0;
@@ -14415,6 +14429,8 @@ thread_stride_read_test(x)
 	/*****************/
 	/* Children only */
 	/*****************/
+	if(compute_flag)
+		delay=compute_time;
 	thread_qtime_stop=thread_qtime_start=0;
 	traj_offset=walltime=cputime=0;
 	anwser=bind_cpu=0;
@@ -14946,6 +14962,8 @@ thread_ranread_test(x)
 	long long *gc=0;
 #endif
 
+	if(compute_flag)
+		delay=compute_time;
 	thread_qtime_stop=thread_qtime_start=0;
 	traj_offset=walltime=cputime=0;
 	anwser=bind_cpu=0;
@@ -15420,6 +15438,8 @@ thread_ranwrite_test( x)
 	long long *gc=0;
 #endif
 
+	if(compute_flag)
+		delay=compute_time;
 	thread_qtime_stop=thread_qtime_start=0;
 	traj_offset=walltime=cputime=0;
 	anwser=bind_cpu=0;
