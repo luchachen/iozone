@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.129 $"
+#define THISVERSION "        Version $Revision: 3.130 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -1992,7 +1992,7 @@ char **argv;
 					}
 					strcpy(client_filename,subarg);
 					ret=get_client_info();
-					if(ret <=0)
+					if(ret <= 0)
 					{
 						printf("Error reading client file\n");
 						exit(178);
@@ -15915,7 +15915,7 @@ get_client_info()
 	char buffer[200];
 	count=0;
 	fd=fopen(client_filename,"r");
-	if(fd == (FILE *)0)
+	if(fd == (FILE *)NULL)
 	{
 		printf("Unable to open client file \"%s\"\n",
 			client_filename);
@@ -15924,10 +15924,11 @@ get_client_info()
 	while(1)
 	{
 		ret1=fgets(buffer,200,fd);
-		if(ret1==(char *)0)
+		if(ret1== (char *)NULL)
 			break;
 		count+=parse_client_line(buffer,count);
 	}
+	fclose(fd);
 	return(count);
 }
 
@@ -15952,22 +15953,26 @@ char *buffer;
 int line_num;
 #endif
 {
+	int num;
 	/* Format is clientname, workdir, execute_path */
 	/* If column #1 contains a # symbol then skip this line */
 
 	if(buffer[0]=='#')
 		return(0);
-	sscanf(buffer,"%s %s %s\n",
+	num=sscanf(buffer,"%s %s %s\n",
 		child_idents[line_num].child_name,
 		child_idents[line_num].workdir,
 		child_idents[line_num].execute_path);
-	if(mdebug)
+	if((num > 0) && (num !=3))
 	{
-		printf("Client: %s  Workdir %s  Execute_path %s\n",
+		printf("Bad Client Identity at entry %d\n",line_num);
+		printf("Client: -> %s  Workdir: -> %s  Execute_path: -> %s \n",
 		child_idents[line_num].child_name,
 		child_idents[line_num].workdir,
 		child_idents[line_num].execute_path);
+		exit(203);
 	}
+
 	return(1);
 }
 

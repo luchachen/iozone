@@ -1486,4 +1486,8 @@ Revision 3.129
 =============================================================================
 Bzero structures on the stack before using. No problem seen but it
 is a possible hole.
+=============================================================================
+Revision 3.130 
+=============================================================================
+Add error checking for the client file contents.
 
