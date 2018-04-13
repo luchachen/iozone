@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.450 $"
+#define THISVERSION "        Version $Revision: 3.451 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -303,7 +303,7 @@ THISVERSION,
 #endif
 #endif
 
-#if defined (__FreeBSD__) || defined(__DSragonFly__)
+#if defined (__FreeBSD__) || defined(__DragonFly__)
 #ifndef O_RSYNC
 #define O_RSYNC O_FSYNC
 #endif
