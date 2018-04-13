@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.414 $"
+#define THISVERSION "        Version $Revision: 3.417 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -203,6 +203,7 @@ char *help[] = {
 "           -Z  Enable mixing of mmap I/O and file I/O",
 "           -+E Use existing non-Iozone file for read-only testing",
 "           -+F Truncate file before write in thread_mix_test",
+"           -+J Include think time (-j #) in throughput calculation",
 "           -+K Sony special. Manual control of test 8.",
 "           -+m  Cluster_filename   Enable Cluster testing",
 "           -+d  File I/O diagnostic mode. (To troubleshoot a broken file I/O subsystem)",
@@ -527,6 +528,7 @@ struct client_command {
 	int c_op_rate;
 	int c_op_rate_flag;
 	int c_Q_flag;
+	int c_inc_think;
 	int c_L_flag;
 	int c_OPS_flag;
 	int c_mmapflag;
@@ -629,6 +631,7 @@ struct client_neutral_command {
 	char c_op_rate[4];
 	char c_op_rate_flag[2];
 	char c_Q_flag[2];
+	char c_inc_think[2];
 	char c_L_flag[2];
 	char c_OPS_flag[2];
 	char c_mmapflag[2];
@@ -1523,7 +1526,7 @@ char verify = 1;
 int restf;
 char sverify = 1;
 char odsync = 0;
-char Q_flag,OPS_flag;
+char inc_think, Q_flag,OPS_flag;
 char L_flag=0;
 char no_copy_flag,include_close,include_flush;
 char disrupt_flag,compute_flag,xflag,Z_flag, X_flag;
@@ -2549,6 +2552,10 @@ char **argv;
 					sprintf(splash[splash_line++],"\t>>> Record locking, shared file mode enabled. <<<\n");
 					share_file=1;
 					rlocking=1;
+					break;
+				case 'J':  /* Thinktime is included in thrhoughput */
+					sprintf(splash[splash_line++],"\t>>> Think time is included in throughput cal. <<<\n");
+					inc_think=1;
 					break;
 				case 'V':  /* No Record locking shared files*/
 					sprintf(splash[splash_line++],"\t>>> Shared file mode enabled. <<<\n");
@@ -7788,7 +7795,10 @@ long long *data2;
 				signal_handler();
 			   }
 		}
-		writetime[j] = ((time_so_far() - starttime1)-time_res)
+		if(inc_think)
+		   writetime[j] = ((time_so_far() - starttime1)-time_res);
+		else
+		   writetime[j] = ((time_so_far() - starttime1)-time_res)
 			-compute_val;
 		if(writetime[j] < (double).000001) 
 		{
@@ -8021,7 +8031,10 @@ long long *data2;
 				signal_handler();
 			}
 		}
-		writetime[j] = ((time_so_far() - starttime1)-time_res)
+		if(inc_think)
+		   writetime[j] = ((time_so_far() - starttime1)-time_res);
+		else
+		   writetime[j] = ((time_so_far() - starttime1)-time_res)
 			-compute_val;
 		if(writetime[j] < (double).000001) 
 		{
@@ -8230,7 +8243,10 @@ long long *data1,*data2;
 		{
 			fclose(stream);
 		}
-		readtime[j] = ((time_so_far() - starttime2)-time_res)
+		if(inc_think)
+		   readtime[j] = ((time_so_far() - starttime2)-time_res);
+		else
+		   readtime[j] = ((time_so_far() - starttime2)-time_res)
 			-compute_val;
 		if(readtime[j] < (double).000001) 
 		{
@@ -8727,7 +8743,10 @@ long long *data1,*data2;
 #endif
 			close(fd);
 		}
-		readtime[j] = ((time_so_far() - starttime2)-time_res)-compute_val;
+		if(inc_think)
+		   readtime[j] = ((time_so_far() - starttime2)-time_res);
+		else
+		   readtime[j] = ((time_so_far() - starttime2)-time_res)-compute_val;
 		if(readtime[j] < (double).000001) 
 		{
 			readtime[j]= time_res;
@@ -9263,7 +9282,10 @@ long long *data1, *data2;
 			signal_handler();
 		}
 	     }
-	     randreadtime[j] = ((time_so_far() - starttime2)-time_res)-
+	     if(inc_think)
+	        randreadtime[j] = ((time_so_far() - starttime2)-time_res);
+	     else
+	        randreadtime[j] = ((time_so_far() - starttime2)-time_res)-
 			compute_val;
 	     if(randreadtime[j] < (double).000001) 
 	     {
@@ -9580,7 +9602,10 @@ long long *data1,*data2;
 			}
 			close(fd);
 		}
-		revreadtime[j] = ((time_so_far() - starttime2)-time_res)
+		if(inc_think)
+		   revreadtime[j] = ((time_so_far() - starttime2)-time_res);
+		else
+		   revreadtime[j] = ((time_so_far() - starttime2)-time_res)
 			-compute_val;
 		if(revreadtime[j] < (double).000001) 
 		{
@@ -9890,7 +9915,10 @@ long long *data1,*data2;
 			signal_handler();
 		}
 	}
-	writeintime = ((time_so_far() - starttime1)-time_res)-
+	if(inc_think)
+	   writeintime = ((time_so_far() - starttime1)-time_res);
+	else
+	   writeintime = ((time_so_far() - starttime1)-time_res)-
 		compute_val;
 	if(cpuutilflag)
 	{
@@ -10228,7 +10256,10 @@ long long *data1, *data2;
 		}
 		close(fd);
 	}
-	strideintime = ((time_so_far() - starttime1)-time_res)
+	if(inc_think)
+	   strideintime = ((time_so_far() - starttime1)-time_res);
+	else
+	   strideintime = ((time_so_far() - starttime1)-time_res)
 		-compute_val;
 	if(strideintime < (double).000001) 
 	{
@@ -10473,7 +10504,10 @@ long long *data1,*data2;
 				signal_handler();
 			}
 		}
-		pwritetime[j] = ((time_so_far() - starttime1)-time_res)
+		if(inc_think)
+		   pwritetime[j] = ((time_so_far() - starttime1)-time_res);
+		else
+		   pwritetime[j] = ((time_so_far() - starttime1)-time_res)
 			-compute_val;
 		if(pwritetime[j] < (double).000001) 
 		{
@@ -10725,7 +10759,10 @@ long long *data1, *data2;
 			fsync(fd);
 		if(include_close)
 			close(fd);
-		preadtime[j] = ((time_so_far() - starttime2)-time_res)
+		if(inc_think)
+		   preadtime[j] = ((time_so_far() - starttime2)-time_res);
+		else
+		   preadtime[j] = ((time_so_far() - starttime2)-time_res)
 			-compute_val;
 		if(preadtime[j] < (double).000001) 
 		{
@@ -10988,7 +11025,10 @@ long long *data1,*data2;
 				signal_handler();
 			}
 		}
-		pwritevtime[j] = ((time_so_far() - starttime1)-time_res)
+		if(inc_think)
+		   pwritevtime[j] = ((time_so_far() - starttime1)-time_res);
+		else
+		   pwritevtime[j] = ((time_so_far() - starttime1)-time_res)
 			-compute_val;
 		if(pwritevtime[j] < (double).000001) 
 		{
@@ -11300,7 +11340,10 @@ long long *data1,*data2;
 			fsync(fd);
 		if(include_close)
 			close(fd);
-		preadvtime[j] = ((time_so_far() - starttime2)-time_res)
+		if(inc_think)
+		   preadvtime[j] = ((time_so_far() - starttime2)-time_res);
+		else
+		   preadvtime[j] = ((time_so_far() - starttime2)-time_res)
 			-compute_val;
 		if(preadvtime[j] < (double).000001) 
 		{
@@ -12940,7 +12983,10 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	}
 	if(!stopped){
 		temp_time = time_so_far();
-		child_stat->throughput = ((temp_time - starttime1)-time_res)
+		if(inc_think)
+		   child_stat->throughput = ((temp_time - starttime1)-time_res);
+		else
+		   child_stat->throughput = ((temp_time - starttime1)-time_res)
 			-compute_val;
 		if(child_stat->throughput < (double).000001) 
 		{
@@ -13376,8 +13422,12 @@ thread_pwrite_test( x)
 				else
 					fsync(fd);
 			}
-			child_stat->throughput = 
-				(time_so_far() - starttime1)-time_res;
+			temp_time = time_so_far();
+			if(inc_think)
+			   child_stat->throughput = ((temp_time - starttime1)-time_res);
+			else
+			   child_stat->throughput = ((temp_time - starttime1)-time_res)
+			      				-compute_val;
 			if(child_stat->throughput < (double).000001) 
 			{
 				child_stat->throughput = time_res;
@@ -13573,8 +13623,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	}
 	if(!stopped){
 		temp_time = time_so_far();
-		child_stat->throughput = ((temp_time - starttime1)-time_res)
-			-compute_val;
+		if(inc_think)
+			child_stat->throughput = ((temp_time - starttime1)-time_res);
+		else
+			child_stat->throughput = ((temp_time - starttime1)-time_res)
+				-compute_val;
 		if(child_stat->throughput < (double).000001) 
 		{
 			child_stat->throughput= time_res;
@@ -14160,7 +14213,10 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	}
 	temp_time=time_so_far();
 	child_stat=(struct child_stats *)&shmaddr[xx];
-	child_stat->throughput = ((temp_time - starttime1)-time_res)
+	if(inc_think)
+		child_stat->throughput = ((temp_time - starttime1)-time_res);
+	else
+		child_stat->throughput = ((temp_time - starttime1)-time_res)
 		-compute_val;
 	if(child_stat->throughput < (double).000001) 
 	{
@@ -14747,8 +14803,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	}
 	temp_time = time_so_far();
 	child_stat=(struct child_stats *)&shmaddr[xx];
-	child_stat->throughput = ((temp_time - starttime1)-time_res)
-		-compute_val;
+	if(inc_think)
+		child_stat->throughput = ((temp_time - starttime1)-time_res);
+	else
+		child_stat->throughput = ((temp_time - starttime1)-time_res)
+			-compute_val;
 	if(child_stat->throughput < (double).000001) 
 	{
 		child_stat->throughput= time_res;
@@ -15274,8 +15333,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	}
 	temp_time = time_so_far();
 	child_stat=(struct child_stats *)&shmaddr[xx];
-	child_stat->throughput = ((temp_time - starttime1)-time_res)
-		-compute_val;
+	if(inc_think)
+		child_stat->throughput = ((temp_time - starttime1)-time_res);
+	else
+		child_stat->throughput = ((temp_time - starttime1)-time_res)
+			-compute_val;
 	if(child_stat->throughput < (double).000001) 
 	{
 		child_stat->throughput= time_res;
@@ -15854,8 +15916,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 		close(fd);
 	}
 	temp_time = time_so_far();
-	child_stat->throughput = ((temp_time - starttime1)-time_res)
-		-compute_val;
+	if(inc_think)
+		child_stat->throughput = ((temp_time - starttime1)-time_res);
+	else
+		child_stat->throughput = ((temp_time - starttime1)-time_res)
+			-compute_val;
 	if(child_stat->throughput < (double).000001) 
 	{
 		child_stat->throughput= time_res;
@@ -16397,8 +16462,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 		close(fd);
 	}
 	temp_time = time_so_far();
-	child_stat->throughput = ((temp_time - starttime2)-time_res)
-		-compute_val;
+	if(inc_think)
+		child_stat->throughput = ((temp_time - starttime2)-time_res);
+	else
+		child_stat->throughput = ((temp_time - starttime2)-time_res)
+			-compute_val;
 	if(child_stat->throughput < (double).000001) 
 	{
 		child_stat->throughput= time_res;
@@ -16939,8 +17007,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 		close(fd);
 	}
 	temp_time = time_so_far();
-	child_stat->throughput = ((temp_time - starttime2)-time_res)
-		-compute_val;
+	if(inc_think)
+		child_stat->throughput = ((temp_time - starttime2)-time_res);
+	else
+		child_stat->throughput = ((temp_time - starttime2)-time_res)
+			-compute_val;
 	if(child_stat->throughput < (double).000001) 
 	{
 		child_stat->throughput= time_res;
@@ -17621,8 +17692,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	}
 	temp_time = time_so_far();
 	child_stat=(struct child_stats *)&shmaddr[xx];
-	child_stat->throughput = ((temp_time - starttime1)-time_res)
-		-compute_val;
+	if(inc_think)
+		child_stat->throughput = ((temp_time - starttime1)-time_res);
+	else
+		child_stat->throughput = ((temp_time - starttime1)-time_res)
+			-compute_val;
 	if(child_stat->throughput < (double).000001) 
 	{
 		child_stat->throughput= time_res;
@@ -18304,8 +18378,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	}
 	if(!stopped){
 		temp_time = time_so_far();
-		child_stat->throughput = ((temp_time - starttime1)-time_res)
-			-compute_val;
+		if(inc_think)
+			child_stat->throughput = ((temp_time - starttime1)-time_res);
+		else
+			child_stat->throughput = ((temp_time - starttime1)-time_res)
+				-compute_val;
 		if(child_stat->throughput < (double).000001) 
 		{
 			child_stat->throughput= time_res;
@@ -20639,6 +20716,7 @@ int send_size;
 	sprintf(outbuf.c_op_rate,"%d",send_buffer->c_op_rate);
 	sprintf(outbuf.c_op_rate_flag,"%d",send_buffer->c_op_rate_flag);
 	sprintf(outbuf.c_Q_flag,"%d",send_buffer->c_Q_flag);
+	sprintf(outbuf.c_inc_think,"%d",send_buffer->c_inc_think);
 	sprintf(outbuf.c_L_flag,"%d",send_buffer->c_L_flag);
 	sprintf(outbuf.c_include_flush,"%d",send_buffer->c_include_flush);
 	sprintf(outbuf.c_OPS_flag,"%d",send_buffer->c_OPS_flag);
@@ -21507,6 +21585,7 @@ long long numrecs64, reclen;
 	cc.c_restf = restf;
 	cc.c_mygen = mygen;
 	cc.c_Q_flag = Q_flag;
+	cc.c_inc_think = inc_think;
 	cc.c_L_flag = L_flag;
 	cc.c_xflag = xflag;
 	cc.c_w_traj_flag = w_traj_flag;
@@ -21767,6 +21846,7 @@ become_client()
 	sscanf(cnc->c_mfflag,"%d",&cc.c_mfflag);
 	sscanf(cnc->c_unbuffered,"%d",&cc.c_unbuffered);
 	sscanf(cnc->c_Q_flag,"%d",&cc.c_Q_flag);
+	sscanf(cnc->c_inc_think,"%d",&cc.c_inc_think);
 	sscanf(cnc->c_L_flag,"%d",&cc.c_L_flag);
 	sscanf(cnc->c_xflag,"%d",&cc.c_xflag);
 	sscanf(cnc->c_include_flush,"%d",&cc.c_include_flush);
@@ -21852,6 +21932,7 @@ become_client()
 	restf=cc.c_restf;
 	mygen=cc.c_mygen;
 	Q_flag = cc.c_Q_flag;
+	inc_think = cc.c_inc_think;
 	L_flag = cc.c_L_flag;
 	xflag = cc.c_xflag;
 	w_traj_flag = cc.c_w_traj_flag;
@@ -24792,8 +24873,11 @@ void * thread_fwrite_test( x)
         /*******************************************************************/
         if(!stopped){
                 temp_time = time_so_far();
-                child_stat->throughput = ((temp_time - starttime1)-time_res)
-                        -compute_val;
+		if(inc_think)
+                	child_stat->throughput = ((temp_time - starttime1)-time_res);
+		else
+                	child_stat->throughput = ((temp_time - starttime1)-time_res)
+                        	-compute_val;
                 if(child_stat->throughput < (double).000001)
                 {
                         child_stat->throughput= time_res;
@@ -25236,8 +25320,11 @@ void * thread_fread_test( x)
 
         if(!stopped){
                 temp_time = time_so_far();
-                child_stat->throughput = ((temp_time - starttime1)-time_res)
-                        -compute_val;
+		if(inc_think)
+                	child_stat->throughput = ((temp_time - starttime1)-time_res);
+		else
+                	child_stat->throughput = ((temp_time - starttime1)-time_res)
+                        	-compute_val;
                 if(child_stat->throughput < (double).000001)
                 {
                         child_stat->throughput= time_res;
