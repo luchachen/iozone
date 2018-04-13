@@ -31,6 +31,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/time.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <signal.h>
+#include <unistd.h>
+
+
 int x;
 double starttime,endtime,speed;
 
@@ -40,12 +46,12 @@ void file_delete(int);
 void splash(void);
 void usage(void);
 
-#define THISVERSION "        Version $Revision: 1.2 $"
-#define NULL 0
+#define THISVERSION "        Version $Revision: 1.4 $"
+/*#define NULL 0*/
 
 char version[]=THISVERSION;
 
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	if(argc == 2)
 	{
@@ -70,6 +76,7 @@ main(int argc, char **argv)
 	speed=endtime-starttime;
 	printf("File delete: Files = %d Total time = %.3f seconds\n",(x*x*x),speed);
 	printf("             Deletes/sec = %.3f\n\n",(x*x*x)/speed);
+	return(0);
 }
 void 
 file_create(int x)

@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.226 $"
+#define THISVERSION "        Version $Revision: 3.228 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -10325,7 +10325,7 @@ int shared_flag;
 	int tfd;
 	long long tmp;
 #if defined(solaris) 
-        char mmapFileName[64];
+        char mmapFileName[]="mmap_tmp_XXXXXX";
 #endif
 
 	tmp = 0;
@@ -10401,21 +10401,12 @@ int shared_flag;
 
 
 #if defined(solaris) 
-	if(distributed)
-		tmp=(long long)getpid();
-	else
-		tmp=(long long)0;
-#ifdef NO_PRINT_LLD
-        sprintf(mmapFileName, "mmap.tmp_%ld", tmp);
-#else
-        sprintf(mmapFileName, "mmap.tmp_%lld", tmp);
-#endif
-        if((tfd = creat(mmapFileName, 0666))<0)
+	tfd=mkstemp(mmapFileName);
+        if(tfd < 0)
 	{
 		printf("Unable to create tmp file\n");
 		exit(121);
 	}
-	tfd=open(mmapFileName,O_RDWR);
 	dumb=(char *)malloc((size_t)size1);
 	bzero(dumb,size1);
 	write(tfd,dumb,size1);
@@ -10425,22 +10416,13 @@ int shared_flag;
 	unlink(mmapFileName);
 #else
 #if defined(SCO) || defined(SCO_Unixware_gcc) || defined(Windows)
-        char mmapFileName[64];
-	if(distributed)
-		tmp=(long long)getpid();
-	else
-		tmp=(long long)0;
-#ifdef NO_PRINT_LLD
-        sprintf(mmapFileName, "mmap.tmp_%ld", tmp);
-#else
-        sprintf(mmapFileName, "mmap.tmp_%lld", tmp);
-#endif
-        if((tfd = creat(mmapFileName, 0666))<0)
+        char mmapFileName[]="mmap_tmp_XXXXXX";
+	tfd=mkstemp(mmapFileName);
+        if(tfd < 0)
         {
                 printf("Unable to create tmp file\n");
                 exit(121);
         }
-	tfd=open(mmapFileName,O_RDWR);
         dumb=(char *)malloc((size_t)size1);
 	bzero(dumb,size1);
         write(tfd,dumb,size1);
@@ -18464,6 +18446,10 @@ become_client()
 	start_child_listen_loop(); /* The async channel listener */
 
 	/* Need to start this after getting into the correct directory */
+	if(w_traj_flag)
+		w_traj_size();
+	if(r_traj_flag)
+		r_traj_size();
 
 	/* 7. Run the test */
 	switch(testnum) {
