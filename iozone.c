@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.315 $"
+#define THISVERSION "        Version $Revision: 3.318 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -271,6 +271,12 @@ THISVERSION,
 #if defined (__FreeBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__APPLE__) || defined(__DragonFly__)
 #ifndef O_SYNC
 #define O_SYNC O_FSYNC
+#endif
+#endif
+
+#if defined (__FreeBSD__)
+#ifndef O_RSYNC
+#define O_RSYNC O_FSYNC
 #endif
 #endif
 
@@ -1239,6 +1245,7 @@ char *build_name = "Windows";
 char *build_name = NAME;
 #endif
 char imon_start[256],imon_stop[256]; 
+char imon_sync;
 char trflag; 
 char cpuutilflag;
 char seq_mix;
@@ -1707,7 +1714,7 @@ char **argv;
 			break;
 #endif
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined(__FreeBSD__)
 			direct_flag++;
 			sprintf(splash[splash_line++],"\tO_DIRECT feature enabled\n");
 			break;
@@ -6637,13 +6644,13 @@ long long *data2;
 	if(odsync)
 		file_flags |= O_DSYNC;
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux) || defined(freebsd) || defined(__DragonFly__)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__FreeBSD__) || defined(__DragonFly__)
 	if(read_sync)
 		file_flags |=O_RSYNC|O_SYNC;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		file_flags |=O_DIRECT;
 #endif
@@ -7590,7 +7597,7 @@ long long *data1,*data2;
 		open_flags |=O_RSYNC|O_SYNC;
 #endif
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -8111,7 +8118,7 @@ long long *data1, *data2;
 	}
 	flags = O_RDWR;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -8554,7 +8561,7 @@ long long *data1,*data2;
 	maddr=wmaddr=0;
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -8838,7 +8845,7 @@ long long *data1,*data2;
 /*	flags = O_RDWR|O_CREAT|O_TRUNC;*/
 	flags = O_RDWR|O_CREAT;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -9142,7 +9149,7 @@ long long *data1, *data2;
 	nbuff=maddr=wmaddr=0;
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -9470,7 +9477,7 @@ long long *data1,*data2;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		flags_here |=O_DIRECT;
 #endif
@@ -9741,7 +9748,7 @@ long long *data1, *data2;
 	nbuff=mainbuffer;
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -9750,7 +9757,7 @@ long long *data1, *data2;
 		open_flags |=O_DIRECTIO;
 #endif
 #endif
-#if defined(_HPUX_SOURCE) || defined(linux) || defined(freebsd) || defined(__DragonFly__)
+#if defined(_HPUX_SOURCE) || defined(linux) || defined(__FreeBSD__) || defined(__DragonFly__)
 	if(read_sync)
 		open_flags |=O_RSYNC|O_SYNC;
 #endif
@@ -9987,7 +9994,7 @@ long long *data1,*data2;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		flags_here |=O_DIRECT;
 #endif
@@ -10317,7 +10324,7 @@ long long *data1,*data2;
 
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -11623,7 +11630,7 @@ thread_write_test( x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -12276,7 +12283,7 @@ thread_pwrite_test( x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -12843,7 +12850,7 @@ thread_rwrite_test(x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -13352,7 +13359,7 @@ thread_read_test(x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -13889,7 +13896,7 @@ thread_pread_test(x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -14393,7 +14400,7 @@ thread_rread_test(x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -14914,7 +14921,7 @@ thread_reverse_read_test(x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -15402,7 +15409,7 @@ thread_stride_read_test(x)
 		flags |=O_RSYNC|O_SYNC;
 #endif
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -16003,7 +16010,7 @@ thread_ranread_test(x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -16599,7 +16606,7 @@ thread_ranwrite_test( x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -17532,7 +17539,7 @@ int flag, prot;
 	 	file_flags=fcntl(fd,F_GETFL);
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined (__FreeBSD__)
 		dflag = O_DIRECT;
 #endif
 #if defined(TRU64)
@@ -21169,7 +21176,7 @@ find_external_mon(imon_start,imon_stop)
 char *imon_start,*imon_stop;
 #endif
 {
-	char *start,*stop;
+	char *start,*stop,*sync;
 	imon_start[0]=(char)0;
 	imon_stop[0]=(char)0;
 	start=(char *)getenv("IMON_START");
@@ -21182,6 +21189,12 @@ char *imon_start,*imon_stop;
 	{
 		strcpy(imon_stop,stop);
 	}
+	sync=(char *)getenv("IMON_SYNC");
+	if(sync)
+	{
+		imon_sync=1;
+	}
+
 	return;
 }	
 
@@ -22044,7 +22057,10 @@ char *test;
 	char command_line[256];
 	if(strlen(imon_start)!=0)
 	{
-		sprintf(command_line,"%s %s&",imon_start,test);
+		if(imon_sync)
+		   sprintf(command_line,"%s %s",imon_start,test);
+		else
+		   sprintf(command_line,"%s %s&",imon_start,test);
 		system(command_line);
 	}
 }
@@ -22059,7 +22075,10 @@ char *test;
 	char command_line[256];
 	if(strlen(imon_stop)!=0)
 	{
-		sprintf(command_line,"%s %s &",imon_stop,test);
+		if(imon_sync)
+		   sprintf(command_line,"%s %s",imon_stop,test);
+		else
+		   sprintf(command_line,"%s %s &",imon_stop,test);
 		system(command_line);
 	}
 }

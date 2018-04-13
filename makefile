@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.123 $
+# Version $Revision: 1.124 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -1156,13 +1156,13 @@ iozone_freebsd.o:	iozone.c libbif.c libasync.c
 	@echo ""
 	@echo "Build iozone for FreeBSD"
 	@echo ""
-	$(CC) -c ${CFLAGS}  -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DASYNC_IO \
+	$(CC) -c ${CFLAGS}  -DFreeBSD -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DASYNC_IO \
 		-DHAVE_PREAD -DNAME='"freebsd"' -DSHARED_MEM \
 		$(CFLAGS) iozone.c -o iozone_freebsd.o
-	$(CC) -c ${CFLAGS} -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DASYNC_IO \
+	$(CC) -c ${CFLAGS} -DFreeBSD -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DASYNC_IO \
 		-DSHARED_MEM -DHAVE_PREAD $(CFLAGS) libbif.c \
 		-o libbif.o
-	$(CC) -c ${CFLAGS} -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DASYNC_IO \
+	$(CC) -c ${CFLAGS} -DFreeBSD -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DASYNC_IO \
 		-DSHARED_MEM -DHAVE_PREAD $(CFLAGS) libasync.c \
 		-o libasync.o
 
