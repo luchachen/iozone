@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.216 $"
+#define THISVERSION "        Version $Revision: 3.217 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -2251,6 +2251,7 @@ char **argv;
 					sprintf(splash[splash_line++],"\t>>> O_DSYNC mode enabled. <<<\n");
 					odsync=1;
 					break;
+#endif
 				case 'l':  /* Record locking mode */
 					sprintf(splash[splash_line++],"\t>>> Record locking mode enabled. <<<\n");
 					rlocking=1;
@@ -2260,7 +2261,6 @@ char **argv;
 					share_file=1;
 					rlocking=1;
 					break;
-#endif
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
 					exit(0);
