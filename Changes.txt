@@ -2558,3 +2558,6 @@ Fix missing typedef in FreeBSD.
 Revision 3.451
 Fix typeoh in spelling of DragonFly.
 =============================================================================
+Revision 3.452
+Make the sighandler_t change effective for all BSD derivatives.
+=============================================================================

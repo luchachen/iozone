@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.451 $"
+#define THISVERSION "        Version $Revision: 3.452 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -280,7 +280,7 @@ THISVERSION,
 #include <stdio.h>
 #include <signal.h>
 
-#ifdef freebsd
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__) || defined(__NetBSD__)
   #ifndef sighandler_t
   typedef __sighandler_t sighandler_t;
   #endif
