@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.362 $"
+#define THISVERSION "        Version $Revision: 3.365 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -70,7 +70,7 @@
 #include <Windows.h>
 int errno;
 #else
-#if defined(linux) || defined(solaris)
+#if defined(linux) || defined(solaris) || defined(macosx)
 #include <errno.h>
 #else
 extern  int errno;   /* imported for errors */
@@ -7626,18 +7626,18 @@ long long *data1,*data2;
 			{
 #ifdef _64BIT_ARCH_
 #ifdef NO_PRINT_LLD
-				printf("\nError freading block %ld %x\n", i,
+				printf("\nError freading block %lu %lx\n", i,
 					(unsigned long long)buffer);
 #else
-				printf("\nError freading block %ld %x\n", i,
+				printf("\nError freading block %llu %llx\n", i,
 					(unsigned long long)buffer);
 #endif
 #else
 #ifdef NO_PRINT_LLD
-				printf("\nError freading block %ld %lx\n", i,
+				printf("\nError freading block %lu %lx\n", i,
 					(long)buffer);
 #else
-				printf("\nError freading block %lld %lx\n", i,
+				printf("\nError freading block %llu %lx\n", i,
 					(long)buffer);
 #endif
 #endif
@@ -7922,7 +7922,7 @@ long long *data1,*data2;
 		if(read(fd, (void *)nbuff, (size_t) reclen) != reclen)
 		{
 #ifdef _64BIT_ARCH_
-			printf("\nError reading block %d %x\n", 0,
+			printf("\nError reading block %d %llx\n", 0,
 				(unsigned long long)nbuff);
 #else
 			printf("\nError reading block %d %lx\n", 0,
@@ -11516,9 +11516,9 @@ int shared_flag;
         {
                 printf("\nUnable to get shared memory segment(shmget)\n");
 #ifdef NO_PRINT_LLD
-                printf("shmid = %d, size = %ld, size1 = %d, Error %d\n",shmid,size,(size_t)size1,errno);
+                printf("shmid = %d, size = %ld, size1 = %lu, Error %d\n",shmid,size,(size_t)size1,errno);
 #else
-                printf("shmid = %d, size = %lld, size1 = %d, Error %d\n",shmid,size,(size_t)size1,errno);
+                printf("shmid = %d, size = %lld, size1 = %lu, Error %d\n",shmid,size,(unsigned long)size1,errno);
 #endif
                 exit(119);
         }
@@ -19698,8 +19698,8 @@ int send_size;
 	bzero(&outbuf,sizeof(struct client_neutral_command));
 	if(mdebug)
 	{
-		printf("Master_neutral_command size = %d\n",sizeof(struct master_neutral_command));
-		printf("Client_neutral_command size = %d\n",sizeof(struct client_neutral_command));
+		printf("Master_neutral_command size = %lu\n",(unsigned long)sizeof(struct master_neutral_command));
+		printf("Client_neutral_command size = %lu\n",(unsigned long)sizeof(struct client_neutral_command));
 	}
 	/* 
 	 * Convert internal commands to string format for neutral format/portability

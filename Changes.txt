@@ -2309,3 +2309,12 @@ Increment protocol_version to catch incompat versions.
 Revision 3.362
 Fixup for new include needed by Solaris10
 =============================================================================
+Revision 3.363
+Patch for Mac errno
+=============================================================================
+Revision 3.364
+Patch for Mac printf's
+=============================================================================
+Revision 3.365
+Fix Josh's introduction of new Linux warnings.
+=============================================================================

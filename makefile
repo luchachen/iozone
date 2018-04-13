@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.135 $
+# Version $Revision: 1.136 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -479,10 +479,10 @@ dragonfly:	iozone_dragonfly.o libbif.o fileop_dragonfly.o pit_server.o
 # GNU C compiler MacosX build with no threads, no largefiles, no async I/O
 #
 
-macosx:	iozone_macosx.o libbif.o fileop_macosx.o pit_server.o
+macosx:	iozone_macosx.o fileop_macosx.o pit_server.o
 	$(CC) -O $(LDFLAGS) iozone_macosx.o libbif.o -o iozone
-	$(CC)  -O fileop_macosx.o -o fileop
-	$(CC)  -O pit_server.o -o pit_server
+	$(CC) -O $(LDFLAGS) fileop_macosx.o -o fileop
+	$(CC) -O $(LDFLAGS) pit_server.o -o pit_server
 #
 #
 # GNU C compiler OpenBSD build with no threads, no largefiles, no async I/O
