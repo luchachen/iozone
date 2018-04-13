@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.300 $"
+#define THISVERSION "        Version $Revision: 3.302 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -122,7 +122,8 @@ char *help[] = {
 "                  [-J milliseconds] [-X write_telemetry_filename] [-w] [-W]",
 "                  [-Y read_telemetry_filename] [-y minrecsize_Kb] [-q maxrecsize_Kb]",
 "                  [-+u] [-+m cluster_filename] [-+d] [-+x multiplier] [-+p # ]",
-"                  [-+r] [-+t] [-+X] [-+Z]",
+"                  [-+r] [-+t] [-+X] [-+Z] [-+w percent dedupable] [-+y percent_interior_dedup]",
+"                  [-+C percent_dedup_within]",
 " ",
 "           -a  Auto mode",
 "           -A  Auto2 mode",
@@ -215,7 +216,9 @@ char *help[] = {
 "           -+Z Enable old data set compatibility mode. WARNING.. Published",
 "               hacks may invalidate these results and generate bogus, high",
 "               values for results.",
-"           -+w ## Percent of non-dedup-able data in buffers.",
+"           -+w ## Percent of dedup-able data in buffers.",
+"           -+y ## Percent of dedup-able within & across files in buffers.",
+"           -+C ## Percent of dedup-able within & not across files in buffers.",
 "" };
 
 char *head1[] = {
@@ -481,6 +484,7 @@ struct client_command {
 	int c_diag_v;
 	int c_dedup;
 	int c_dedup_interior;
+	int c_dedup_compress;
 	int c_Q_flag;
 	int c_L_flag;
 	int c_OPS_flag;
@@ -571,6 +575,7 @@ struct client_neutral_command {
 	char c_diag_v[2];
 	char c_dedup[4];
 	char c_dedup_interior[4];
+	char c_dedup_compress[4];
 	char c_Q_flag[2];
 	char c_L_flag[2];
 	char c_OPS_flag[2];
@@ -1218,7 +1223,7 @@ char master_iozone, client_iozone,distributed;
 int bif_fd,s_count;
 int bif_row,bif_column;
 char aflag, Eflag, hflag, Rflag, rflag, sflag;
-char diag_v,sent_stop,dedup,dedup_interior;
+char diag_v,sent_stop,dedup,dedup_interior,dedup_compress;
 char *dedup_ibuf;
 char *dedup_temp;
 char bif_flag;
@@ -2458,6 +2463,7 @@ char **argv;
 					sprintf(splash[splash_line++],"\tManual control of test 8. >>> Very Experimental. Sony special <<<\n");
 					break;
 				case 'w':  /* Argument is the percent of dedup */
+					   /* Sets size of dedup region across files */
 					subarg=argv[optind++];
 					if(subarg==(char *)0)
 					{
@@ -2466,12 +2472,13 @@ char **argv;
 					}
 					dedup = atoi(subarg);
 					if(dedup <=0)
-						dedup = 1;
+						dedup = 0;
 					if(dedup >100)
 						dedup = 100;
-					sprintf(splash[splash_line++],"\tDedup activated at %d percent dedup\n",dedup);
+					sprintf(splash[splash_line++],"\tDedup activated %d percent.\n",dedup);
 					break;
 				case 'y':  /* Argument is the percent of interior dedup */
+					   /* Sets size of dedup region within and across files */
 					subarg=argv[optind++];
 					if(subarg==(char *)0)
 					{
@@ -2483,7 +2490,22 @@ char **argv;
 						dedup_interior = 0;
 					if(dedup_interior >100)
 						dedup_interior = 100;
-					sprintf(splash[splash_line++],"\tInterior dedup activated at %d percent interior dedup\n",dedup_interior);
+					sprintf(splash[splash_line++],"\tDedupe within & across %d percent.\n",dedup_interior);
+					break;
+				case 'C':  /* Argument is the percent of dedupe within & !across */
+					   /* Sets size of dedup region within and !across files */
+					subarg=argv[optind++];
+					if(subarg==(char *)0)
+					{
+					     printf("-+C takes an operand !!\n");
+					     exit(200);
+					}
+					dedup_compress = atoi(subarg);
+					if(dedup_compress <0)
+						dedup_compress = 0;
+					if(dedup_compress >100)
+						dedup_compress = 100;
+					sprintf(splash[splash_line++],"\tDedupe within %d percent.\n",dedup_compress);
 					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
@@ -6150,7 +6172,7 @@ char sverify;
 	pattern_buf=patt;
 	if(dedup)
 	{
-		gen_new_buf((char *)dedup_ibuf,(char *)dedup_temp, (long)recnum, (int)length,(int)dedup, (int) dedup_interior, 0);
+		gen_new_buf((char *)dedup_ibuf,(char *)dedup_temp, (long)recnum, (int)length,(int)dedup, (int) dedup_interior, dedup_compress, 0);
 		de_ibuf = (long *)buffer;
 		de_obuf = (long *)dedup_temp;
 		if(lite)	/* short touch to reduce intrusion */
@@ -6313,7 +6335,7 @@ char sverify;
 	/* printf("Fill: Sverify %d verify %d diag_v %d\n",sverify,verify,diag_v);*/
 	if(dedup)
 	{
-		gen_new_buf((char *)dedup_ibuf,(char *)buffer, (long)recnum, (int)length,(int)dedup, (int) dedup_interior, 1);
+		gen_new_buf((char *)dedup_ibuf,(char *)buffer, (long)recnum, (int)length,(int)dedup, (int) dedup_interior, dedup_compress, 1);
 		return;
 	}
 	if(diag_v)
@@ -21809,19 +21831,25 @@ char *test;
 		(do not include childnum as you want duplicates)
  * size ... size of buffers. (in bytes)
  * percent. Percent of buffer to modify.
+ * percent_interior. Percent of buffer that is dedupable within 
+ *                   and across files 
+ * percent_compress. Percent of buffer that is dedupable within 
+ *                   but not across files 
  *
  * Returns 0 (zero) for success, and -1 (minus one) for failure.
  */
 int
 gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,
-	int percent_interior, int all)
+	int percent_interior, int percent_compress, int all)
 {
 	register long *ip, *op; /* Register for speed 	*/
 	register long iseed; 	/* Register for speed 	*/
 	register long isize; 	/* Register for speed 	*/
+	register long cseed;	/* seed for dedupable for within & ! across */
 	register int x,w; 	/* Register for speed 	*/
 	register int value; 	/* Register for speed 	*/
-	int interior_size; 	/* size of interior dedup region */
+	register int interior_size; 	/* size of interior dedup region */
+	register int compress_size; 	/* size of compression dedup region */
 	if(ibuf == NULL)	/* no input buf 	*/
 		return(-1);
 	if(obuf == NULL)	/* no output buf 	*/
@@ -21834,17 +21862,32 @@ gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,
 	iseed = rand();		/* generate random value */
 	isize = (size * percent)/100; /* percent that is dedupable */
 	interior_size = ((isize * percent_interior)/100);/* /sizeof(long) */
+	compress_size =((interior_size * percent_compress)/100);
 	ip = (long *)ibuf;	/* pointer to input buf */
 	op = (long *)obuf;	/* pointer to output buf */
 	if(all == 0)		/* Special case for verify only */
 		isize = sizeof(long);
-	for(w=0;w<interior_size;w+=sizeof(long))	/* tight loop for transformation */
+	/* interior_size = dedup_within + dedup_across */
+	for(w=0;w<interior_size;w+=sizeof(long))	
 	{
 		*op=0xdeadbeef;
 		*ip=0xdeadbeef;
 		op++;
 		ip++;
 	}	
+	/* Prepare for dedup within but not across */
+	w=interior_size - compress_size;
+	op=(long *)&obuf[w];
+	ip=(long *)&ibuf[w];
+	srand(chid+1);            /* set randdom seed 	*/
+	cseed = rand();		/* generate random value */
+	for(w=compress_size;w<interior_size;w+=sizeof(long))	
+	{
+		*op=*ip ^ cseed; /* do the xor op */
+		op++;
+		ip++;
+	}	
+ 	/* isize = dedup across only */
 	for(x=interior_size;x<isize;x+=sizeof(long))	/* tight loop for transformation */
 	{
 		*op=*ip ^ iseed; /* do the xor op */

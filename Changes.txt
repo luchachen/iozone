@@ -2133,3 +2133,6 @@ Bug fixes for -+w and -+y
 Revision 3.300
 Minor fix for dedup
 =============================================================================
+Revision 3.302
+Adding -+C to set percent of dedupable within a file.
+=============================================================================
