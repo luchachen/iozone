@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.72 $
+# Version $Revision: 1.73 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -17,6 +17,7 @@ all:
 	@echo "        ->   AIX-LF               (32bit)   <-"
 	@echo "        ->   bsdi                 (32bit)   <-" 
 	@echo "        ->   convex               (32bit)   <-" 
+	@echo "        ->   CrayX1               (32bit)   <-"
 	@echo "        ->   freebsd              (32bit)   <-"
 	@echo "        ->   generic              (32bit)   <-"
 	@echo "        ->   ghpux                (32bit)   <-"
@@ -221,6 +222,15 @@ IRIX:	iozone_IRIX.o libasync.o libbif.o
 	cc  -O  -32  -Dunix -DHAVE_ANSIC_C -DSHARED_MEM -DASYNC_IO \
 		-DIRIX iozone_IRIX.o libbif.o -lpthread \
 		libasync.o -o iozone
+
+#
+# CrayX1: 32 bit build with threads, No largefiles, and async I/O 
+# This version uses the 32 bit interfaces and is compiled as 32 bit code
+#
+CrayX1:	iozone_CrayX1.o libasync.o libbif.o
+	cc  -O  -Dunix -DHAVE_ANSIC_C -D_LARGEFILE64_SOURCE -DSHARED_MEM \
+		-DASYNC_IO -DIRIX64 iozone_CrayX1.o libbif.o \
+		-lpthread libasyncw.o -o iozone
 
 #
 # SPP-UX 32 bit build with threads, No largefiles, and No async I/O, pread extensions
@@ -703,6 +713,20 @@ iozone_IRIX.o:	iozone.c libasync.c libbif.c
 		-DIRIX -DSHARED_MEM libasync.c -o libasync.o
 	cc  -O -32 -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-DIRIX -DSHARED_MEM -DBIG_ENDIAN libbif.c -o libbif.o
+
+iozone_CrayX1.o: iozone.c libasync.c libbif.c
+	@echo ""
+	@echo "Building iozone for CrayX1"
+	@echo ""
+	cc  -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
+		-DNAME='"CrayX1"' -DIRIX64 -DSHARED_MEM -D__CrayX1__ \
+		iozone.c -o iozone_CrayX1.o
+	cc  -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
+		-DIRIX64 -DSHARED_MEM -D__CrayX1__ \
+		libasync.c -o libasyncw.o
+	cc  -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
+		-DIRIX64 -DSHARED_MEM -DBIG_ENDIAN -D__CrayX1__ libbif.c \
+		-o libbif.o
 
 iozone_sppux.o:	iozone.c libbif.c
 	@echo ""

@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.169 $"
+#define THISVERSION "        Version $Revision: 3.170 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -995,7 +995,7 @@ void del_record_sizes();
 #define I_FOPEN(x,y) 	fopen64(x,y)
 #define I_PREAD(a,b,c,d)	pread64(a,b,(size_t)(c),(off64_t)(d))
 #define I_PWRITE(a,b,c,d)	pwrite64(a,b,(size_t)(c),(off64_t)(d))
-#define I_MMAP(a,b,c,d,e,f) 	mmap64((int)(a),(size_t)(b),(int)(c),(int)(d),(int)(e),(off64_t)(f))
+#define I_MMAP(a,b,c,d,e,f) 	mmap64((void *)(a),(size_t)(b),(int)(c),(int)(d),(int)(e),(off64_t)(f))
 #else
 #define I_LSEEK(x,y,z) 	lseek(x,(off_t)(y),z)
 #define I_OPEN(x,y,z) 	open(x,(int)(y),(int)(z))
@@ -1003,7 +1003,7 @@ void del_record_sizes();
 #define I_FOPEN(x,y) 	fopen(x,y)
 #define I_PREAD(a,b,c,d)	pread(a,b,(size_t)(c),(off_t)(d))
 #define I_PWRITE(a,b,c,d)	pwrite(a,b,(size_t)(c),(off_t)(d))
-#define I_MMAP(a,b,c,d,e,f) 	mmap((int)(a),(size_t)(b),(int)(c),(int)(d),(int)(e),(off_t)(f))
+#define I_MMAP(a,b,c,d,e,f) 	mmap((void *)(a),(size_t)(b),(int)(c),(int)(d),(int)(e),(off_t)(f))
 #endif
 
 
@@ -13603,24 +13603,24 @@ thread_mix_test(x)
 	int selector;
 	int slots[1000];
 	int i,which;
-	int xx;
+	long xx;
 
 #ifdef NO_THREADS
 	xx=chid;
 #else
 	if(use_thread)
 	{
-		xx = (int)x;
+		xx = (long)x;
 	}
 	else
 	{
-		xx=chid;
+		xx=(long)chid;
 	}
 #endif
 	if(pct_read!=0)
 	{
 		srand((unsigned int)((xx+1)*100));
-		if(cdebug) printf("Child: %d Pct read %d \n",xx,pct_read);
+		if(cdebug) printf("Child: %d Pct read %d \n",(int)xx,pct_read);
 		for(i=0;i<1000;i++)
 		{
 			if(i<(pct_read*10))
@@ -13629,13 +13629,13 @@ thread_mix_test(x)
 				slots[i]=1;
 		}
 		which=rand()%1000;
-		if(cdebug) printf("Child: %d Pct which %d\n",xx, which);
+		if(cdebug) printf("Child: %d Pct which %d\n",(int)xx, which);
 		selector=slots[which];
 	}
 	else
 	{
 		/* Simple round robin */
-		selector= xx % 2;
+		selector= ((int)xx) % 2;
 	}		
 	if(selector==0)
 	{

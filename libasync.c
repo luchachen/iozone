@@ -148,11 +148,15 @@ extern int one;
  * cache, pointed to by async_init(gc) will be of
  * this structure type.
  */
-char version[] = "Libasync Version $Revision: 3.14 $";
+char version[] = "Libasync Version $Revision: 3.15 $";
 struct cache_ent {
 	struct aiocb myaiocb;			/* For use in small file mode */
 #ifdef _LARGEFILE64_SOURCE 
+#if defined(__CrayX1__)
+	aiocb64_t myaiocb64;		/* For use in large file mode */
+#else
 	struct aiocb64 myaiocb64;		/* For use in large file mode */
+#endif 
 #endif 
 	long long fd;				/* File descriptor */
 	long long size;				/* Size of the transfer */
@@ -333,7 +337,12 @@ long long depth;
 #ifdef __LP64__
 		retval=aio_return(&ce->myaiocb);
 #else
+#if defined(__CrayX1__)
+		retval=aio_return64((aiocb64_t *)&ce->myaiocb64);
+#else
 		retval=aio_return64((struct aiocb64 *)&ce->myaiocb64);
+#endif
+
 #endif
 #else
 		retval=aio_return(&ce->myaiocb);
@@ -1414,7 +1423,12 @@ struct cache *gc;
 #ifdef __LP64__
 	retval=aio_return(&ce->myaiocb);
 #else
+#if defined(__CrayX1__)
+	retval=aio_return64((aiocb64_t *)&ce->myaiocb64);
+#else
 	retval=aio_return64((struct aiocb64 *)&ce->myaiocb64);
+#endif
+
 #endif
 #else
 	retval=aio_return(&ce->myaiocb);
