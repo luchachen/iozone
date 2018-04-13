@@ -2573,3 +2573,6 @@ Build on BSD 10.3 without warnings.  Clang compilers.
 Revision 3.457
 Build on BSD 10.3 without warnings.  Clang compilers.
 =============================================================================
+Revision 3.458
+Make more friendly to build on Solaris.
+=============================================================================
