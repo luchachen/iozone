@@ -24,6 +24,7 @@
 /* Isom Crawford   (HP/Convex)	isom@rsn.hp.com				*/
 /* Kirby Collins   (HP/Convex)	kcollins@rsn.hp.com			*/
 /* Al Slater	   (HP)		aslater@jocko.bri.hp.com		*/
+/* Mark Kelly	   (HP)		mkelly@rsn.hp.com			*/
 /*									*/
 /* Iozone can perform single stream and multi stream I/O		*/
 /* also it now performs read, write, re-read, re-write, 		*/
@@ -52,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.28 $"
+#define THISVERSION "        Version $Revision: 3.37 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -98,8 +99,10 @@ char *help[] = {
 "                  [-l min_number_procs] [-u] max_number_procs] [-v] [-R] [-x]",
 "                  [-d microseconds] [-F path1 path2...] [-V pattern ] [-j stride ]",
 "                  [-T ] [-C] [-B] [-D] [-G] [-I] [-H depth] [-k depth] [-U mount_point]",
-"                  [-S cache_size] [-O] [-L line_size] ",
+"                  [-S cache_size] [-O] [-L line_size] [-K]",
 "                  [-N] [-Q] [-P start_cpu] [-e] [-c] [-b Excel.xls]",
+"                  [-J milliseconds] [-X write_telemetry_filename]",
+"                  [-Y read_telemetry_filename]",
 " ",
 "           -s Kilobytes in file.",
 "              or -s #k .. size in Kb",
@@ -108,6 +111,7 @@ char *help[] = {
 "              or -r #k .. size in Kb",
 "              or -r #m .. size in Mb",
 "           -f filename to use",
+"           -J # milliseconds of compute cycle before each I/O operation",
 "           -i # Test to run. (0=write/rewrite, 1=read/re-read, 2=random-read/write",
 "                 3=Read-backwards, 4=Re-write-record, 5=stride-read, 6=fwrite/re-fwrite",
 "                 7=fread/Re-fread, 8=pwrite/Re-pwrite, 9=pread/Re-pread, 10=pwritev/Re-pwritev",
@@ -149,7 +153,10 @@ char *help[] = {
 "           -e Include flush (fsync,fflush) in the timing calculations",
 "           -c Include close in the timing calculations",
 "           -b Filename. Create Excel worksheet file",
+"           -K Create jitter in the access pattern for readers.",
 "           -w Do not unlink temporary file",
+"           -X filename. Write telemetry. Contains lines with (offset reclen compute_time) in ascii",
+"           -Y filename. Read  telemetry. Contains lines with (offset reclen compute_time) in ascii",
 "" };
 
 char *head1[] = {
@@ -179,6 +186,7 @@ THISVERSION,
   "  Don Capps       (Hewlett Packard)	capps@rsn.hp.com",
   "  Isom Crawford   (Hewlett Packard)	isom@rsn.hp.com",
   "  Kirby Collins   (Hewlett Packard)	kcollins@rsn.hp.com",
+  "  Mark Kelly      (Hewlett Packard)	mkelly@rsn.hp.com",
   " ",
   ""};
 
@@ -393,6 +401,7 @@ struct child_stats {
 /*									*/
 /************************************************************************/
 
+#define DISRUPT 100
 #define LARGE_REC 65536
 #define KILOBYTES 512 			/* number of kilobytes in file */
 #define RECLEN 1024			/* number of bytes in a record */
@@ -485,6 +494,7 @@ void purgeit();			/* Purge on chip cache		  */
 void throughput_test();		/* Multi process throughput 	  */
 void multi_throughput_test();	/* Multi process throughput 	  */
 void prepage();			/* Pre-fault user buffer	  */
+double do_compute();		/* compute cycle simulation       */
 
 void write_perf_test();		/* write/rewrite test		  */
 void fwrite_perf_test();	/* fwrite/refwrite test		  */
@@ -522,7 +532,21 @@ void *(thread_reverse_read_test)(void *);
 void *(thread_stride_read_test)(void *);
 void *(thread_set_base)(void *);
 void *(thread_join)(long long, void *);
+void disrupt(int);
+long long get_traj(FILE *, long long *, double *, long);
+void create_temp(off64_t, long long );
+FILE *open_w_traj(void);
+FILE *open_r_traj(void);
+void traj_vers(void);
+long long r_traj_size(void);
+long long w_traj_size(void);
 #else
+void traj_vers();
+long long r_traj_size();
+long long w_traj_size();
+FILE *open_w_traj();
+FILE *open_r_traj();
+void create_temp();
 void fill_buffer();
 char *alloc_mem();
 void *(thread_rwrite_test)();
@@ -534,6 +558,8 @@ void *(thread_reverse_read_test)();
 void *(thread_stride_read_test)();
 void *(thread_set_base)();
 void *(thread_join)();
+void disrupt();
+long long get_traj();
 #endif
 
 /************************************************************************/
@@ -607,13 +633,21 @@ int bif_fd;
 int bif_row,bif_column;
 char aflag, mflag, pflag, Eflag, hflag, oflag, Rflag, rflag, sflag;
 char no_copy_flag,h_flag,k_flag,include_close,include_flush,bif_flag;
+char stride_flag;
 int direct_flag;
 char async_flag;
 char trflag; 
 long long mint, maxt,depth; 
-char fflag, Uflag,uflag,lflag,OPS_flag,include_tflag; 
+long long w_traj_ops, r_traj_ops, w_traj_fsize,r_traj_fsize;
+long long r_traj_ops_completed,r_traj_bytes_completed;
+long long w_traj_ops_completed,w_traj_bytes_completed;
+int w_traj_items, r_traj_items;
+char fflag, Uflag,uflag,lflag,OPS_flag,include_tflag,jflag; 
+char disrupt_flag,r_traj_flag,w_traj_flag;
 char MS_flag;
 char mmapflag,mmapasflag,mmapssflag,mmapnsflag,mmap_mix;
+char compute_flag;
+double compute_time;
 long long include_test[50];
 long long include_mask;
 char RWONLYflag, NOCROSSflag;		/*auto mode 2 - kcollins 8-21-96*/
@@ -643,9 +677,12 @@ char filename [MAXNAMESIZE];               /* name of temporary file */
 char mountname [MAXNAMESIZE];              /* name of device         */
 char dummyfile [MAXSTREAMS][MAXNAMESIZE];  /* name of dummy file     */
 char dummyfile1 [MAXNAMESIZE];             /* name of dummy file     */
+char write_traj_filename [MAXNAMESIZE];     /* name of write telemetry file */
+char read_traj_filename [MAXNAMESIZE];    /* name of read telemetry file  */
 char *filearray[MAXSTREAMS];		   /* array of file names    */
 char tfile[] = "iozone";
 char *buffer, *mbuffer,*mainbuffer;
+FILE *pi,*r_traj_fd,*w_traj_fd;
 VOLATILE char *pbuffer;
 char *default_filename="iozone.tmp"; /*default name of temporary file*/
 VOLATILE char *stop_flag;		/* Used to stop all children */
@@ -702,7 +739,7 @@ char **argv;
     	printf("\t%s\n\t%s\n\n", THISVERSION,MODE);
     	printf("\tContributors:William Norcott, Don Capps, Isom Crawford, Kirby Collins\n");
 	printf("\t             Al Slater, Scott Rhine, Mike Wisner, Ken Goss\n");
-    	printf("\t             Steve Landherr, Brad Smith.\n\n");
+    	printf("\t             Steve Landherr, Brad Smith, Mark Kelly.\n\n");
 	printf("\tRun began: %s\n",ctime(&time_run));
 
     	signal(SIGINT, signal_handler);	 /* handle user interrupt */
@@ -737,7 +774,7 @@ char **argv;
 	auto_mode = 0;
 	inp_pat = PATTERN;
 	pattern = ((inp_pat << 24) | (inp_pat << 16) | (inp_pat << 8) | inp_pat);
-	while((cret = getopt(argc,argv,"ZQNIBDGCTOMREWovAxamphcej:k:V:r:t:s:f:F:d:l:u:U:S:L:H:P:i:b:w ")) != EOF){
+	while((cret = getopt(argc,argv,"ZQNIBDGCTOMREWovAxamwphceKJ:j:k:V:r:t:s:f:F:d:l:u:U:S:L:H:P:i:b:X:Y: ")) != EOF){
 		switch(cret){
 		case 'k':	/* Async I/O with no bcopys */
 			depth = (long long)(atoi(optarg));
@@ -859,20 +896,15 @@ char **argv;
 #endif
 			if(optarg[strlen(optarg)-1]=='k' ||
 				optarg[strlen(optarg)-1]=='K'){
-#ifdef NO_PRINT_LLD
-				sscanf(optarg,"%ld",&kilobytes64);
-#else
-				sscanf(optarg,"%lld",&kilobytes64);
-#endif
+				;
 			}
 			if(optarg[strlen(optarg)-1]=='m' ||
 				optarg[strlen(optarg)-1]=='M'){
-#ifdef NO_PRINT_LLD
-				sscanf(optarg,"%ld",&kilobytes64);
-#else
-				sscanf(optarg,"%lld",&kilobytes64);
-#endif
-				kilobytes64 *= 1024;
+				kilobytes64 = kilobytes64 * 1024;
+			}
+			if(optarg[strlen(optarg)-1]=='g' ||
+				optarg[strlen(optarg)-1]=='G'){
+				kilobytes64 = kilobytes64 *1024 * 1024;
 			}
 			if(kilobytes64 <= 0)
 				kilobytes64=512;
@@ -1004,7 +1036,7 @@ char **argv;
 	    		printf("\tMicroseconds/op Mode. Output is in microseconds per operation.\n");
 			MS_flag++;
 			break;
-		case 'V':	/* Turn on Verify */
+		case 'V':	/* Turn on Verify every byte */
 			sverify=0;
 			inp_pat = (char)(atoi(optarg));
 			if(inp_pat == 0)
@@ -1073,6 +1105,10 @@ char **argv;
 				optarg[strlen(optarg)-1]=='M'){
 				reclen = (long long)(1024 * 1024 * atoi(optarg));
 			}
+			if(optarg[strlen(optarg)-1]=='g' ||
+				optarg[strlen(optarg)-1]=='G'){
+				reclen = (long long)(1024 * 1024 * 1024 *(long long)atoi(optarg));
+			}
 			if(reclen <= 0)
 				reclen=(long long)4096;
 
@@ -1082,10 +1118,20 @@ char **argv;
 	    		printf("\tRecord Size %lld KB\n",reclen/1024);
 #endif
 			break;
+		case 'J':	/* Specify the compute time in millisecs */
+			compute_time = (double)(atoi(optarg));
+			compute_time=compute_time/1000;	
+			if(compute_time < (double)0)
+				compute_time=(double)0;
+			else
+				compute_flag=1;
+			jflag++;
+			break;
 		case 'j':	/* Specify the stride in records */
 			stride = (long long)(atoi(optarg));
 			if(stride < 0)
 				stride=0;
+			stride_flag=1;
 			break;
 		case 't':	/* Specify the number of children to run */
 			num_child1=(atoi(optarg));
@@ -1162,9 +1208,159 @@ char **argv;
 			file_lock=1;
 			printf("\tLock file when reading/writing.\n");
 			break;
+		case 'K':	/* Cause disrupted read pattern */
+			disrupt_flag=1;
+			printf("\tDisrupted read patterns selected.\n");
+			break;
+		case 'X':	/* Open write telemetry file */
+			compute_flag=1;
+			sverify=2;  /* touch lightly */
+			w_traj_flag=1;
+			strcpy(write_traj_filename,optarg);
+			traj_vers();
+			w_traj_size();
+			printf("\tUsing write telemetry file \"%s\"\n",
+				write_traj_filename);
+			w_traj_fd=open_w_traj();
+			if(w_traj_fd == (FILE *)0)
+				exit(200);
+			break;
+		case 'Y':	/* Open Read telemetry file */
+			compute_flag=1;
+			sverify=2;  /* touch lightly */
+			r_traj_flag=1;
+			strcpy(read_traj_filename,optarg);
+			printf("\tUsing read telemetry file \"%s\"\n",
+				read_traj_filename);
+			traj_vers();
+			r_traj_size();
+			r_traj_fd=open_r_traj();
+			if(r_traj_fd == (FILE*) 0)
+				exit(200);
+			break;
 		}
 	}
+	/*
+ 	 * No telemetry files... just option selected 
+	 */
+	if(compute_flag && jflag  && !(r_traj_flag || w_traj_flag))
+		printf("\tCompute time %f seconds for reads and writes.\n",compute_time);
+	/*
+ 	 * Read telemetry file and option selected
+	 */
+	if(compute_flag && r_traj_flag && !w_traj_flag)
+	{
+		if(r_traj_items==3)
+		{
+			printf("\tCompute time from telemetry files for reads.\n");
+		}
+		else
+		{
+			if(jflag)
+				printf("\tCompute time %f seconds for reads.\n",compute_time);
+		}
+		if(jflag)
+			printf("\tCompute time %f seconds for writes.\n",compute_time);
+	}
+	/*
+ 	 * Write telemetry file and option selected
+	 */
+	if(compute_flag && !r_traj_flag && w_traj_flag)
+	{
+		if(w_traj_items==3)
+			printf("\tCompute time from telemetry files for writes.\n");
+		else
+		{
+			if(jflag)
+				printf("\tCompute time %f seconds for writes.\n",compute_time);
+		}
+		if(jflag)
+			printf("\tCompute time %f seconds for reads.\n",compute_time);
+	}
+	if(compute_flag && r_traj_flag && w_traj_flag && jflag)
+	{
+		if(r_traj_items==3)
+			printf("\tCompute time from telemetry files for reads.\n");
+		else
+			printf("\tCompute time %f seconds for reads.\n",compute_time);
+		if(w_traj_items==3) 
+			printf("\tCompute time from telemetry files for writes.\n");
+		else
+			printf("\tCompute time %f seconds for writes.\n",compute_time);
+	}
+	if(compute_flag && r_traj_flag && w_traj_flag && !jflag)
+	{
+		if(r_traj_items==3)
+			printf("\tCompute time from telemetry files for reads.\n");
+		else
+			printf("\tNo compute time for reads.\n");
 
+		if(w_traj_items==3) 
+			printf("\tCompute time from telemetry files for writes.\n");
+		else
+			printf("\tNo compute time for writes.\n");
+	}
+
+	/* Enforce only write,rewrite,read,reread */
+	if(w_traj_flag || r_traj_flag)
+	{
+		for(i=2;i<sizeof(func)/sizeof(char *);i++)
+			include_test[i] = 0;
+	}
+	if(r_traj_flag)
+	{
+		if(include_test[1] == 0) 
+		{
+			include_test[0]=1;
+			include_test[1]=1;
+			include_tflag=1;
+		}
+	}
+	if(w_traj_flag)
+	{
+		if(include_test[0] == 0) 
+		{
+			include_test[0]=1;
+			include_tflag=1;
+		}
+	}
+	if(w_traj_flag && w_traj_fsize != 0)
+		kilobytes64=w_traj_fsize/1024;
+	if(r_traj_flag && r_traj_fsize != 0)
+		kilobytes64=r_traj_fsize/1024;
+
+	if( sverify==0 && (w_traj_flag || r_traj_flag))
+	{
+		printf("\n\tFull verification not supported in telemetry mode.\n\n");
+		exit(17);
+	}
+	;
+	if(disrupt_flag &&(w_traj_flag || r_traj_flag) )
+	{
+		printf("\n\tDisrupt not supported in telemetry mode.\n\n");
+		exit(17);
+	}
+	if(aflag &&(w_traj_flag || r_traj_flag) )
+	{
+		printf("\n\tAuto mode not supported in telemetry mode.\n");
+		printf("\tTry:   -i 0 -i 1 \n\n");
+		exit(17);
+	}
+	if(sflag && w_traj_flag )
+	{
+		printf("\n\tSize of file is determined by telemetry file.\n\n");
+		exit(17);
+	}
+	if(rflag && w_traj_flag )
+	{
+		printf("\n\tRecord size of file is determined by telemetry file.\n\n");
+		exit(17);
+	}
+	if(stride_flag && (w_traj_flag || r_traj_flag))
+	{
+		printf("\n\tStride size is determined by telemetry file.\n\n");
+		exit(17);
+	}
 	if(trflag && MS_flag)
 	{
 		printf("\n\tMicrosecond mode not supported in throughput mode.\n\n");
@@ -1313,6 +1509,10 @@ char **argv;
 	print_header();
 	(void) begin(kilobytes64,reclen);
 out:
+	if(r_traj_flag)
+		fclose(r_traj_fd);
+	if(w_traj_flag)
+		fclose(w_traj_fd);
 	if (!no_unlink)
 	      	unlink(dummyfile[0]);	/* delete the file */
 	printf("\niozone test complete.\n");
@@ -1376,14 +1576,27 @@ long long reclength;
 	reclen=reclength;
 	numrecs64 = (kilobytes64*1024)/reclen;
 	store_value(kilobytes64);
-	store_value((off64_t)(reclen/1024));
+	if(r_traj_flag || w_traj_flag)
+		store_value((off64_t)0);
+	else	
+		store_value((off64_t)(reclen/1024));
 
 #ifdef NO_PRINT_LLD
 	printf("%16ld",kilobytes64);
-	printf("%8ld",reclen/1024);
+	if(r_traj_flag || w_traj_flag)
+		printf("%8ld",0);
+	else
+		printf("%8ld",reclen/1024);
 #else
 	printf("%16lld",kilobytes64);
-	printf("%8lld",reclen/1024);
+	if(r_traj_flag || w_traj_flag)
+	{
+		printf("%8lld",(long long )0);
+	}
+	else
+	{
+		printf("%8lld",reclen/1024);
+	}
 #endif
 	if(include_tflag)
 	{
@@ -1500,6 +1713,10 @@ void signal_handler()
 		if(trflag && !use_thread)
 		   for(i=0;i<num_child;i++)
 			kill((pid_t)childids[i],SIGTERM);
+		if(r_traj_flag)
+			fclose(r_traj_fd);
+		if(w_traj_flag)
+			fclose(w_traj_fd);
 	}
     	exit(0);
 }
@@ -1693,6 +1910,18 @@ void throughput_test()
 		port="thread";
 	else
 		port="process";
+	if(w_traj_flag)
+	{
+#ifdef NO_PRINT_LLD
+	printf("\tEach %s writes a %ld Kbyte file in telemetry controled records\n",
+		port,kilobytes64);
+#else
+	printf("\tEach %s writes a %lld Kbyte file in telemetry controled records\n",
+		port,kilobytes64);
+#endif
+	}
+	else
+	{
 #ifdef NO_PRINT_LLD
 	printf("\tEach %s writes a %ld Kbyte file in %ld Kbyte records\n",
 		port,kilobytes64,reclen/1024);
@@ -1700,6 +1929,7 @@ void throughput_test()
 	printf("\tEach %s writes a %lld Kbyte file in %lld Kbyte records\n",
 		port,kilobytes64,reclen/1024);
 #endif
+	}
 
 	if(fflag)		/* Each child has a file name to write */
 	  for(xx=0;xx<num_child;xx++)
@@ -2814,6 +3044,11 @@ long long length;
 /************************************************************************/
 /* Verify that the buffer contains expected pattern			*/
 /************************************************************************/
+/* sverify == 0 means full check of pattern for every byte.             */
+/* severify == 1 means partial check of pattern for each page.          */
+/* sverify == 2 means no check, but partial touch for each page.        */
+/************************************************************************/
+
 #ifdef HAVE_ANSIC_C
 long long 
 verify_buffer(volatile char *buffer,long long length, off64_t recnum, long long recsize,unsigned long long patt,
@@ -2830,6 +3065,7 @@ char sverify;
 #endif
 {
 	volatile unsigned long long *where;
+	volatile unsigned long long dummy;
 	long long j,k;
 	off64_t file_position=0;
 	off64_t i;
@@ -2839,7 +3075,16 @@ char sverify;
 	if(!verify)
 		printf("\nOOPS You have entered verify_buffer unexpectedly !!! \n");
 
-	if(sverify)
+	if(sverify == 2)
+	{
+	  for(i=0;i<(length);i+=page_size)
+	  {
+	      dummy = *where;
+	      where+=(page_size/sizeof(long long));
+	  }
+	  return(0);
+	}
+	if(sverify == 1)
 	{
 	  for(i=0;i<(length);i+=page_size)
 	  {
@@ -2862,7 +3107,7 @@ char sverify;
 	      where+=(page_size/sizeof(long long));
 	  }
 	}
-	else
+	if(sverify == 0)
 	{
 	  for(i=0;i<(length/cache_line_size);i++)
 	  {
@@ -2917,7 +3162,7 @@ char sverify;
 	long long i,j;
 
 	where=(unsigned long long *)buffer;
-	if(sverify)
+	if(sverify == 1)
 	{
 		for(i=0;i<(length);i+=page_size)
 		{
@@ -3014,14 +3259,16 @@ long long *data2;
 	double starttime1;
 	double writetime[2];
 	double qtime_start,qtime_stop;
+	double compute_val = (double)0;
 #ifdef unix
 	double qtime_u_start,qtime_u_stop;
 	double qtime_s_start,qtime_s_stop;
 #endif
 	long long i,j;
-	off64_t numrecs64;
+	off64_t numrecs64,traj_offset;
 	long long Index = 0;
 	long long file_flags = 0;
+	long long traj_size;
 	unsigned long long writerate[2];
 	off64_t filebytes64;
 	char *maddr;
@@ -3034,8 +3281,16 @@ long long *data2;
 	long long *gc=0;
 #endif
 
-	numrecs64 = (kilo64*1024)/reclen;
-	filebytes64 = numrecs64*reclen;
+	if(w_traj_flag)
+	{
+		filebytes64 = w_traj_fsize;
+		numrecs64=w_traj_ops;
+	}
+	else
+	{
+		numrecs64 = (kilo64*1024)/reclen;
+		filebytes64 = numrecs64*reclen;
+	}
 
 	if(Q_flag && (!wol_opened))
 	{
@@ -3106,8 +3361,8 @@ long long *data2;
 	  	}
 #endif
 		if(file_lock)
-			if(lockf((int) fd, (int) 1, (off_t) 0)!=0)
-				printf("File lock for write failed.\n");
+			if(mylockf((int) fd, (int) 1, (int)0)!=0)
+				printf("File lock for write failed. %d\n",errno);
 		if(mmapflag)
 		{
 			maddr=(char *)initfile(fd,filebytes64,1,PROT_READ|PROT_WRITE);
@@ -3151,7 +3406,26 @@ long long *data2;
 			qtime_s_start=stime_so_far();
 		}
 #endif
+		if(w_traj_flag)
+		{
+			rewind(w_traj_fd);
+		}
+		compute_val=(double)0;
+		w_traj_ops_completed=0;
+		w_traj_bytes_completed=0;
 		for(i=0; i<numrecs64; i++){
+			if(w_traj_flag)
+			{
+				traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(double *)&compute_time,(long)1);
+				reclen=traj_size;
+#ifdef _LARGEFILE64_SOURCE
+				lseek64(fd,(off64_t)traj_offset,SEEK_SET);
+#else
+				lseek(fd,(off_t)traj_offset,SEEK_SET);
+#endif
+			}
+			if(compute_flag)
+				compute_val+=do_compute(compute_time);
 			if(multi_buffer)
 			{
 				Index +=reclen;
@@ -3214,15 +3488,17 @@ long long *data2;
 				qtime_stop=time_so_far();
 				if(j==0)
 #ifdef NO_PRINT_LLD
-				fprintf(wqfd,"%10.1ld %10.0f\n",(i*reclen)/1024,(qtime_stop-qtime_start-time_res)*1000000);
+				fprintf(wqfd,"%10.1ld %10.0f\n",(i*reclen)/1024,((qtime_stop-qtime_start-time_res))*1000000);
 				else
-				fprintf(rwqfd,"%10.1ld %10.0f\n",(i*reclen)/1024,(qtime_stop-qtime_start-time_res)*1000000);
+				fprintf(rwqfd,"%10.1ld %10.0f\n",(i*reclen)/1024,((qtime_stop-qtime_start-time_res))*1000000);
 #else
-				fprintf(wqfd,"%10.1lld %10.0f\n",(i*reclen)/1024,(qtime_stop-qtime_start-time_res)*1000000);
+				fprintf(wqfd,"%10.1lld %10.0f\n",(i*reclen)/1024,((qtime_stop-qtime_start-time_res))*1000000);
 				else
-				fprintf(rwqfd,"%10.1lld %10.0f\n",(i*reclen)/1024,(qtime_stop-qtime_start-time_res)*1000000);
+				fprintf(rwqfd,"%10.1lld %10.0f\n",(i*reclen)/1024,((qtime_stop-qtime_start-time_res))*1000000);
 #endif
 			}
+			w_traj_ops_completed++;
+			w_traj_bytes_completed+=reclen;
 		}
 #ifdef unix
 		if(Q_flag)
@@ -3257,16 +3533,18 @@ long long *data2;
 				fsync(fd);
 		}
 		if(file_lock)
-			lockf((int) fd, (int) 0, (off_t) 0);
+			if(mylockf((int) fd),(int)0,(int)0)
+				printf("Unlock failed %d\n",errno);
 		if(include_close)
 		{
 			if(mmapflag)
 			{
-				mmap_end(maddr,(unsigned long long)numrecs64*reclen);
+				mmap_end(maddr,(unsigned long long)filebytes64);
 			}
 			close(fd);
 		}
-		writetime[j] = (time_so_far() - starttime1)-time_res;
+		writetime[j] = ((time_so_far() - starttime1)-time_res)
+			-compute_val;
 		if(writetime[j] < (double).000001) 
 		{
 			writetime[j]=time_res;
@@ -3282,14 +3560,17 @@ long long *data2;
 				fsync(fd);
 			if(mmapflag)
 			{
-				mmap_end(maddr,(unsigned long long)numrecs64*reclen);
+				mmap_end(maddr,(unsigned long long)filebytes64);
 			}
 			close(fd);
 		}
 	}
 	if(OPS_flag || MS_flag){
-	   filebytes64=filebytes64/reclen;
-	}
+	   filebytes64=w_traj_ops_completed;
+	   /*filebytes64=filebytes64/reclen;*/
+	}else
+	   filebytes64=w_traj_bytes_completed;
+		
 out:
         for(j=0;j<2;j++)
         {
@@ -3334,6 +3615,7 @@ long long *data2;
 {
 	double starttime1;
 	double writetime[2];
+	double compute_val = (double)0;
 	long long i,j;
 	off64_t numrecs64;
 	long long Index = 0;
@@ -3401,7 +3683,10 @@ long long *data2;
 		if(fetchon)
 			fetchit(buffer,reclen);
 		starttime1 = time_so_far();
+		compute_val=(double)0;
 		for(i=0; i<numrecs64; i++){
+			if(compute_flag)
+				compute_val+=do_compute(compute_time);
 			if(multi_buffer)
 			{
 				Index +=reclen;
@@ -3436,7 +3721,8 @@ long long *data2;
 		{
 			fclose(stream);
 		}
-		writetime[j] = (time_so_far() - starttime1)-time_res;
+		writetime[j] = ((time_so_far() - starttime1)-time_res)
+			-compute_val;
 		if(writetime[j] < (double).000001) 
 		{
 			writetime[j]= time_res;
@@ -3499,6 +3785,7 @@ long long *data1,*data2;
 {
 	double starttime2;
 	double readtime[2];
+	double compute_val = (double)0;
 	long long j;
 	off64_t i,numrecs64;
 	long long Index = 0;
@@ -3553,9 +3840,12 @@ long long *data1,*data2;
 		buffer=mainbuffer;
 		if(fetchon)
 			fetchit(buffer,reclen);
+		compute_val=(double)0;
 		starttime2 = time_so_far();
 		for(i=0; i<numrecs64; i++) 
 		{
+			if(compute_flag)
+				compute_val+=do_compute(compute_time);
                         if(multi_buffer)
                         {
                                 Index +=reclen;
@@ -3599,7 +3889,8 @@ long long *data1,*data2;
 		{
 			fclose(stream);
 		}
-		readtime[j] = (time_so_far() - starttime2)-time_res;
+		readtime[j] = ((time_so_far() - starttime2)-time_res)
+			-compute_val;
 		if(readtime[j] < (double).000001) 
 		{
 			readtime[j]= time_res;
@@ -3663,13 +3954,15 @@ long long *data1,*data2;
 #endif
 {
 	double starttime2;
+	double compute_val = (double)0;
 	double readtime[2];
 #ifdef unix
 	double qtime_u_start,qtime_u_stop;
 	double qtime_s_start,qtime_s_stop;
 #endif
 	long long j;
-	off64_t i,numrecs64;
+	long long traj_size;
+	off64_t i,numrecs64,traj_offset;
 	long long Index = 0;
 	unsigned long long readrate[2];
 	off64_t filebytes64;
@@ -3686,7 +3979,12 @@ long long *data1,*data2;
 #endif
 	numrecs64 = (kilo64*1024)/reclen;
 
-	filebytes64 = numrecs64*reclen;
+	if(r_traj_flag)
+	{
+		numrecs64=r_traj_ops;
+		filebytes64 = r_traj_fsize;
+	} else
+		filebytes64 = numrecs64*reclen;
 	fd = 0;
 	if(Q_flag && (!rol_opened))
 	{
@@ -3743,10 +4041,8 @@ long long *data1,*data2;
 			exit(59);
 		}
 		if(file_lock)
-		{
-			if(lockf((int) fd, (int) 1, (off_t) 0) != 0)
-				printf("File lock for read failed\n");
-		}
+			if(mylockf((int) fd, (int) 1, (int)1) != 0)
+				printf("File lock for read failed. %d\n",errno);
 #ifdef ASYNC_IO
 #ifdef _HPUX_SOURCE
 		if(async_flag)
@@ -3802,8 +4098,30 @@ long long *data1,*data2;
 			qtime_s_start=stime_so_far();
 		}
 #endif
+		if(r_traj_flag)
+		{
+			rewind(r_traj_fd);
+		}
+		compute_val=(double)0;
+		r_traj_ops_completed=0;
 		for(i=0; i<numrecs64; i++) 
 		{
+			if(disrupt_flag && ((i%DISRUPT)==0))
+			{
+				disrupt(fd);
+			}
+			if(r_traj_flag)
+			{
+				traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(double *)&compute_time, (long)0);
+				reclen=traj_size;
+#ifdef _LARGEFILE64_SOURCE
+				lseek64(fd,(off64_t)traj_offset,SEEK_SET);
+#else
+				lseek(fd,(off_t)traj_offset,SEEK_SET);
+#endif
+			}
+			if(compute_flag)
+				compute_val+=do_compute(compute_time);
                         if(multi_buffer)
                         {
                                 Index +=reclen;
@@ -3888,9 +4206,12 @@ long long *data1,*data2;
 				fprintf(rrqfd,"%10.1lld %10.0f\n",(i*reclen)/1024,(qtime_stop-qtime_start-time_res)*1000000);
 #endif
 			}
+			r_traj_ops_completed++;
+			r_traj_bytes_completed+=reclen;
 		}
 		if(file_lock)
-			lockf((int) fd, (int) 0, (off_t) 0);
+			if(mylockf((int) fd, (int) 0, (int)1))
+				printf("Read unlock failed. %d\n",errno);
 #ifdef unix
 		if(Q_flag)
 		{
@@ -3930,7 +4251,7 @@ long long *data1,*data2;
 			}
 			close(fd);
 		}
-		readtime[j] = (time_so_far() - starttime2)-time_res;
+		readtime[j] = ((time_so_far() - starttime2)-time_res)-compute_val;
 		if(readtime[j] < (double).000001) 
 		{
 			readtime[j]= time_res;
@@ -3952,8 +4273,11 @@ long long *data1,*data2;
 		}
     	}
 	if(OPS_flag || MS_flag){
-	   filebytes64=filebytes64/reclen;
-	}
+	   filebytes64=r_traj_ops_completed;
+	   /*filebytes64=filebytes64/reclen;*/
+	} else
+	   filebytes64=r_traj_bytes_completed;
+
         for(j=0;j<2;j++)
         {
 	   	readrate[j] = 
@@ -4000,6 +4324,7 @@ long long *data1, *data2;
 {
 	double randreadtime[2];
 	double starttime2;
+	double compute_val = (double)0;
 	long long j;
 	off64_t i,numrecs64;
 	long long Index=0;
@@ -4086,9 +4411,12 @@ long long *data1, *data2;
              srand48(0);
 #endif
 #endif
+             compute_val=0;
 	     starttime2 = time_so_far();
 	     if ( j==0 ){
 		for(i=0; i<numrecs64; i++) {
+			if(compute_flag)
+				compute_val+=do_compute(compute_time);
                         if(multi_buffer)
                         {
                                 Index +=reclen;
@@ -4181,6 +4509,8 @@ long long *data1, *data2;
 	     {
 			for(i=0; i<numrecs64; i++) 
 			{
+				if(compute_flag)
+					compute_val+=do_compute(compute_time);
                         	if(multi_buffer)
                         	{
                                	    Index +=reclen;
@@ -4277,7 +4607,8 @@ long long *data1, *data2;
 		}
 		close(fd);
 	     }
-	     randreadtime[j] = (time_so_far() - starttime2)-time_res;
+	     randreadtime[j] = ((time_so_far() - starttime2)-time_res)-
+			compute_val;
 	     if(randreadtime[j] < (double).000001) 
 	     {
 			randreadtime[j]=time_res;
@@ -4343,6 +4674,7 @@ long long *data1,*data2;
 {
 	double revreadtime[2];
 	double starttime2;
+	double compute_val = (double)0;
 	long long j;
 	off64_t i,numrecs64;
 	long long Index = 0;
@@ -4438,6 +4770,8 @@ long long *data1,*data2;
 #endif
 		for(i=0; i<numrecs64; i++) 
 		{
+			if(compute_flag)
+				compute_val+=do_compute(compute_time);
                         if(multi_buffer)
                         {
                                 Index +=reclen;
@@ -4522,7 +4856,8 @@ long long *data1,*data2;
 			}
 			close(fd);
 		}
-		revreadtime[j] = (time_so_far() - starttime2)-time_res;
+		revreadtime[j] = ((time_so_far() - starttime2)-time_res)
+			-compute_val;
 		if(revreadtime[j] < (double).000001) 
 		{
 			revreadtime[j]= time_res;
@@ -4581,6 +4916,7 @@ long long *data1,*data2;
 {
 	double writeintime;
 	double starttime1;
+	double compute_val = (double)0;
 	long long i;
 	off64_t numrecs64;
 	long long flags;
@@ -4659,6 +4995,8 @@ long long *data1,*data2;
 	*/
 	starttime1 = time_so_far();
 	for(i=0; i<numrecs64; i++){
+		if(compute_flag)
+			compute_val+=do_compute(compute_time);
         	if(multi_buffer)
         	{
                 	Index +=reclen;
@@ -4740,7 +5078,8 @@ long long *data1,*data2;
 			mmap_end(maddr,(unsigned long long)filebytes64);
 		close(fd);
 	}
-	writeintime = (time_so_far() - starttime1)-time_res;
+	writeintime = ((time_so_far() - starttime1)-time_res)-
+		compute_val;
 	if(writeintime < (double).000001) 
 	{
 		writeintime= time_res;
@@ -4794,6 +5133,7 @@ long long *data1, *data2;
 {
 	double strideintime;
 	double starttime1;
+	double compute_val = (double)0;
 	off64_t i,xx;
 	off64_t numrecs64,current_position;
 	long long Index = 0;
@@ -4874,6 +5214,8 @@ long long *data1, *data2;
 		fetchit(buffer,reclen);
 	starttime1 = time_so_far();
 	for(i=0; i<numrecs64; i++){
+		if(compute_flag)
+			compute_val+=do_compute(compute_time);
         	if(multi_buffer)
                 {
                        Index +=reclen;
@@ -5026,7 +5368,8 @@ long long *data1, *data2;
 		}
 		close(fd);
 	}
-	strideintime = (time_so_far() - starttime1)-time_res;
+	strideintime = ((time_so_far() - starttime1)-time_res)
+		-compute_val;
 	if(strideintime < (double).000001) 
 	{
 		strideintime= time_res;
@@ -5083,6 +5426,7 @@ long long *data1,*data2;
 {
 	double pwritetime[2];
 	double starttime1;
+	double compute_val = (double)0;
 	long long i,j;
 	long long Index = 0;
 	unsigned long long pwriterate[2];
@@ -5185,6 +5529,8 @@ long long *data1,*data2;
 			fetchit(buffer,reclen);
 		starttime1 = time_so_far();
 		for(i=0; i<numrecs64; i++){
+			if(compute_flag)
+				compute_val+=do_compute(compute_time);
                         if(multi_buffer)
                         {
                                 Index +=reclen;
@@ -5218,7 +5564,8 @@ long long *data1,*data2;
 		{
 			close(fd);
 		}
-		pwritetime[j] = (time_so_far() - starttime1)-time_res;
+		pwritetime[j] = ((time_so_far() - starttime1)-time_res)
+			-compute_val;
 		if(pwritetime[j] < (double).000001) 
 		{
 			pwritetime[j]= time_res;
@@ -5277,6 +5624,7 @@ long long *data1, *data2;
 {
 	double starttime2;
 	double preadtime[2];
+	double compute_val = (double)0;
 	long long numrecs64,i;
 	long long j;
 	long long Index = 0;
@@ -5324,6 +5672,8 @@ long long *data1, *data2;
 		starttime2 = time_so_far();
 		for(i=0; i<numrecs64; i++) 
 		{
+			if(compute_flag)
+				compute_val+=do_compute(compute_time);
                         if(multi_buffer)
                         {
                                 Index +=reclen;
@@ -5355,7 +5705,8 @@ long long *data1, *data2;
 			fsync(fd);
 		if(include_close)
 			close(fd);
-		preadtime[j] = (time_so_far() - starttime2)-time_res;
+		preadtime[j] = ((time_so_far() - starttime2)-time_res)
+			-compute_val;
 		if(preadtime[j] < (double).000001) 
 		{
 			preadtime[j]= time_res;
@@ -5415,6 +5766,7 @@ long long *data1,*data2;
 {
 	double starttime1;
 	double pwritevtime[2];
+	double compute_val = (double)0;
 	long long list_off[PVECMAX];
 	long long numvecs,j,xx;
 	unsigned long long pwritevrate[2];
@@ -5530,6 +5882,8 @@ long long *data1,*data2;
 #endif
 		starttime1 = time_so_far();
 		for(i=0; i<numrecs64; i+=numvecs){
+			if(compute_flag)
+				compute_val+=do_compute(compute_time);
 			if((numrecs64-i) < numvecs) 
 				numvecs=numrecs64-i;
 			create_list((long long *)list_off, reclen, numrecs64);
@@ -5562,7 +5916,8 @@ long long *data1,*data2;
 			fsync(fd);
 		if(include_close)
 			close(fd);
-		pwritevtime[j] = (time_so_far() - starttime1)-time_res;
+		pwritevtime[j] = ((time_so_far() - starttime1)-time_res)
+			-compute_val;
 		if(pwritevtime[j] < (double).000001) 
 		{
 			pwritevtime[j]= time_res;
@@ -5674,6 +6029,7 @@ long long *data1,*data2;
 {
 	double starttime2;
 	double preadvtime[2];
+	double compute_val = (double)0;
 	long long list_off[PVECMAX];
 	long long numvecs,i,j,xx;
 	off64_t numrecs64;
@@ -5735,6 +6091,8 @@ long long *data1,*data2;
 		starttime2 = time_so_far();
 		for(i=0; i<(numrecs64); i+=numvecs) 
 		{
+			if(compute_flag)
+				compute_val+=do_compute(compute_time);
 			if((numrecs64-i) < numvecs) 
 				numvecs=numrecs64-i;
 			create_list((long long *)list_off, reclen, numrecs64);
@@ -5762,7 +6120,8 @@ long long *data1,*data2;
 			fsync(fd);
 		if(include_close)
 			close(fd);
-		preadvtime[j] = (time_so_far() - starttime2)-time_res;
+		preadvtime[j] = ((time_so_far() - starttime2)-time_res)
+			-compute_val;
 		if(preadvtime[j] < (double).000001) 
 		{
 			preadvtime[j]= time_res;
@@ -6188,6 +6547,9 @@ void dump_excel()
 		close_xls(bif_fd);
 }
 
+/************************************************************************/
+/* Internal memory allocation mechanism. Uses shared memory or mmap 	*/
+/************************************************************************/
 char *
 alloc_mem(size)
 long long size;
@@ -6294,6 +6656,9 @@ long long size;
 #endif
 }
 
+/************************************************************************/
+/* Implementation of poll() function.					*/
+/************************************************************************/
 #ifdef HAVE_ANSIC_C
 void Poll(long long time1)
 #else
@@ -6307,6 +6672,9 @@ long  long time1;
 	select(0, 0, 0, 0, &howlong);
 }
 
+/************************************************************************/
+/* Implementation of max() function.					*/
+/************************************************************************/
 #ifndef Windows
 #ifdef HAVE_ANSIC_C
 long long max(long long one,long long two)
@@ -6322,6 +6690,9 @@ long long one,two;
 }
 #endif
 
+/************************************************************************/
+/* Internal Kill. With stonewalling disabled, kill does nothing 	*/
+/************************************************************************/
 #ifdef HAVE_ANSIC_C
 void Kill(long long pid,long long sig)
 #else
@@ -6335,6 +6706,9 @@ long long pid,sig;
 		kill((pid_t)pid,(int)sig);
 	}
 }
+/************************************************************************/
+/* Implementation of min() function.					*/
+/************************************************************************/
 
 #ifndef Windows
 #ifdef HAVE_ANSIC_C
@@ -6351,6 +6725,9 @@ long long num1,num2;
 }
 #endif
 
+/************************************************************************/
+/* Routine to call throughput tests many times.				*/
+/************************************************************************/
 
 #ifdef HAVE_ANSIC_C
 void
@@ -6374,6 +6751,9 @@ long long mint, maxt;
 
 
 
+/************************************************************************/
+/* Routine to purge the buffer cache by unmounting drive.		*/
+/************************************************************************/
 #ifdef HAVE_ANSIC_C
 void
 purge_buffer_cache()
@@ -6390,6 +6770,9 @@ purge_buffer_cache()
 	system(command);
 }
 
+/************************************************************************/
+/* Thread write test				        		*/
+/************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
 thread_write_test(void *x)
@@ -6402,7 +6785,13 @@ thread_write_test( x)
 	struct child_stats *child_stat;
 	double starttime1 = 0;
 	double temp_time;
-	long long tt,flags;
+	double compute_val = (double)0;
+	double delay = (double)0;
+	off64_t traj_offset;
+	long long tt,flags,traj_size;
+	long long w_traj_bytes_completed;
+	long long w_traj_ops_completed;
+	FILE *w_traj_fd;
 	int fd;
 	long long recs_per_buffer;
 	long long stopped,i;
@@ -6422,8 +6811,17 @@ thread_write_test( x)
 	long long *gc=0;
 #endif
 
-	filebytes64 = numrecs64*reclen;
+	if(w_traj_flag)
+	{
+		filebytes64 = w_traj_fsize;
+		numrecs64=w_traj_ops;
+	}
+	else
+	{
+		filebytes64 = numrecs64*reclen;
+	}
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
+	w_traj_bytes_completed=w_traj_ops_completed=0;
 	recs_per_buffer = cache_size/reclen ;
 #ifdef NO_THREADS
 	xx=chid;
@@ -6529,7 +6927,7 @@ thread_write_test( x)
 #endif
 	if(mmapflag)
 	{
-		maddr=(char *)initfile(fd,(numrecs64*reclen),1,PROT_READ|PROT_WRITE);
+		maddr=(char *)initfile(fd,(filebytes64),1,PROT_READ|PROT_WRITE);
 	}
 	if(reclen < cache_size )
 	{
@@ -6540,6 +6938,9 @@ thread_write_test( x)
 		fetchit(nbuff,reclen);
 	if(verify)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify);
+
+	if(w_traj_flag)
+		w_traj_fd=open_w_traj();
 
 	child_stat = (struct child_stats *)&shmaddr[xx];	
 	child_stat->throughput = 0;
@@ -6553,9 +6954,26 @@ thread_write_test( x)
 	child_stat->actual = 0;
 	child_stat->throughput = 0;
 	stopped=0;
+	if(file_lock)
+		if(mylockf((int) fd, (int) 1, (int)0) != 0)
+			printf("File lock for write failed. %d\n",errno);
 	starttime1 = time_so_far();
 	child_stat->start_time = starttime1;
+	if(w_traj_flag)
+		rewind(w_traj_fd);
 	for(i=0; i<numrecs64; i++){
+		if(w_traj_flag)
+		{
+			traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(double *)&delay, (long)1);
+			reclen=traj_size;
+#ifdef _LARGEFILE64_SOURCE
+			lseek64(fd,(off64_t)traj_offset,SEEK_SET);
+#else
+			lseek(fd,(off_t)traj_offset,SEEK_SET);
+#endif
+		}
+		if(compute_flag)
+			compute_val+=do_compute(delay);
 		if(*stop_flag && !stopped){
 			if(include_flush)
 			{
@@ -6575,7 +6993,8 @@ thread_write_test( x)
 			}
 
 			if(OPS_flag){
-			   written_so_far=(written_so_far*1024)/reclen;
+			   /*written_so_far=(written_so_far*1024)/reclen;*/
+			   written_so_far=w_traj_ops_completed;
 			}
 			child_stat->throughput = 
 			  (double)written_so_far/child_stat->throughput;
@@ -6641,7 +7060,8 @@ again:
 				}
 
 				if(OPS_flag){
-				   written_so_far=(written_so_far*1024)/reclen;
+				   /*written_so_far=(written_so_far*1024)/reclen;*/
+				   written_so_far=w_traj_ops_completed;
 				}
 				child_stat->throughput = 
 				  (double)written_so_far/child_stat->throughput;
@@ -6674,12 +7094,18 @@ again:
 		      }
 		    }
 		}
+		w_traj_ops_completed++;
+		w_traj_bytes_completed+=reclen;
 		written_so_far+=reclen/1024;
 		if(*stop_flag)
 		{
 			written_so_far-=reclen/1024;
+			w_traj_bytes_completed-=reclen;
 		}
 	}
+	if(file_lock)
+		if(mylockf((int) fd, (int) 0, (int)0))
+			printf("Write unlock failed. %d\n",errno);
 	
 #ifdef ASYNC_IO
 	if(async_flag)
@@ -6702,12 +7128,13 @@ again:
 	if(include_close)
 	{
 		if(mmapflag)
-			mmap_end(maddr,(unsigned long long)numrecs64*reclen);
+			mmap_end(maddr,(unsigned long long)filebytes64);
 		close(fd);
 	}
 	if(!stopped){
 		temp_time = time_so_far();
-		child_stat->throughput = (temp_time - starttime1)-time_res;
+		child_stat->throughput = ((temp_time - starttime1)-time_res)
+			-compute_val;
 		if(child_stat->throughput < (double).000001) 
 		{
 			child_stat->throughput= time_res;
@@ -6717,7 +7144,8 @@ again:
 		}
 
 		if(OPS_flag){
-		   written_so_far=(written_so_far*1024)/reclen;
+		   /*written_so_far=(written_so_far*1024)/reclen;*/
+		   written_so_far=w_traj_ops_completed;
 		}
 		child_stat->throughput =
 			(double)written_so_far/child_stat->throughput;
@@ -6747,6 +7175,8 @@ again:
 		close(fd);
 	}
 	free(dummyfile[xx]);
+	if(w_traj_flag)
+		fclose(w_traj_fd);
 #ifdef NO_THREADS
 	exit(0);
 #else
@@ -6758,6 +7188,9 @@ again:
 return(0);
 }
 
+/************************************************************************/
+/* Thread re-write test				        		*/
+/************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
 thread_rwrite_test(void *x)
@@ -6772,11 +7205,17 @@ thread_rwrite_test(x)
 	struct child_stats *child_stat;
 	long long xx;
 	long long tt;
+	double compute_val = (double)0;
+	double delay = (double)0;
+	off64_t traj_offset;
+	long long w_traj_bytes_completed;
+	long long w_traj_ops_completed;
 	int fd;
+	FILE *w_traj_fd;
 	long long flags = 0;
 	double starttime1 = 0;
 	double temp_time;
-	long long recs_per_buffer;
+	long long recs_per_buffer,traj_size;
 	long long i;
 	off64_t written_so_far, read_so_far, re_written_so_far,re_read_so_far=0;
 	char *dummyfile [MAXSTREAMS];           /* name of dummy file     */
@@ -6791,8 +7230,18 @@ thread_rwrite_test(x)
 	long long *gc=0;
 #endif
 
+	w_traj_bytes_completed=w_traj_ops_completed=0;
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
+	if(w_traj_flag)
+	{
+		filebytes64 = w_traj_fsize;
+		numrecs64=w_traj_ops;
+	}
+	else
+	{
+		filebytes64 = numrecs64*reclen;
+	}
 #ifdef NO_THREADS
 	xx=chid;
 #else
@@ -6890,12 +7339,31 @@ thread_rwrite_test(x)
 	}
 	if(fetchon)
 		fetchit(nbuff,reclen);
+	if(w_traj_flag)
+		w_traj_fd=open_w_traj();
 	child_stat->flag = 1;
 	while(child_stat->flag==1)	/* Wait for parent to say go */
 		Poll((long long)1);
 	starttime1 = time_so_far();
+	if(file_lock)
+		if(mylockf((int) fd, (int) 1, (int)0) != 0)
+			printf("File lock for write failed. %d\n",errno);
 	child_stat->start_time=starttime1;
+	if(w_traj_flag)
+		rewind(w_traj_fd);
 	for(i=0; i<numrecs64; i++){
+		if(w_traj_flag)
+		{
+			traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(double *)&delay,(long)1);
+			reclen=traj_size;
+#ifdef _LARGEFILE64_SOURCE
+			lseek64(fd,(off64_t)traj_offset,SEEK_SET);
+#else
+			lseek(fd,(off_t)traj_offset,SEEK_SET);
+#endif
+		}
+		if(compute_flag)
+			compute_val+=do_compute(delay);
 		if(*stop_flag)
 		{
 			if(debug1)
@@ -6958,11 +7426,16 @@ thread_rwrite_test(x)
 			}
 		}
 		re_written_so_far+=reclen/1024;
+		w_traj_bytes_completed+=reclen;
 		if(*stop_flag)
 		{
 			re_written_so_far-=reclen/1024;
+			w_traj_bytes_completed-=reclen;
 		}
 	}
+	if(file_lock)
+		if(mylockf((int) fd, (int) 0, (int)0))
+			printf("Write unlock failed. %d\n",errno);
 #ifdef ASYNC_IO
 	if(async_flag)
 	{
@@ -6974,7 +7447,7 @@ thread_rwrite_test(x)
 	{
 		if(mmapflag)
 		{
-			msync(maddr,(size_t)(numrecs64*reclen),MS_SYNC);
+			msync(maddr,(size_t)(filebytes64),MS_SYNC);
 		}else
 			fsync(fd);
 	}
@@ -6982,13 +7455,14 @@ thread_rwrite_test(x)
 	{
 		if(mmapflag)
 		{
-			mmap_end(maddr,(unsigned long long)numrecs64*reclen);
+			mmap_end(maddr,(unsigned long long)filebytes64);
 		}
 		close(fd);
 	}
 	temp_time=time_so_far();
 	child_stat=(struct child_stats *)&shmaddr[xx];
-	child_stat->throughput = (temp_time - starttime1)-time_res;
+	child_stat->throughput = ((temp_time - starttime1)-time_res)
+		-compute_val;
 	if(child_stat->throughput < (double).000001) 
 	{
 		child_stat->throughput= time_res;
@@ -6999,7 +7473,8 @@ thread_rwrite_test(x)
 
 	child_stat->stop_time = temp_time;
 	if(OPS_flag){
-	   re_written_so_far=(re_written_so_far*1024)/reclen;
+	   /*re_written_so_far=(re_written_so_far*1024)/reclen;*/
+	   re_written_so_far=w_traj_ops_completed;
 	}
 	child_stat->throughput = 
 		(double)re_written_so_far/child_stat->throughput;
@@ -7011,14 +7486,16 @@ thread_rwrite_test(x)
 	{
 		if(mmapflag)
 		{
-			msync(maddr,(size_t)(numrecs64*reclen),MS_SYNC);
-			mmap_end(maddr,(unsigned long long)numrecs64*reclen);
+			msync(maddr,(size_t)(filebytes64),MS_SYNC);
+			mmap_end(maddr,(unsigned long long)filebytes64);
 		}
 		else
 			fsync(fd);
 		close(fd);
 	}
 	free(dummyfile[xx]);
+	if(w_traj_flag)
+		fclose(w_traj_fd);
 	if(debug1)
 #ifdef NO_PRINT_LLD
 		printf("\nChild Stopping  %ld\n",xx);
@@ -7036,6 +7513,9 @@ thread_rwrite_test(x)
 return(0);
 }
 
+/************************************************************************/
+/* Thread read test				        		*/
+/************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
 thread_read_test(void *x)
@@ -7047,12 +7527,18 @@ thread_read_test(x)
 	long long xx;
 	struct child_stats *child_stat;
 	long long tt;
+	long long r_traj_bytes_completed;
+	long long r_traj_ops_completed;
 	int fd;
+	FILE *r_traj_fd;
 	long long flags = 0;
+	off64_t traj_offset;
 	double starttime1 = 0;
+	double delay = 0;
 	double temp_time;
+	double compute_val = (double)0;
 	off64_t written_so_far, read_so_far, re_written_so_far,re_read_so_far;
-	long long recs_per_buffer;
+	long long recs_per_buffer,traj_size;
 	off64_t i;
 	char *dummyfile[MAXSTREAMS];           /* name of dummy file     */
 	char *nbuff;
@@ -7066,8 +7552,19 @@ thread_read_test(x)
 	long long *gc=0;
 #endif
 
+	r_traj_bytes_completed=r_traj_ops_completed=0;
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
+	if(r_traj_flag)
+	{
+		filebytes64 = r_traj_fsize;
+		numrecs64=r_traj_ops;
+	}
+	else
+	{
+		filebytes64 = numrecs64*reclen;
+	}
+	
 #ifdef NO_THREADS
 	xx=chid;
 #else
@@ -7169,16 +7666,39 @@ thread_read_test(x)
 	/*****************/
 	/* Children only */
 	/*****************/
+	if(r_traj_flag)
+		r_traj_fd=open_r_traj();
 	if(fetchon)
 		fetchit(nbuff,reclen);
 	child_stat=(struct child_stats *)&shmaddr[xx];
 	child_stat->flag = 1;
 	while(child_stat->flag==1)	/* wait for parent to say go */
 		Poll((long long)1);
+	if(file_lock)
+		if(mylockf((int) fd, (int) 1, (int)1) != 0)
+			printf("File lock for read failed. %d\n",errno);
 	starttime1 = time_so_far();
 	child_stat->start_time = starttime1;
 
+	if(r_traj_flag)
+		rewind(r_traj_fd);
 	for(i=0; i<numrecs64; i++){
+		if(disrupt_flag && ((i%DISRUPT)==0))
+		{
+			disrupt(fd);
+		}
+		if(r_traj_flag)
+		{
+			traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(double *)&delay,(long)0);
+			reclen=traj_size;
+#ifdef _LARGEFILE64_SOURCE
+			lseek64(fd,(off64_t)traj_offset,SEEK_SET);
+#else
+			lseek(fd,(off_t)traj_offset,SEEK_SET);
+#endif
+		}
+		if(compute_flag)
+			compute_val+=do_compute(delay);
 		if(*stop_flag)
 		{
 			if(debug1)
@@ -7251,11 +7771,17 @@ thread_read_test(x)
 		if(async_flag && no_copy_flag)
 			async_release(gc);
 		read_so_far+=reclen/1024;
+		r_traj_bytes_completed+=reclen;
+		r_traj_ops_completed++;
 		if(*stop_flag)
 		{
 			read_so_far-=reclen/1024;
+			r_traj_bytes_completed-=reclen;
 		}
 	}
+	if(file_lock)
+		if(mylockf((int) fd, (int) 0, (int)1))
+			printf("Read unlock failed. %d\n",errno);
 #ifdef ASYNC_IO
 	if(async_flag)
 	{
@@ -7267,7 +7793,7 @@ thread_read_test(x)
 	{
 		if(mmapflag)
 		{
-			msync(maddr,(size_t)(numrecs64*reclen),MS_SYNC);
+			msync(maddr,(size_t)(filebytes64),MS_SYNC);
 		}else
 			fsync(fd);
 	}
@@ -7275,14 +7801,15 @@ thread_read_test(x)
 	{	
 		if(mmapflag)
 		{
-			mmap_end(maddr,(unsigned long long)numrecs64*reclen);
+			mmap_end(maddr,(unsigned long long)filebytes64);
 		}
 		close(fd);
 	}
 	temp_time = time_so_far();
 	child_stat->stop_time = temp_time;
 	child_stat=(struct child_stats *)&shmaddr[xx];
-	child_stat->throughput = (temp_time - starttime1)-time_res;
+	child_stat->throughput = ((temp_time - starttime1)-time_res)
+		-compute_val;
 	if(child_stat->throughput < (double).000001) 
 	{
 		child_stat->throughput= time_res;
@@ -7292,7 +7819,8 @@ thread_read_test(x)
 	}
 
 	if(OPS_flag){
-	   read_so_far=(read_so_far*1024)/reclen;
+	   /*read_so_far=(read_so_far*1024)/reclen;*/
+	   read_so_far=r_traj_ops_completed;
 	}
 	child_stat->throughput = read_so_far/child_stat->throughput;
 	child_stat->actual = read_so_far;
@@ -7304,13 +7832,15 @@ thread_read_test(x)
 	{
 		if(mmapflag)
 		{
-			msync(maddr,(size_t)(numrecs64*reclen),MS_SYNC);
-			mmap_end(maddr,(unsigned long long)numrecs64*reclen);
+			msync(maddr,(size_t)(filebytes64),MS_SYNC);
+			mmap_end(maddr,(unsigned long long)filebytes64);
 		}else
 			fsync(fd);
 		close(fd);
 	}
 	free(dummyfile[xx]);
+	if(r_traj_flag)
+		fclose(r_traj_fd);
 	if(debug1)
 #ifdef NO_PRINT_LLD
 		printf("\nChild finished %ld\n",xx);
@@ -7327,6 +7857,10 @@ thread_read_test(x)
 #endif
 return(0);
 }
+
+/************************************************************************/
+/* Thread re-read test				        		*/
+/************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
 thread_rread_test(void *x)
@@ -7340,10 +7874,16 @@ thread_rread_test(x)
 	struct child_stats *child_stat;
 	long long tt;
 	int fd;
+	FILE *r_traj_fd;
+	long long r_traj_bytes_completed;
+	long long r_traj_ops_completed;
+	off64_t traj_offset;
 	long long flags = 0;
 	double starttime1 = 0;
+	double delay = 0;
 	double temp_time;
-	long long recs_per_buffer;
+	double compute_val = (double)0;
+	long long recs_per_buffer,traj_size;
 	off64_t i;
 	off64_t written_so_far, read_so_far, re_written_so_far,
 		re_read_so_far;
@@ -7360,11 +7900,21 @@ thread_rread_test(x)
 	/*****************/
 	/* Children only */
 	/*****************/
+	r_traj_bytes_completed=r_traj_ops_completed=0;
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
 #ifdef NO_THREADS
 	xx=chid;
 #else
+	if(r_traj_flag)
+	{
+		filebytes64 = r_traj_fsize;
+		numrecs64=r_traj_ops;
+	}
+	else
+	{
+		filebytes64 = numrecs64*reclen;
+	}
 	if(use_thread)
 		xx = (long long)((long)x);
 	else
@@ -7454,8 +8004,10 @@ thread_rread_test(x)
 #endif
 	if(mmapflag)
 	{
-		maddr=(char *)initfile(fd,(numrecs64*reclen),0,PROT_READ);
+		maddr=(char *)initfile(fd,(filebytes64),0,PROT_READ);
 	}
+	if(r_traj_flag)
+		r_traj_fd=open_r_traj();
 	if(fetchon)
 		fetchit(nbuff,reclen);
 	child_stat = (struct child_stats *)&shmaddr[xx];
@@ -7464,10 +8016,31 @@ thread_rread_test(x)
 	child_stat->flag = 1;
 	while(child_stat->flag==1)	/* wait for parent to say go */
 		Poll((long long)1);
+	if(file_lock)
+		if(mylockf((int) fd, (int) 1, (int)1) != 0)
+			printf("File lock for read failed. %d\n",errno);
 	starttime1 = time_so_far();
 	child_stat->start_time = starttime1;
 
+	if(r_traj_flag)
+		rewind(r_traj_fd);
 	for(i=0; i<numrecs64; i++){
+		if(disrupt_flag && ((i%DISRUPT)==0))
+		{
+			disrupt(fd);
+		}
+		if(r_traj_flag)
+		{
+			traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(double *)&delay,(long)0);
+			reclen=traj_size;
+#ifdef _LARGEFILE64_SOURCE
+			lseek64(fd,(off64_t)traj_offset,SEEK_SET);
+#else
+			lseek(fd,(off_t)traj_offset,SEEK_SET);
+#endif
+		}
+		if(compute_flag)
+			compute_val+=do_compute(delay);
 		if(*stop_flag)
 		{
 			if(debug1)
@@ -7487,10 +8060,10 @@ thread_rread_test(x)
 			  {
 			    if(no_copy_flag)
 			      async_read_no_copy(gc, (long long)fd, &buffer1, (i*reclen),reclen,
-			    	1LL,(numrecs64*reclen),depth);
+			    	1LL,(filebytes64),depth);
 			    else
 			      async_read(gc, (long long)fd, nbuff, (i*reclen),reclen,
-			    	1LL,(numrecs64*reclen),depth);
+			    	1LL,(filebytes64),depth);
 			  }
 			  else
 			  {
@@ -7540,11 +8113,17 @@ thread_rread_test(x)
 		if(async_flag && no_copy_flag)
 			async_release(gc);
 		re_read_so_far+=reclen/1024;
+		r_traj_bytes_completed+=reclen;
+		r_traj_ops_completed++;
 		if(*stop_flag)
 		{
 			re_read_so_far-=reclen/1024;
+			r_traj_bytes_completed-=reclen;
 		}
 	}
+	if(file_lock)
+		if(mylockf((int) fd, (int) 0, (int)1))
+			printf("Read unlock failed. %d\n",errno);
 	/*fsync(fd);*/
 #ifdef ASYNC_IO
 	if(async_flag)
@@ -7557,7 +8136,7 @@ thread_rread_test(x)
 	{
 		if(mmapflag)
 		{
-			msync(maddr,(size_t)(numrecs64*reclen),MS_SYNC);
+			msync(maddr,(size_t)(filebytes64),MS_SYNC);
 		}else
 			fsync(fd);
 	}
@@ -7565,13 +8144,14 @@ thread_rread_test(x)
 	{	
 		if(mmapflag)
 		{
-			mmap_end(maddr,(unsigned long long)numrecs64*reclen);
+			mmap_end(maddr,(unsigned long long)filebytes64);
 		}
 		close(fd);
 	}
 	temp_time = time_so_far();
 	child_stat->stop_time = temp_time;
-	child_stat->throughput = (temp_time - starttime1)-time_res;
+	child_stat->throughput = ((temp_time - starttime1)-time_res)
+		-compute_val;
 	if(child_stat->throughput < (double).000001) 
 	{
 		child_stat->throughput= time_res;
@@ -7581,7 +8161,8 @@ thread_rread_test(x)
 	}
 
 	if(OPS_flag){
-	   re_read_so_far=(re_read_so_far*1024)/reclen;
+	   /*re_read_so_far=(re_read_so_far*1024)/reclen;*/
+	   re_read_so_far=r_traj_ops_completed;
 	}
 	child_stat->throughput = re_read_so_far/child_stat->throughput;
 	child_stat->actual = re_read_so_far;
@@ -7592,13 +8173,15 @@ thread_rread_test(x)
 	{
 		if(mmapflag)
 		{
-			msync(maddr,(size_t)(numrecs64*reclen),MS_SYNC);
-			mmap_end(maddr,(unsigned long long)numrecs64*reclen);
+			msync(maddr,(size_t)(filebytes64),MS_SYNC);
+			mmap_end(maddr,(unsigned long long)filebytes64);
 		}else
 			fsync(fd);
 		close(fd);
 	}
 	free(dummyfile[xx]);
+	if(r_traj_flag)
+		fclose(r_traj_fd);
 	if(debug1)
 #ifdef NO_PRINT_LLD
 		printf("\nChild finished %ld\n",xx);
@@ -7635,7 +8218,9 @@ thread_reverse_read_test(x)
 	int fd;
 	long long flags = 0;
 	double starttime2 = 0;
+	double delay = 0;
 	double temp_time;
+	double compute_val = (double)0;
 	long long recs_per_buffer;
 	off64_t i,t_offset,here;
 	off64_t zoffset=0;
@@ -7784,8 +8369,17 @@ thread_reverse_read_test(x)
 	}
 #endif
 	current_position=(reclen*numrecs64)-reclen;
+	if(file_lock)
+		if(mylockf((int) fd, (int) 1, (int)1)!=0)
+			printf("File lock for read failed. %d\n",errno);
 	for(i=0; i<numrecs64; i++) 
 	{
+		if(disrupt_flag && ((i%DISRUPT)==0))
+		{
+			disrupt(fd);
+		}
+		if(compute_flag)
+			compute_val+=do_compute(delay);
 		if(*stop_flag)
 		{
 			if(debug1)
@@ -7875,6 +8469,9 @@ thread_reverse_read_test(x)
 			reverse_read -=reclen/1024;
 		}
 	}
+	if(file_lock)
+		if(mylockf((int) fd,(int)0, (int)1))
+			printf("Read unlock failed %d\n",errno);
 #ifdef ASYNC_IO
 	if(async_flag)
 	{
@@ -7900,7 +8497,8 @@ thread_reverse_read_test(x)
 	}
 	temp_time = time_so_far();
 	child_stat->stop_time = temp_time;
-	child_stat->throughput = (temp_time - starttime2)-time_res;
+	child_stat->throughput = ((temp_time - starttime2)-time_res)
+		-compute_val;
 	if(child_stat->throughput < (double).000001) 
 	{
 		child_stat->throughput= time_res;
@@ -7962,6 +8560,8 @@ thread_stride_read_test(x)
 	int fd;
 	long long flags = 0;
 	double starttime2 = 0;
+	double delay = 0;
+	double compute_val = (double)0;
 	double temp_time;
 	long long recs_per_buffer;
 	off64_t i;
@@ -8090,9 +8690,18 @@ thread_stride_read_test(x)
 	child_stat->flag = 1;
         while(child_stat->flag==1)      /* wait for parent to say go */
                 Poll((long long)1);
+	if(file_lock)
+		if(mylockf((int) fd, (int) 1,  (int)1)!=0)
+			printf("File lock for write failed. %d\n",errno);
 	starttime2 = time_so_far();
 	child_stat->start_time = starttime2;
 	for(i=0; i<numrecs64; i++){
+		if(disrupt_flag && ((i%DISRUPT)==0))
+		{
+			disrupt(fd);
+		}
+		if(compute_flag)
+			compute_val+=do_compute(delay);
 		if(*stop_flag)
 		{
 			if(debug1)
@@ -8226,6 +8835,9 @@ thread_stride_read_test(x)
 			stride_read -=reclen/1024;
 		}
 	}
+	if(file_lock)
+		if(mylockf((int) fd,(int)0,(int)1))
+			printf("Read unlock failed %d\n",errno);
 #ifdef ASYNC_IO
 	if(async_flag)
 	{
@@ -8251,7 +8863,8 @@ thread_stride_read_test(x)
 	}
 	temp_time = time_so_far();
 	child_stat->stop_time = temp_time;
-	child_stat->throughput = (temp_time - starttime2)-time_res;
+	child_stat->throughput = ((temp_time - starttime2)-time_res)
+		-compute_val;
 	if(child_stat->throughput < (double).000001) 
 	{
 		child_stat->throughput= time_res;
@@ -8295,6 +8908,9 @@ thread_stride_read_test(x)
 return(0);
 }
 
+/************************************************************************/
+/* Thread random read test				        	*/
+/************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
 thread_ranread_test(void *x)
@@ -8309,7 +8925,9 @@ thread_ranread_test(x)
 	int fd;
 	long long flags = 0;
 	double starttime1 = 0;
+	double delay = 0;
 	double temp_time;
+	double compute_val = (double)0;
 	off64_t written_so_far, ranread_so_far, re_written_so_far,re_read_so_far;
 	long long recs_per_buffer;
 	off64_t current_offset=0;
@@ -8449,7 +9067,12 @@ thread_ranread_test(x)
 	srand48(0);
 #endif
 #endif
+	if(file_lock)
+		if(mylockf((int) fd, (int) 1, (int)1)!=0)
+			printf("File lock for read failed. %d\n",errno);
 	for(i=0; i<numrecs64; i++) {
+		if(compute_flag)
+			compute_val+=do_compute(delay);
 		if(*stop_flag)
 		{
 			if(debug1)
@@ -8554,6 +9177,9 @@ thread_ranread_test(x)
 			ranread_so_far-=reclen/1024;
 		}
 	}
+	if(file_lock)
+		if(mylockf((int) fd,(int)0,(int)1))
+			printf("Read unlock failed %d\n",errno);
 #ifdef ASYNC_IO
 	if(async_flag)
 	{
@@ -8580,7 +9206,8 @@ thread_ranread_test(x)
 	temp_time = time_so_far();
 	child_stat->stop_time = temp_time;
 	child_stat=(struct child_stats *)&shmaddr[xx];
-	child_stat->throughput = (temp_time - starttime1)-time_res;
+	child_stat->throughput = ((temp_time - starttime1)-time_res)
+		-compute_val;
 	if(child_stat->throughput < (double).000001) 
 	{
 		child_stat->throughput= time_res;
@@ -8624,6 +9251,9 @@ thread_ranread_test(x)
 return(0);
 }
 
+/************************************************************************/
+/* mythread_create() Internal routine that calls pthread_create()	*/
+/************************************************************************/
 #ifndef NO_THREADS
 #ifdef HAVE_ANSIC_C
 long long 
@@ -8675,6 +9305,9 @@ mythread_create( func,x)
 }
 #endif
 
+/************************************************************************/
+/* thread_exit() Internal routine that calls pthread_exit()		*/
+/************************************************************************/
 #ifndef NO_THREADS
 #ifdef HAVE_ANSIC_C
 thread_exit(void)
@@ -8692,6 +9325,9 @@ thread_exit()
 }
 #endif
 
+/************************************************************************/
+/* mythread_self() Internal function that calls pthread_self()		*/
+/************************************************************************/
 #ifndef NO_THREADS
 pthread_t
 mythread_self()
@@ -8707,6 +9343,9 @@ mythread_self()
 }
 #endif
 
+/************************************************************************/
+/* Internal thread_join routine... calls pthread_join			*/
+/************************************************************************/
 #ifndef NO_THREADS
 #ifdef HAVE_ANSIC_C
 void *
@@ -8853,6 +9492,9 @@ double value;
 	}
 }
 
+/************************************************************************/
+/* Initialize a file that will be used by mmap.				*/
+/************************************************************************/
 #ifdef HAVE_ANSIC_C
 char *
 initfile(int fd, off64_t filebytes,int flag,int prot)
@@ -8960,6 +9602,9 @@ int flag, prot;
 }
 
 
+/************************************************************************/
+/* Release the mmap area.						*/
+/************************************************************************/
 #ifdef HAVE_ANSIC_C
 void
 mmap_end( char *buffer, long long size)
@@ -8979,19 +9624,19 @@ long long size;
 	
 }
 
-/* 	
-	This is an interesting function. How much data to 
-	copy is a very good question. Here we are using mmap to
-	perform I/O. If the benchmark touches every byte then
-	this will include a bcopy of the mmap area into the
-	users buffer. This is represenative of an application
-	that reads and touches every byte that it read. If
-	the benchmark reduces the work to touching only
-	a long per page then the numbers go up but it
-	does not reflect the application to well. For now
-	the best assumption is to believe that the application
-	will indeed touch every byte.
-*/
+/************************************************************************/
+/*	This is an interesting function. How much data to 		*/
+/*	copy is a very good question. Here we are using mmap to		*/
+/*	perform I/O. If the benchmark touches every byte then		*/
+/*	this will include a bcopy of the mmap area into the		*/
+/*	users buffer. This is represenative of an application		*/
+/*	that reads and touches every byte that it read. If		*/
+/*	the benchmark reduces the work to touching only			*/
+/*	a long per page then the numbers go up but it			*/
+/*	does not reflect the application to well. For now		*/
+/*	the best assumption is to believe that the application		*/
+/*	will indeed touch every byte.					*/
+/************************************************************************/
 #ifdef HAVE_ANSIC_C
 void 
 fill_area(long long *src_buffer, long long *dest_buffer, long long length)
@@ -9033,6 +9678,9 @@ async_release()
 }
 #endif
 
+/************************************************************************/
+/* Nap in microseconds.							*/
+/************************************************************************/
 my_nap( ntime )
 int ntime;
 {
@@ -9044,6 +9692,11 @@ int ntime;
         nap_time.tv_usec=microsecs;
         select(0,0,0,0,&nap_time);
 }
+
+/************************************************************************/
+/* Function that establishes the resolution 				*/
+/* of the gettimeofday() function.					*/
+/************************************************************************/
 
 #ifdef HAVE_ANSIC_C
 void
@@ -9121,6 +9774,9 @@ time_so_far1()
 #endif
 }
 
+/************************************************************************/
+/* Return the clocks per tick for the times() call.			*/
+/************************************************************************/
 #ifdef unix
 static double
 clk_tck()		/* Get the clocks per tick for times */
@@ -9128,6 +9784,9 @@ clk_tck()		/* Get the clocks per tick for times */
 	return((double)sysconf(_SC_CLK_TCK));
 }
 
+/************************************************************************/
+/* Return the user time in tics as a double.				*/
+/************************************************************************/
 #ifdef HAVE_ANSIC_C
 static double
 utime_so_far(void)	 /* Return user time in ticks as double */
@@ -9141,9 +9800,13 @@ utime_so_far()
   	times(&tp);
   	return ((double) (tp.tms_utime));
 }
+
+/************************************************************************/
+/* Return the system time in tics as a double.				*/
+/************************************************************************/
 #ifdef HAVE_ANSIC_C
 static double
-stime_so_far(void)  	/* Return user time in ticks as double */
+stime_so_far(void)  	/* Return system time in ticks as double */
 #else
 static double
 stime_so_far()
@@ -9155,3 +9818,526 @@ stime_so_far()
   	return ((double) (tp.tms_stime));
 }
 #endif
+
+/************************************************************************/
+/* This is a locking function that permits the writes and 		*/
+/* reads during the test to hold a file lock. Since each		*/
+/* tmp file that Iozone creates is a private file, this seems		*/
+/* like a no-op but it turns out that when using Iozone			*/
+/* over NFS,  life is very, very different. Some vendors		*/
+/* read and write performance goes to zip when locks are held		*/
+/* even if there is only one process using the file and having		*/
+/* it locked. Some implementations of NFS transition from async		*/
+/* to fully sync reads and writes if any locks are used. Euck...	*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+int
+mylockf(int fd, int op, int rdwr)
+#else
+int
+mylockf(fd, op, rdwr)
+int fd, op, rdwr;
+#endif
+{
+	struct flock myflock;
+	int ret;
+	if(op==0) /* Generic unlock the whole file */
+	{
+		myflock.l_type=F_UNLCK;
+		myflock.l_whence=SEEK_SET;
+		myflock.l_start=0;
+		myflock.l_len=0; /* The whole file */
+		myflock.l_pid=getpid();
+		ret=fcntl(fd,F_SETLKW, &myflock);
+	}
+	else
+		  /* Generic lock the whole file */
+	{
+		if(rdwr==0)
+			myflock.l_type=F_WRLCK; /* Apply write lock */
+		else
+			myflock.l_type=F_RDLCK; /* Apply read lock */
+		myflock.l_whence=SEEK_SET;
+		myflock.l_start=0;
+		myflock.l_len=0; /* The whole file */
+		myflock.l_pid=getpid();
+		ret=fcntl(fd,F_SETLKW, &myflock);
+	}
+	return(ret);
+}
+
+/************************************************************************/
+/* This function is used to simulate compute time that does		*/
+/* not involve the I/O subsystem.					*/
+/************************************************************************/
+
+#ifdef HAVE_ANSIC_C
+double
+do_compute(double delay)
+#else
+double
+do_compute()
+double delay
+#endif
+{
+	double starttime,tmptime;
+	if(delay == (double)0)
+		return(0);
+	starttime=time_so_far();
+	while(1)
+	{	
+		tmptime=time_so_far()-starttime;
+		if(tmptime >= delay)
+			return(tmptime);
+	}
+}
+
+/************************************************************************/
+/* This function is intended to cause an interruption			*/
+/* in the read pattern. It will make a reader have			*/
+/* jitter in its access behavior.					*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+void
+disrupt(int fd)
+#else
+disrupt(fd)
+int fd;
+#endif
+{
+	char buf[1024];
+#ifdef _LARGEFILE64_SOURCE
+	off64_t current;
+#else
+	off_t current;
+#endif
+	/* Save current position */
+#ifdef _LARGEFILE64_SOURCE
+	current = lseek64(fd,(off64_t)0,SEEK_CUR);
+#else
+	current = lseek(fd,0,SEEK_CUR);
+#endif
+
+	/* Move to beginning of file */
+#ifdef _LARGEFILE64_SOURCE
+	lseek64(fd,(off64_t)0,SEEK_SET);
+#else
+	lseek(fd,0,SEEK_SET);
+#endif
+	/* Read a little of the file */
+	read(fd,buf,1);
+
+	/* Skip to 3k into the file */
+#ifdef _LARGEFILE64_SOURCE
+	lseek64(fd,(off64_t)3096,SEEK_SET);
+#else
+	lseek(fd,3096,SEEK_SET);
+#endif
+	/* Read a little of the file */
+	read(fd,buf,1);
+
+	/* Restore current position in file, before disruption */
+#ifdef _LARGEFILE64_SOURCE
+	lseek64(fd,(off64_t)current,SEEK_SET);
+#else
+	lseek(fd,current,SEEK_SET);
+#endif
+	
+}
+
+/************************************************************************/
+/* Read a telemetry file and return the the offset			*/
+/* for the next operaton. Also, set the size				*/
+/* in the variable given in the param list.				*/
+/* which == 0 ... reader calling					*/
+/* which == 1 ... writer calling					*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+long long
+get_traj(FILE *traj_fd, long long *traj_size, double *delay, long which)
+#else
+long long
+get_traj(traj_fd, traj_size, delay, which)
+FILE *traj_fd;
+long long *traj_size;
+double *delay;
+long which;
+#endif
+{
+	long long traj_offset = 0;
+	int tmp = 0;
+	int tokens;
+	int ret;
+	char *ret1,*where;
+	char buf[200];
+	char sbuf[200];
+	int got_line;
+	
+	got_line=0;
+
+	while(got_line==0)
+	{
+		tokens=0;
+		ret1=fgets(buf,200,traj_fd);
+		if(ret1==(char *)0)
+		{
+			printf("\n\n\tEarly end of telemetry file. Results not accurate.\n");
+			signal_handler();
+		}
+		where=(char *)&buf[0];
+		strcpy(sbuf,buf);
+		if((*where=='#') || (*where=='\n'))
+			continue;
+		tokens++;
+		strtok(where," ");
+		while( (char *)(strtok( (char *)0," ")) != (char *)0)
+		{
+			tokens++;
+		}
+		got_line=1;
+	}
+	if(tokens == 3)
+	{
+#ifdef NO_PRINT_LLD
+		ret=sscanf(sbuf,"%ld %ld %d\n",&traj_offset,traj_size,&tmp);
+#else
+		ret=sscanf(sbuf,"%lld %lld %d\n",&traj_offset,traj_size,&tmp);
+#endif
+	/*printf("\nReading %s trajectory with %d items\n",which?"write":"read",tokens);*/
+		*delay= ((double)tmp/1000);
+	}
+	if(tokens == 2)
+	{ 
+#ifdef NO_PRINT_LLD
+		ret=sscanf(sbuf,"%ld %ld\n",&traj_offset,traj_size);
+#else
+		ret=sscanf(sbuf,"%lld %lld\n",&traj_offset,traj_size);
+#endif
+		*delay=compute_time;
+	/*printf("\nReading %s trajectory with %d items\n",which?"write":"read",tokens);*/
+	}
+	if((tokens != 2) && (tokens !=3))
+	{
+		printf("\n\tInvalid entry in telemetry file. > %s <\n",sbuf);
+		exit(178);
+	}
+	if(ret==EOF)
+	{
+		printf("\n\n\tEarly end of telemetry file. Results not accurate.\n");
+		signal_handler();
+	}
+#ifdef DEBUG
+#ifdef NO_PRINT_LLD
+	printf("\nOffset %lld  Size %ld Compute delay %f\n",traj_offset, *traj_size,*delay);
+#else
+	printf("\nOffset %lld  Size %lld Compute delay %f\n",traj_offset, *traj_size,*delay);
+#endif
+#endif
+	return(traj_offset);
+}
+
+/************************************************************************/
+/* Open the read telemetry file and return file pointer. 		*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+FILE *
+open_r_traj(void)
+#else
+FILE *
+open_r_traj()
+#endif
+{
+	FILE *fd;
+	fd=fopen(read_traj_filename,"r");
+	if(fd == (FILE *)0)
+	{
+		printf("Unable to open read telemetry file \"%s\"\n",
+			read_traj_filename);
+		exit(174);
+	}
+	return(fd);
+}
+
+/************************************************************************/
+/* Open the write telemetry file and return file pointer.		*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+FILE *
+open_w_traj(void)
+#else
+FILE *
+open_w_traj()
+#endif
+{
+	FILE *fd;
+	fd=fopen(write_traj_filename,"r");
+	if(fd == (FILE *)0)
+	{
+		printf("Unable to open write telemetry file \"%s\"\n",
+			write_traj_filename);
+		exit(175);
+	}
+	return(fd);
+}
+
+/************************************************************************/
+/* r_traj_size(void)							*/
+/* This function scans the read telemetry file 				*/
+/* and establishes the number of entries				*/
+/* and the maximum file offset.						*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+long long
+r_traj_size(void)
+#else
+long long
+r_traj_size()
+#endif
+{
+	FILE *fd;
+	int ret;
+	long long traj_offset = 0;
+	long long traj_size = 0;
+	long long max_offset = 0;
+	int tokens;
+	int dummy;
+	int lines;
+	char buf[200];
+	char sbuf[200];
+	char *ret1,*where;
+
+	lines=0;
+	fd=fopen(read_traj_filename,"r");
+	if(fd == (FILE *)0)
+	{
+		printf("Unable to open read telemetry file \"%s\"\n",
+			read_traj_filename);
+		exit(174);
+	}
+	while(1)
+	{
+		tokens=0;
+		ret1=fgets(buf,200,fd);
+		if(ret1==(char *)0)
+			break;
+		where=(char *)&buf[0];
+		strcpy(sbuf,buf);
+		lines++;
+		if((*where=='#') || (*where=='\n'))
+			continue;
+		tokens++;
+		strtok(where," ");
+		while( (char *)(strtok( (char *)0," ")) != (char *)0)
+		{
+			tokens++;
+		}
+		if(tokens==1)
+		{
+			printf("\n\tInvalid read telemetry file entry. Line %d",
+				lines);
+			signal_handler();
+		}
+#ifdef DEBUG
+	printf("Tokens = %d\n",tokens);
+#endif
+		if(tokens==3)
+		{
+#ifdef NO_PRINT_LLD
+			ret=sscanf(sbuf,"%ld %ld %d\n",&traj_offset,&traj_size,&dummy);
+#else
+			ret=sscanf(sbuf,"%lld %lld %d\n",&traj_offset,&traj_size,&dummy);
+#endif
+		}
+		if(tokens==2)
+		{
+#ifdef NO_PRINT_LLD
+			ret=sscanf(sbuf,"%ld %ld\n",&traj_offset,&traj_size);
+#else
+			ret=sscanf(sbuf,"%lld %lld\n",&traj_offset,&traj_size);
+#endif
+		}
+		if((tokens != 2) && (tokens !=3))
+		{
+			printf("\n\tInvalid read telemetry file. Line %d\n",lines);
+			exit(178);
+		}
+		if(traj_offset + traj_size > max_offset)
+			max_offset=traj_offset + traj_size;
+		
+		r_traj_ops++;
+	}	
+	r_traj_fsize=max_offset;
+#ifdef DEBUG
+	printf("File size of read %lld Item count %lld\n",r_traj_fsize,r_traj_ops);
+#endif
+	fclose(fd);
+}
+
+/************************************************************************/
+/* w_traj_size(void)							*/
+/* This function scans the write telemetry file 			*/
+/* and establishes the number of entries				*/
+/* and the maximum file offset.						*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+long long
+w_traj_size(void)
+#else
+long long
+w_traj_size()
+#endif
+{
+	FILE *fd;
+	int ret;
+	long long traj_offset = 0;
+	long long traj_size = 0;
+	long long max_offset = 0;
+	int dummy;
+	int tokens,lines;
+	char *ret1;
+	char buf[200];
+	char sbuf[200];
+	char *where;
+
+	lines=0;
+
+	fd=fopen(write_traj_filename,"r");
+	if(fd == (FILE *)0)
+	{
+		printf("Unable to open write telemetry file \"%s\"\n",
+			write_traj_filename);
+		exit(174);
+	}
+	while(1)
+	{
+		tokens=0;
+		ret1=fgets(buf,200,fd);
+		if(ret1==(char *)0)
+			break;
+		lines++;
+		where=(char *)&buf[0];
+		strcpy(sbuf,buf);
+		if((*where=='#') || (*where=='\n'))
+			continue;
+		tokens++;
+		strtok(where," ");
+		while( (char *)(strtok( (char *)0," ")) != (char *)0)
+		{
+			tokens++;
+		}
+		if(tokens==1)
+		{
+			printf("\n\tInvalid write telemetry file entry. Line %d\n",
+				lines);
+			signal_handler();
+		}
+		if(tokens==3)
+		{
+#ifdef NO_PRINT_LLD
+			ret=sscanf(sbuf,"%ld %ld %d\n",&traj_offset,&traj_size,&dummy);
+#else
+			ret=sscanf(sbuf,"%lld %lld %d",&traj_offset,&traj_size,&dummy);
+#endif
+		}
+		if(tokens==2)
+		{
+#ifdef NO_PRINT_LLD
+			ret=sscanf(sbuf,"%ld %ld\n",&traj_offset,&traj_size);
+#else
+			ret=sscanf(sbuf,"%lld %lld\n",&traj_offset,&traj_size);
+#endif
+		}
+		if(tokens > 3)
+		{
+			printf("\n\tInvalid write telemetry file entry. Line %d\n",
+				lines);
+			exit(174);
+		}
+		if(traj_offset + traj_size > max_offset)
+			max_offset=traj_offset + traj_size;
+		
+		w_traj_ops++;
+	}	
+	w_traj_fsize=max_offset;
+#ifdef DEBUG
+	printf("File size of write %lld Item count %lld\n",w_traj_fsize,w_traj_ops);
+#endif
+	fclose(fd);
+	return(max_offset);
+}
+
+/************************************************************************/
+/* Find which version of the telemetry file format is in use.		*/
+/************************************************************************/
+
+void
+traj_vers(void)
+{
+	FILE *fd;
+	char *where;
+	char buf[200];
+	int things;
+	char *ret1;
+	
+	if(r_traj_flag)
+	{
+		things=0;
+		fd=fopen(read_traj_filename,"r");
+		if(fd == (FILE *)0)
+		{	
+			printf("Unable to open read telemetry file \"%s\"\n", read_traj_filename);
+			exit(174);
+		}
+loop1:
+		ret1=fgets(buf,200,fd);
+		if(ret1==(char *)0)
+		{
+			fclose(fd);
+			return;
+		}
+		where=(char *)&buf[0];
+		if((*where=='#') || (*where=='\n'))
+			goto loop1;
+		things++;
+		strtok(where," ");
+		while( (char *)(strtok( (char *)0," ")) != (char *)0)
+		{
+			things++;
+		}
+		r_traj_items=things;
+#ifdef DEBUG
+		printf("Found %d items in the read telemetry file\n",things);
+#endif
+	}
+	if(w_traj_flag)
+	{
+		things=0;
+		fd=fopen(write_traj_filename,"r");
+		if(fd == (FILE *)0)
+		{	
+			printf("Unable to open write telemetry file \"%s\"\n", write_traj_filename);
+			exit(174);
+		}
+loop2:
+		ret1=fgets(buf,200,fd);
+		if(ret1==(char *)0)
+		{
+			fclose(fd);
+			return;
+		}
+		where=(char *)&buf[0];
+		if((*where=='#') || (*where=='\n'))
+			goto loop2;
+		things++;
+		strtok(where," ");
+		while( (char *)(strtok( (char *)0," ")) != (char *)0)
+		{
+			things++;
+		}
+		fclose(fd);
+		w_traj_items=things;
+#ifdef DEBUG
+		printf("Found %d items in the write telemetry file\n",things);
+#endif
+	}
+}

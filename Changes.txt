@@ -1134,5 +1134,19 @@ Revision 3.28
 Add support for reading and writing while holding lockf() on the file.
 This turns out to be important aspect of NFS benchmarking.
 =============================================================================
+Revision 3.29        
+=============================================================================
+Change calls to lockf() to calls to fcntl(). This is more portable.
+=============================================================================
+Revision 3.30        
+=============================================================================
+Add support for variable compute cycle time before each I/O
+operation. This allows one to more accuratly represent
+a specific application that is doing compute/read/compute/read 
+style operations.
+=============================================================================
+Revision 3.30 through 3.37
+=============================================================================
+Add support for read and write telemetry files.
 
 
