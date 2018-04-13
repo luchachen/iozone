@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.211 $"
+#define THISVERSION "        Version $Revision: 3.213 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -110,6 +110,7 @@ long long l_max();
 long long mythread_create();
 #endif
 
+#include <fcntl.h>
 
 char *help[] = {
 "    Usage: iozone [-s filesize_Kb] [-r record_size_Kb] [-f [path]filename] [-h]",
@@ -195,6 +196,8 @@ char *help[] = {
 "           -+n No retests selected.",
 "           -+k Use constant aggregate data set size.",
 "           -+q Delay in seconds between tests.",
+"           -+l Enable record locking mode.",
+"           -+L Enable record locking mode, with shared file.",
 #if defined(O_DSYNC)
 "           -+D Enable O_DSYNC mode.",
 #endif
@@ -463,7 +466,9 @@ struct client_command {
 	int c_testnum;
 	int c_no_unlink;
 	int c_file_lock;
+	int c_rec_lock;
 	int c_multiplier;
+	int c_share_file;
 	int c_pattern;
 	int c_version;
 	int c_base_time;
@@ -542,7 +547,9 @@ struct client_neutral_command {
 	char c_purge[10]; 		/* very small long long */
 	char c_fetchon[10]; 		/* very small long long */
 	char c_multiplier[10]; 		/* small int */
+	char c_share_file[10];		/* small int */
 	char c_file_lock[10]; 		/* small int */
+	char c_rec_lock[10]; 		/* small int */
 	char c_client_number[20]; 	/* int */
 	char c_command[20]; 		/* int */
 	char c_testnum[20]; 		/* int */
@@ -1144,6 +1151,8 @@ int bif_row,bif_column;
 char aflag, Eflag, hflag, Rflag, rflag, sflag;
 char diag_v,sent_stop;
 char bif_flag;
+int rlocking;
+int share_file;
 char gflag,nflag;
 char yflag,qflag;
 #ifdef Windows
@@ -2240,6 +2249,15 @@ char **argv;
 					sprintf(splash[splash_line++],"\t>>> O_DSYNC mode enabled. <<<\n");
 					odsync=1;
 					break;
+				case 'l':  /* Record locking mode */
+					sprintf(splash[splash_line++],"\t>>> Record locking mode enabled. <<<\n");
+					rlocking=1;
+					break;
+				case 'L':  /* Record locking mode shared files*/
+					sprintf(splash[splash_line++],"\t>>> Record locking, shared file mode enabled. <<<\n");
+					share_file=1;
+					rlocking=1;
+					break;
 #endif
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
@@ -3168,6 +3186,7 @@ throughput_test()
 	else
 	{
 	   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
+
 #ifdef NO_PRINT_LLD
 		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx], xx);
 #else
@@ -5818,7 +5837,7 @@ char sverify;
 	off64_t i;
 	char *where2;
 	char *pattern_ptr;
-	long long mpattern;
+	long long mpattern,xx2;
 	unsigned int seed;
 	unsigned long x;
 	unsigned long long value,value1;
@@ -5833,13 +5852,16 @@ char sverify;
 
 	/* printf("Verify Sverify %d verify %d diag_v %d\n",sverify,verify,diag_v); */
 	x=0;
+	xx2=chid;
+	if(share_file)
+		xx2=(long long)0;
 	mpattern=patt;
 	pattern_buf=patt;
 	if(diag_v)
 	{
 		if(no_unlink)
 			base_time=0;
-		seed= (unsigned int)(base_time+chid+recnum);
+		seed= (unsigned int)(base_time+xx2+recnum);
 	        srand(seed);
 	        mpattern=(long long)rand();
 	        mpattern=(mpattern<<48) | (mpattern<<32) | (mpattern<<16) | mpattern;
@@ -5952,7 +5974,7 @@ char sverify;
 #endif
 {
 	unsigned long long *where;
-	long long i,j;
+	long long i,j,xx2;
 	long long mpattern;
 	unsigned int seed;
 	unsigned long x;
@@ -5965,6 +5987,9 @@ char sverify;
 	value = (a << 32) | b;
 	value1 = (c << 32) | d;
 
+	xx2=chid;
+	if(share_file)
+		xx2=(long long)0;
 	x=0;
 	mpattern=pattern;
 	/* printf("Fill: Sverify %d verify %d diag_v %d\n",sverify,verify,diag_v);*/
@@ -5975,7 +6000,7 @@ char sverify;
 		*/
 		if(no_unlink)
 			base_time=0;
-		seed= (unsigned int)(base_time+chid+recnum);
+		seed= (unsigned int)(base_time+xx2+recnum);
 	        srand(seed);
 		mpattern=(long long)rand();
 		mpattern=(mpattern<<48) | (mpattern<<32) | (mpattern<<16) | mpattern;
@@ -6095,7 +6120,7 @@ long long *data2;
 	double qtime_s_start,qtime_s_stop;
 #endif
 	long long i,j;
-	off64_t numrecs64,traj_offset;
+	off64_t numrecs64,traj_offset,lock_offset;
 	long long Index = 0;
 	long long file_flags = 0;
 	long long traj_size;
@@ -6286,6 +6311,12 @@ long long *data2;
 			{
 				traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 			}
+			if(rlocking)
+			{
+				lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+				mylockr((int) fd, (int) 1, (int)0,
+				  lock_offset, reclen);
+			}
 			if(verify & diag_v)
 				fill_buffer(pbuff,reclen,(long long)pattern,sverify,i);
 			if(compute_flag)
@@ -6367,6 +6398,11 @@ long long *data2;
 			}
 			w_traj_ops_completed++;
 			w_traj_bytes_completed+=reclen;
+			if(rlocking)
+			{
+				mylockr((int) fd, (int) 0, (int)0,
+				  lock_offset, reclen);
+			}
 		}
 #ifdef unix
 		if(Q_flag)
@@ -6904,7 +6940,7 @@ long long *data1,*data2;
 #endif
 	long long j;
 	long long traj_size;
-	off64_t i,numrecs64,traj_offset;
+	off64_t i,numrecs64,traj_offset,lock_offset;
 	long long Index = 0;
 	unsigned long long readrate[2];
 	off64_t filebytes64;
@@ -7078,6 +7114,12 @@ long long *data1,*data2;
 			{
 				traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 			}
+			if(rlocking)
+			{
+				lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+				mylockr((int) fd, (int) 1, (int)1,
+				  lock_offset, reclen);
+			}
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
                         if(multi_buffer)
@@ -7166,6 +7208,11 @@ long long *data1,*data2;
 			}
 			r_traj_ops_completed++;
 			r_traj_bytes_completed+=reclen;
+		}
+		if(rlocking)
+		{
+			mylockr((int) fd, (int) 0, (int)1,
+			  lock_offset, reclen);
 		}
 		if(file_lock)
 			if(mylockf((int) fd, (int) 0, (int)1))
@@ -7316,7 +7363,7 @@ long long *data1, *data2;
 	long long Index=0;
 	int flags;
 	unsigned long long randreadrate[2];
-	off64_t filebytes64;
+	off64_t filebytes64,lock_offset;
 	volatile char *buffer1;
 	char *wmaddr,*nbuff;
 	char *maddr,*free_addr;
@@ -7447,6 +7494,12 @@ long long *data1, *data2;
 				exit(68);
 			   };
 			}
+			if(rlocking)
+			{
+				lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+				mylockr((int) fd, (int) 1, (int)1,
+				  lock_offset, reclen);
+			}
 			if(mmapflag)
 			{
 				wmaddr=&maddr[offset64];
@@ -7495,6 +7548,12 @@ long long *data1, *data2;
 			}
 			if(async_flag && no_copy_flag)
 				async_release(gc);
+			if(rlocking)
+			{
+				lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+				mylockr((int) fd, (int) 1, (int)1,
+				  lock_offset, reclen);
+			}
 		}
 	     }
 	     else
@@ -7546,6 +7605,12 @@ long long *data1, *data2;
 				{
 				  I_LSEEK( fd, offset64, SEEK_SET );
 				}
+				if(rlocking)
+				{
+					lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+					mylockr((int) fd, (int) 1, (int)0,
+					  lock_offset, reclen);
+				}
 				if(mmapflag)
 				{
 					wmaddr=&maddr[offset64];
@@ -7585,6 +7650,11 @@ long long *data1, *data2;
 						signal_handler();
 			 		  }
 					}
+				}
+				if(rlocking)
+				{
+					mylockr((int) fd, (int) 0, (int)0,
+					  lock_offset, reclen);
 				}
 			}
 	     } 	/* end of modifications	*kcollins:2-5-96 */
@@ -7697,7 +7767,7 @@ long long *data1,*data2;
 	off64_t i,numrecs64;
 	long long Index = 0;
 	unsigned long long revreadrate[2];
-	off64_t filebytes64;
+	off64_t filebytes64,lock_offset;
 	int fd,open_flags;
 	char *maddr,*wmaddr;
 	volatile char *buffer1;
@@ -7790,6 +7860,12 @@ long long *data1,*data2;
 	        compute_val=(double)0;
 		for(i=0; i<numrecs64; i++) 
 		{
+			if(rlocking)
+			{
+				lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+				mylockr((int) fd, (int) 1, (int)1,
+				  lock_offset, reclen);
+			}
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
                         if(multi_buffer)
@@ -7845,6 +7921,11 @@ long long *data1,*data2;
 			}
 			if(async_flag && no_copy_flag)
 				async_release(gc);
+			if(rlocking)
+			{
+				mylockr((int) fd, (int) 0, (int)1,
+				  lock_offset, reclen);
+			}
 			if (!(h_flag || k_flag || mmapflag))
 			{
 			  I_LSEEK( fd, (off64_t)-2*reclen, SEEK_CUR );
@@ -7953,7 +8034,7 @@ long long *data1,*data2;
 	long long flags;
 	long long Index=0;
 	unsigned long long writeinrate;
-	off64_t filebytes64;
+	off64_t filebytes64,lock_offset;
 	int fd,wval;
 	char *maddr;
 	char *wmaddr,*free_addr,*nbuff;
@@ -8052,6 +8133,12 @@ long long *data1,*data2;
 		cputime  = cputime_so_far();
 	}
 	for(i=0; i<numrecs64; i++){
+		if(rlocking)
+		{
+			lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+			mylockr((int) fd, (int) 1, (int)0,
+			  lock_offset, reclen);
+		}
 		if(compute_flag)
 			compute_val+=do_compute(compute_time);
         	if(multi_buffer)
@@ -8108,6 +8195,11 @@ long long *data1,*data2;
 				   signal_handler();
 			       }
 			  }
+		}
+		if(rlocking)
+		{
+			mylockr((int) fd, (int) 0, (int)0,
+			  lock_offset, reclen);
 		}
 		if (!(h_flag || k_flag || mmapflag))
 		{
@@ -8210,7 +8302,7 @@ long long *data1, *data2;
 	long long Index = 0;
 	off64_t i,savepos64 = 0;
 	unsigned long long strideinrate;
-	off64_t filebytes64;
+	off64_t filebytes64,lock_offset;
 	long long uu;
 	off64_t stripewrap=0;
 	int fd,open_flags;
@@ -8292,6 +8384,12 @@ long long *data1, *data2;
 		cputime  = cputime_so_far();
 	}
 	for(i=0; i<numrecs64; i++){
+		if(rlocking)
+		{
+			lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+			mylockr((int) fd, (int) 1, (int)1,
+			  lock_offset, reclen);
+		}
 		if(compute_flag)
 			compute_val+=do_compute(compute_time);
         	if(multi_buffer)
@@ -8338,6 +8436,11 @@ long long *data1, *data2;
 		    		exit(88);
 		   	  }
 			}
+		}
+		if(rlocking)
+		{
+			mylockr((int) fd, (int) 0, (int)1,
+			  lock_offset, reclen);
 		}
 		current_position+=reclen;
 		if(verify){
@@ -8506,7 +8609,7 @@ long long *data1,*data2;
 	off64_t filebytes64;
 	long long flags_here = 0;
 	int fd,ltest;
-	off64_t numrecs64,traj_offset;
+	off64_t numrecs64,traj_offset,lock_offset;
 	long long traj_size;
 #ifdef VXFS
 	int test_foo=0;
@@ -8644,6 +8747,12 @@ long long *data1,*data2;
 			}
 			else
 				traj_offset=(i * reclen);
+			if(rlocking)
+			{
+				lock_offset=traj_offset;
+				mylockr((int) fd, (int) 1, (int)0,
+				  lock_offset, reclen);
+			}
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
                         if(multi_buffer)
@@ -8668,6 +8777,11 @@ long long *data1,*data2;
 #endif
 				perror("pwrite");
 				signal_handler();
+			}
+			if(rlocking)
+			{
+				mylockr((int) fd, (int) 0, (int)0,
+				  lock_offset, reclen);
 			}
 		}
 		if(include_flush)
@@ -8769,7 +8883,7 @@ long long *data1, *data2;
 	long long j;
 	long long Index = 0;
 	unsigned long long preadrate[2];
-	off64_t filebytes64;
+	off64_t filebytes64,lock_offset;
 	int fd,open_flags;
 	int ltest;
 	off64_t traj_offset;
@@ -8861,6 +8975,12 @@ long long *data1, *data2;
 			}
 			else
 				traj_offset=(i * reclen);
+			if(rlocking)
+			{
+				lock_offset=traj_offset;
+				mylockr((int) fd, (int) 1, (int)1,
+				  lock_offset, reclen);
+			}
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
                         if(multi_buffer)
@@ -8888,6 +9008,12 @@ long long *data1, *data2;
 				if(verify_buffer(nbuff,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 					exit(104);
 				}
+			}
+			if(rlocking)
+			{
+				lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+				mylockr((int) fd, (int) 1, (int)1,
+				  lock_offset, reclen);
 			}
 		}
 		if(include_flush)
@@ -10451,7 +10577,7 @@ thread_write_test( x)
 	double compute_val = (double)0;
 	float delay = (float)0;
 	double thread_qtime_stop,thread_qtime_start;
-	off64_t traj_offset;
+	off64_t traj_offset,lock_offset;
 	long long flags,traj_size;
 	long long w_traj_bytes_completed;
 	long long w_traj_ops_completed;
@@ -10460,7 +10586,7 @@ thread_write_test( x)
 	long long recs_per_buffer;
 	long long stopped,i;
 	off64_t written_so_far, read_so_far, re_written_so_far,re_read_so_far;
-	long long xx;
+	long long xx,xx2;
 	char *dummyfile [MAXSTREAMS];           /* name of dummy file     */
 	char *nbuff;
 	char *maddr;
@@ -10541,10 +10667,13 @@ thread_write_test( x)
 		
 	}
 	dummyfile[xx]=(char *)malloc((size_t)MAXNAMESIZE);
+	xx2=xx;
+	if(share_file)
+		xx2=(long long)0;
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
 #endif
 	/*****************/
 	/* Children only */
@@ -10684,6 +10813,12 @@ thread_write_test( x)
 		if(Q_flag)
 		{
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
+		}
+		if(rlocking)
+		{
+			lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+			mylockr((int) fd, (int) 1, (int)0,
+			  lock_offset, reclen);
 		}
 		if(verify && diag_v)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
@@ -10832,6 +10967,11 @@ again:
 			written_so_far-=reclen/1024;
 			w_traj_bytes_completed-=reclen;
 		}
+		if(rlocking)
+		{
+			mylockr((int) fd, (int) 0, (int)0,
+			  lock_offset, reclen);
+		}
 	}
 	
 
@@ -10974,7 +11114,7 @@ thread_pwrite_test( x)
 	double compute_val = (double)0;
 	float delay = (float)0;
 	double thread_qtime_stop,thread_qtime_start;
-	off64_t traj_offset;
+	off64_t traj_offset,lock_offset;
 	long long flags,traj_size;
 	long long w_traj_bytes_completed;
 	long long w_traj_ops_completed;
@@ -10983,7 +11123,7 @@ thread_pwrite_test( x)
 	long long recs_per_buffer;
 	long long stopped,i;
 	off64_t written_so_far, read_so_far, re_written_so_far,re_read_so_far;
-	long long xx;
+	long long xx,xx2;
 	char *dummyfile [MAXSTREAMS];           /* name of dummy file     */
 	char *nbuff;
 	char *maddr;
@@ -11064,10 +11204,13 @@ thread_pwrite_test( x)
 		
 	}
 	dummyfile[xx]=(char *)malloc((size_t)MAXNAMESIZE);
+	xx2=xx;
+	if(share_file)
+		xx2=(long long)0;
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
 #endif
 	/*****************/
 	/* Children only */
@@ -11198,15 +11341,17 @@ thread_pwrite_test( x)
 	if(w_traj_flag)
 		rewind(w_traj_fd);
 	for(i=0; i<numrecs64; i++){
+		traj_offset= ( i * reclen );
 		if(w_traj_flag)
 		{
 			traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(float *)&delay, (long)1);
 			reclen=traj_size;
-			I_LSEEK(fd,traj_offset,SEEK_SET);
 		}
-		if(Q_flag)
+		if(rlocking)
 		{
-			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
+			lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+			mylockr((int) fd, (int) 1, (int)0,
+			  lock_offset, reclen);
 		}
 		if(verify && diag_v)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
@@ -11252,7 +11397,7 @@ thread_pwrite_test( x)
 again:		
 		if(mmapflag)
 		{
-			wmaddr = &maddr[i*reclen];
+			wmaddr = &maddr[traj_offset];
 			fill_area((long long*)nbuff,(long long*)wmaddr,(long long)reclen);
 			/*printf("CHid: %lld  Writing offset %lld for length of %lld\n",chid,i*reclen,reclen);*/
 			if(!mmapnsflag)
@@ -11273,14 +11418,14 @@ again:
 				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
 				if(verify)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
-			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (i*reclen), depth,free_addr);
+			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (traj_offset), depth,free_addr);
 			     }
 			     else
-				async_write(gc, (long long)fd, nbuff, reclen, (i*reclen), depth);
+				async_write(gc, (long long)fd, nbuff, reclen, (traj_offset), depth);
 		   }
 		   else
 		   {
-		      wval=I_PWRITE(fd, nbuff, reclen, (i * reclen ));
+		      wval=I_PWRITE(fd, nbuff, reclen, traj_offset);
 		      if(wval != reclen)
 		      {
 			if(*stop_flag && !stopped){
@@ -11337,6 +11482,11 @@ again:
 		    	exit(127);
 		      }
 		    }
+		}
+		if(rlocking)
+		{
+			mylockr((int) fd, (int) 0, (int)0,
+			  lock_offset, reclen);
 		}
 		if(Q_flag)
 		{
@@ -11493,12 +11643,12 @@ thread_rwrite_test(x)
 	/* Children only here 	*/
 	/************************/
 	struct child_stats *child_stat;
-	long long xx;
+	long long xx,xx2;
 	double compute_val = (double)0;
 	double walltime, cputime;
 	float delay = (float)0;
 	double thread_qtime_stop,thread_qtime_start;
-	off64_t traj_offset;
+	off64_t traj_offset,lock_offset;
 	long long w_traj_bytes_completed;
 	long long w_traj_ops_completed;
 	int fd;
@@ -11588,10 +11738,13 @@ thread_rwrite_test(x)
 		
 	}
 	dummyfile[xx]=(char *)malloc((size_t)MAXNAMESIZE);
+	xx2=xx;
+	if(share_file)
+		xx2=(long long)0;
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
 #endif
 	flags = O_RDWR;
 	if(oflag)
@@ -11698,6 +11851,7 @@ thread_rwrite_test(x)
 	if(verify)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 	for(i=0; i<numrecs64; i++){
+		traj_offset= i*reclen ;
 		if(w_traj_flag)
 		{
 			traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(float *)&delay,(long)1);
@@ -11707,6 +11861,12 @@ thread_rwrite_test(x)
 		if(Q_flag)
 		{
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
+		}
+		if(rlocking)
+		{
+			lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+			mylockr((int) fd, (int) 1, (int)0,
+			  lock_offset, reclen);
 		}
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -11799,6 +11959,11 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 #else
 			fprintf(thread_rwqfd,"%10.1lld %10.0f\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000);
 #endif
+		}
+		if(rlocking)
+		{
+			mylockr((int) fd, (int) 0, (int)0,
+			  lock_offset, reclen);
 		}
 	}
 	if(file_lock)
@@ -11920,7 +12085,7 @@ void *
 thread_read_test(x)
 #endif
 {
-	long long xx;
+	long long xx,xx2;
 	struct child_stats *child_stat;
 	double walltime, cputime;
 	long long r_traj_bytes_completed;
@@ -11928,7 +12093,7 @@ thread_read_test(x)
 	int fd;
 	FILE *r_traj_fd,*thread_rqfd;
 	long long flags = 0;
-	off64_t traj_offset;
+	off64_t traj_offset,lock_offset;
 	double starttime1 = 0;
 	float delay = 0;
 	double temp_time;
@@ -11996,10 +12161,13 @@ thread_read_test(x)
 	else
 		nbuff=buffer;
 	dummyfile[xx]=(char *)malloc((size_t)MAXNAMESIZE);
+	xx2=xx;
+	if(share_file)
+		xx2=(long long)0;
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
 #endif
 	if(oflag)
 		flags=O_RDONLY|O_SYNC;
@@ -12110,6 +12278,7 @@ thread_read_test(x)
 	if(r_traj_flag)
 		rewind(r_traj_fd);
 	for(i=0; i<numrecs64; i++){
+		traj_offset= i*reclen;
 		if(disrupt_flag && ((i%DISRUPT)==0))
 		{
 			disrupt(fd);
@@ -12123,6 +12292,12 @@ thread_read_test(x)
 		if(Q_flag)
 		{
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
+		}
+		if(rlocking)
+		{
+			lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+			mylockr((int) fd, (int) 1, (int)1,
+			  lock_offset, reclen);
 		}
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -12219,6 +12394,11 @@ thread_read_test(x)
 #endif
                 }
 
+		if(rlocking)
+		{
+			mylockr((int) fd, (int) 0, (int)1,
+			  lock_offset, reclen);
+		}
 	}
 	if(file_lock)
 		if(mylockf((int) fd, (int) 0, (int)1))
@@ -12337,7 +12517,7 @@ void *
 thread_pread_test(x)
 #endif
 {
-	long long xx;
+	long long xx,xx2;
 	struct child_stats *child_stat;
 	double walltime, cputime;
 	long long r_traj_bytes_completed;
@@ -12345,7 +12525,7 @@ thread_pread_test(x)
 	int fd;
 	FILE *r_traj_fd,*thread_rqfd;
 	long long flags = 0;
-	off64_t traj_offset;
+	off64_t traj_offset,lock_offset;
 	double starttime1 = 0;
 	float delay = 0;
 	double temp_time;
@@ -12413,10 +12593,13 @@ thread_pread_test(x)
 	else
 		nbuff=buffer;
 	dummyfile[xx]=(char *)malloc((size_t)MAXNAMESIZE);
+	xx2=xx;
+	if(share_file)
+		xx2=(long long)0;
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
 #endif
 	if(oflag)
 		flags=O_RDONLY|O_SYNC;
@@ -12527,6 +12710,7 @@ thread_pread_test(x)
 	if(r_traj_flag)
 		rewind(r_traj_fd);
 	for(i=0; i<numrecs64; i++){
+		traj_offset = i*reclen;
 		if(disrupt_flag && ((i%DISRUPT)==0))
 		{
 			disrupt(fd);
@@ -12540,6 +12724,12 @@ thread_pread_test(x)
 		if(Q_flag)
 		{
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
+		}
+		if(rlocking)
+		{
+			lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+			mylockr((int) fd, (int) 1, (int)0,
+			  lock_offset, reclen);
 		}
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -12557,7 +12747,7 @@ thread_pread_test(x)
                 }
 		if(mmapflag)
 		{
-			wmaddr = &maddr[i*reclen];
+			wmaddr = &maddr[traj_offset];
 			fill_area((long long*)wmaddr,(long long*)nbuff,(long long)reclen);
 		}
 		else
@@ -12568,12 +12758,12 @@ thread_pread_test(x)
 			      async_read_no_copy(gc, (long long)fd, &buffer1, (i*reclen), reclen,
 			    	1LL,(numrecs64*reclen),depth);
 			    else
-			      async_read(gc, (long long)fd, nbuff, (i*reclen), reclen,
+			      async_read(gc, (long long)fd, nbuff, (traj_offset), reclen,
 			    	1LL,(numrecs64*reclen),depth);
 			  }
 			  else
 			  {
-				if(I_PREAD((int)fd, (void*)nbuff, (size_t) reclen,(i * reclen) ) != reclen)
+				if(I_PREAD((int)fd, (void*)nbuff, (size_t) reclen,(traj_offset) ) != reclen)
 			      {
 				if(*stop_flag)
 				{
@@ -12636,6 +12826,11 @@ thread_pread_test(x)
 #endif
                 }
 
+		if(rlocking)
+		{
+			mylockr((int) fd, (int) 0, (int)1,
+			  lock_offset, reclen);
+		}
 	}
 	if(file_lock)
 		if(mylockf((int) fd, (int) 0, (int)1))
@@ -12754,7 +12949,7 @@ void *
 thread_rread_test(x)
 #endif
 {
-	long long xx;
+	long long xx,xx2;
 	char *nbuff;
 	struct child_stats *child_stat;
 	int fd;
@@ -12762,7 +12957,7 @@ thread_rread_test(x)
 	long long r_traj_bytes_completed;
 	double walltime, cputime;
 	long long r_traj_ops_completed;
-	off64_t traj_offset;
+	off64_t traj_offset,lock_offset;
 	long long flags = 0;
 	double starttime1 = 0;
 	float delay = 0;
@@ -12848,10 +13043,13 @@ thread_rread_test(x)
 		
 	}
 	dummyfile[xx]=(char *)malloc((size_t)MAXNAMESIZE);
+	xx2=xx;
+	if(share_file)
+		xx2=(long long)0;
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
 #endif
 	if(oflag)
 		flags=O_RDONLY|O_SYNC;
@@ -12943,6 +13141,7 @@ thread_rread_test(x)
 	if(r_traj_flag)
 		rewind(r_traj_fd);
 	for(i=0; i<numrecs64; i++){
+		traj_offset=i*reclen;
 		if(disrupt_flag && ((i%DISRUPT)==0))
 		{
 			disrupt(fd);
@@ -12956,6 +13155,12 @@ thread_rread_test(x)
 		if(Q_flag)
 		{
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
+		}
+		if(rlocking)
+		{
+			lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+			mylockr((int) fd, (int) 1, (int)1,
+			  lock_offset, reclen);
 		}
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -13052,6 +13257,11 @@ thread_rread_test(x)
 #endif
                 }
 
+		if(rlocking)
+		{
+			mylockr((int) fd, (int) 0, (int)1,
+			  lock_offset, reclen);
+		}
 	}
 	if(file_lock)
 		if(mylockf((int) fd, (int) 0, (int)1))
@@ -13168,7 +13378,7 @@ void *
 thread_reverse_read_test(x)
 #endif
 {
-	long long xx;
+	long long xx,xx2;
 	char *nbuff;
 	struct child_stats *child_stat;
 	int fd;
@@ -13180,7 +13390,7 @@ thread_reverse_read_test(x)
 	double temp_time;
 	double compute_val = (double)0;
 	long long recs_per_buffer;
-	off64_t i,t_offset;
+	off64_t i,t_offset,lock_offset;
 	off64_t current_position=0;
 	off64_t written_so_far, reverse_read, re_read_so_far,read_so_far;
 	char *dummyfile[MAXSTREAMS];           /* name of dummy file     */
@@ -13249,10 +13459,13 @@ thread_reverse_read_test(x)
 		
 	}
 	dummyfile[xx]=(char *)malloc((size_t)MAXNAMESIZE);
+	xx2=xx;
+	if(share_file)
+		xx2=(long long)0;
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
 #endif
 	if(oflag)
 		flags=O_RDONLY|O_SYNC;
@@ -13349,6 +13562,12 @@ thread_reverse_read_test(x)
 			printf("File lock for read failed. %d\n",errno);
 	for(i=0; i<numrecs64; i++) 
 	{
+		if(rlocking)
+		{
+			lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+			mylockr((int) fd, (int) 1, (int)1,
+			  lock_offset, reclen);
+		}
 		if(disrupt_flag && ((i%DISRUPT)==0))
 		{
 			disrupt(fd);
@@ -13429,6 +13648,11 @@ thread_reverse_read_test(x)
 				exit(146);
 			}
 		   }
+		}
+		if(rlocking)
+		{
+			mylockr((int) fd, (int) 0, (int)1,
+			  lock_offset, reclen);
 		}
 		current_position+=reclen;
 		if(async_flag && no_copy_flag)
@@ -13560,7 +13784,7 @@ void *
 thread_stride_read_test(x)
 #endif
 {
-	long long xx;
+	long long xx,xx2;
 	char *nbuff=0;
 	struct child_stats *child_stat;
 	double walltime, cputime;
@@ -13572,7 +13796,7 @@ thread_stride_read_test(x)
 	double compute_val = (double)0;
 	double temp_time;
 	long long recs_per_buffer;
-	off64_t i;
+	off64_t i,lock_offset;
 	off64_t savepos64=0;
 	off64_t written_so_far, stride_read,re_read_so_far,read_so_far;
 	off64_t stripewrap = 0;
@@ -13643,10 +13867,13 @@ thread_stride_read_test(x)
 		
 	}
 	dummyfile[xx]=(char *)malloc((size_t)MAXNAMESIZE);
+	xx2=xx;
+	if(share_file)
+		xx2=(long long)0;
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
 #endif
 	if(oflag)
 		flags=O_RDONLY|O_SYNC;
@@ -13741,6 +13968,12 @@ thread_stride_read_test(x)
 		{
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 		}
+		if(rlocking)
+		{
+			lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+			mylockr((int) fd, (int) 1, (int)1,
+			  lock_offset, reclen);
+		}
 		if(*stop_flag)
 		{
 			if(debug1)
@@ -13793,6 +14026,11 @@ thread_stride_read_test(x)
 		    		exit(149);
 			  }
 			}
+		}
+		if(rlocking)
+		{
+			mylockr((int) fd, (int) 0, (int)1,
+			  lock_offset, reclen);
 		}
 		current_position+=reclen;
 		if(verify){
@@ -14036,7 +14274,7 @@ void *
 thread_ranread_test(x)
 #endif
 {
-	long long xx;
+	long long xx,xx2;
 	struct child_stats *child_stat;
 	double walltime, cputime;
 	int fd;
@@ -14056,7 +14294,7 @@ thread_ranread_test(x)
 	char *wmaddr=0;
 	volatile char *buffer1;
 	int anwser,bind_cpu;
-	off64_t traj_offset;
+	off64_t traj_offset,lock_offset;
 	char tmpname[256];
 	FILE *thread_randrfd=0;
 #ifdef VXFS
@@ -14104,10 +14342,13 @@ thread_ranread_test(x)
 	else
 		nbuff=buffer;
 	dummyfile[xx]=(char *)malloc((size_t)MAXNAMESIZE);
+	xx2=xx;
+	if(share_file)
+		xx2=(long long)0;
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
 #endif
 	if(oflag)
 	{
@@ -14262,6 +14503,12 @@ thread_ranread_test(x)
 			exit(158);
 		  };
 		}
+		if(rlocking)
+		{
+			lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+			mylockr((int) fd, (int) 1, (int)1,
+			  lock_offset, reclen);
+		}
 		if(Q_flag)
 		{
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
@@ -14307,6 +14554,11 @@ thread_ranread_test(x)
 				exit(160);
 	 		  }
 			}
+		}
+		if(rlocking)
+		{
+			mylockr((int) fd, (int) 0, (int)1,
+			  lock_offset, reclen);
 		}
 		save_pos=current_offset/reclen;
 		current_offset+=reclen;
@@ -14475,14 +14727,14 @@ thread_ranwrite_test( x)
 	long long recs_per_buffer;
 	long long stopped,i;
 	off64_t written_so_far, read_so_far, re_written_so_far,re_read_so_far;
-	long long xx;
+	long long xx,xx2;
 	char *dummyfile [MAXSTREAMS];           /* name of dummy file     */
 	char *nbuff=0;
 	char *maddr=0;
 	char *wmaddr=0;
 	char *free_addr=0;
 	int anwser,bind_cpu,wval;
-	off64_t filebytes64;
+	off64_t filebytes64,lock_offset;
 	char tmpname[256];
 	FILE *thread_randwqfd=0;
 #ifdef VXFS
@@ -14551,10 +14803,13 @@ thread_ranwrite_test( x)
 		
 	}
 	dummyfile[xx]=(char *)malloc((size_t)MAXNAMESIZE);
+	xx2=xx;
+	if(share_file)
+		xx2=(long long)0;
 #ifdef NO_PRINT_LLD
-	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
 #else
-	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
+	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
 #endif
 	/*****************/
 	/* Children only */
@@ -14703,6 +14958,12 @@ thread_ranwrite_test( x)
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
                         thread_qtime_start=time_so_far();
 		}
+		if(rlocking)
+		{
+			lock_offset=I_LSEEK(fd,0,SEEK_CUR);
+			mylockr((int) fd, (int) 1, (int)0,
+			  lock_offset, reclen);
+		}
 		if(verify & diag_v)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)(current_offset/reclen));
 		if(*stop_flag && !stopped){
@@ -14829,6 +15090,11 @@ again:
 		    	exit(127);
 		      }
 		    }
+		}
+		if(rlocking)
+		{
+			mylockr((int) fd, (int) 0, (int)0,
+			  lock_offset, reclen);
 		}
 		if(Q_flag)
 		{
@@ -15934,6 +16200,51 @@ int fd, op, rdwr;
 	return(ret);
 }
 
+#ifdef HAVE_ANSIC_C
+int
+mylockr(int fd, int op, int rdwr, off64_t offset, off64_t size)
+#else
+int
+mylockr(fd, op, rdwr, offset, size)
+int fd, op, rdwr;
+off64_t offset;
+off64_t size;
+#endif
+{
+	struct flock myflock;
+	int ret;
+	if(op==0) /* Generic unlock the whole file */
+	{
+		/*printf("Child: %lld Unlock offset %lld size %lld\n",chid,offset,size);*/
+		myflock.l_type=F_UNLCK;
+		myflock.l_whence=SEEK_SET;
+		myflock.l_start=offset;
+		myflock.l_len=size; /* The whole file */
+		myflock.l_pid=getpid();
+		ret=fcntl(fd,F_SETLKW, &myflock);
+	}
+	else
+		  /* Generic lock the range  */
+	{
+		if(rdwr==0)
+		{
+			myflock.l_type=F_WRLCK; /* Apply write lock */
+			/* printf("Write ");*/
+		}
+		else
+		{
+			myflock.l_type=F_RDLCK; /* Apply read lock */
+			/* printf("Read ");*/
+		}
+		/*printf("Child: %lld Lock offset %lld size %lld\n",chid, offset,size);*/
+		myflock.l_whence=SEEK_SET;
+		myflock.l_start=offset;
+		myflock.l_len=size; /* The whole file */
+		myflock.l_pid=getpid();
+		ret=fcntl(fd,F_SETLKW, &myflock);
+	}
+	return(ret);
+}
 /************************************************************************/
 /* This function is used to simulate compute time that does		*/
 /* not involve the I/O subsystem.					*/
@@ -16929,7 +17240,9 @@ int send_size;
 	sprintf(outbuf.c_testnum,"%d",send_buffer->c_testnum);
 	sprintf(outbuf.c_no_unlink,"%d",send_buffer->c_no_unlink);
 	sprintf(outbuf.c_file_lock,"%d",send_buffer->c_file_lock);
+	sprintf(outbuf.c_rec_lock,"%d",send_buffer->c_rec_lock);
 	sprintf(outbuf.c_multiplier,"%d",send_buffer->c_multiplier);
+	sprintf(outbuf.c_share_file,"%d",send_buffer->c_share_file);
 	sprintf(outbuf.c_pattern,"%d",send_buffer->c_pattern);
 	sprintf(outbuf.c_version,"%d",send_buffer->c_version);
 	sprintf(outbuf.c_base_time,"%d",send_buffer->c_base_time);
@@ -17746,7 +18059,9 @@ long long numrecs64, reclen;
 	cc.c_odsync = odsync;
 	cc.c_diag_v = diag_v;
 	cc.c_file_lock = file_lock;
+	cc.c_rec_lock = rlocking;
 	cc.c_multiplier = multiplier;
+	cc.c_share_file = share_file;
 	cc.c_pattern = pattern;
 	cc.c_version = proto_version;
 	cc.c_base_time = base_time;
@@ -17983,7 +18298,9 @@ become_client()
 	sscanf(cnc->c_odsync,"%d",&cc.c_odsync);
 	sscanf(cnc->c_diag_v,"%d",&cc.c_diag_v);
 	sscanf(cnc->c_file_lock,"%d",&cc.c_file_lock);
+	sscanf(cnc->c_rec_lock,"%d",&cc.c_rec_lock);
 	sscanf(cnc->c_multiplier,"%d",&cc.c_multiplier);
+	sscanf(cnc->c_share_file,"%d",&cc.c_share_file);
 	sscanf(cnc->c_pattern,"%d",&cc.c_pattern);
 	sscanf(cnc->c_version,"%d",&cc.c_version);
 	sscanf(cnc->c_base_time,"%d",&cc.c_base_time);
@@ -18038,7 +18355,9 @@ become_client()
 	else
 		sverify = cc.c_sverify;
 	file_lock = cc.c_file_lock;
+	rlocking = cc.c_rec_lock;
 	multiplier = cc.c_multiplier;
+	share_file = cc.c_share_file;
 	pattern = cc.c_pattern;
 	/* proto_version = cc.c_version; Don't copy it back. */
 	base_time=cc.c_base_time;

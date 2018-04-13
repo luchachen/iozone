@@ -1,5 +1,5 @@
 .TH IOZONE 1
-.SH NAME
+
 Iozone \- Filesystem Benchmark
 .SH SYNOPSIS
 .B Iozone
@@ -61,6 +61,8 @@ Iozone \- Filesystem Benchmark
 [\fB\-+p\fP \fIpercent_read\fP]
 [\fB\-+r\fP]
 [\fB\-+t\fP]
+[\fB\-+l\fP]
+[\fB\-+L\fP]
 [\fB\-+D\fP]
 [\fB\-+A\fP \fImadvise_selector\fP]
 
@@ -484,6 +486,12 @@ testing.
 .TP
 .BI \-+r
 Enable O_RSYNC | O_SYNC on all testing. 
+.TP
+.BI \-+l
+Enable byte range locking.
+.TP
+.BI \-+L
+Enable byte range locking & shared file mode.
 .TP
 .BI \-+D
 Enable O_DSYNC on all testing. 
