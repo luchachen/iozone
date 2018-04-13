@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.125 $"
+#define THISVERSION "        Version $Revision: 3.126 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -452,15 +452,17 @@ struct client_command {
  * over the socket. This provides neutral format
  * so that heterogeneous clusters will work.
  * This is used when using the network distributed mode.
+ * WARNING !!! This data structure MUST not be bigger
+ * than 1448 bytes or fragmentation will kick your butt.
  */
 struct client_neutral_command {
-	char c_host_name[128];
+	char c_host_name[40];
 	char c_client_name[128];
-	char c_working_dir[256];
-	char c_path_dir[256];
-	char c_execute_name[256];
-	char c_write_traj_filename[256];
-	char c_read_traj_filename[256];
+	char c_working_dir[100];
+	char c_path_dir[100];
+	char c_execute_name[100];
+	char c_write_traj_filename[100];
+	char c_read_traj_filename[100];
 	char c_oflag[2];
 	char c_jflag[2];
 	char c_async_flag[2];
@@ -487,27 +489,27 @@ struct client_neutral_command {
 	char c_xflag[2];
 	char c_MS_flag[2];
 	char c_mmap_mix[2];
-	char c_w_traj_flag[20];		/* int */
-	char c_r_traj_flag[20];		/* int */
-	char c_direct_flag[20]; 	/* int */
+	char c_w_traj_flag[2];		/* small int */
+	char c_r_traj_flag[2];		/* small int */
+	char c_direct_flag[2]; 		/* small int */
+	char c_stride[10]; 		/* small long long */
+	char c_purge[10]; 		/* very small long long */
+	char c_fetchon[10]; 		/* very small long long */
+	char c_multiplier[10]; 		/* small int */
+	char c_file_lock[10]; 		/* small int */
 	char c_client_number[20]; 	/* int */
 	char c_command[20]; 		/* int */
 	char c_testnum[20]; 		/* int */
 	char c_no_unlink[20]; 		/* int */
-	char c_file_lock[20]; 		/* int */
-	char c_multiplier[20]; 		/* int */
 	char c_pattern[20]; 		/* int */
 	char c_version[20]; 		/* int */
 	char c_base_time[20]; 		/* int */
-	char c_stride[80]; 		/* long long */
+	char c_depth[20]; 		/* small long long */
+	char c_child_flag[40]; 		/* small long long */
 	char c_delay[80]; 		/* long long */
-	char c_purge[80]; 		/* long long */
-	char c_fetchon[80]; 		/* long long */
 	char c_numrecs64[80]; 		/* long long */
 	char c_reclen[80]; 		/* long long */
-	char c_child_flag[80]; 		/* long long */
 	char c_delay_start[80]; 	/* long long */
-	char c_depth[80]; 		/* long long */
 	char c_compute_time[80]; 	/* float */
 };	
 

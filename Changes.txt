@@ -1467,5 +1467,10 @@ Simplify the child's debug output mechanism.
 Revision 3.125 
 =============================================================================
 Fix for stonewall in cluster mode.
+=============================================================================
+Revision 3.126 
+=============================================================================
+Shrink the client_neutral_command structure so it fits in a single
+UDP packet. 
 
 
