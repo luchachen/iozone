@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.58 $
+# Version $Revision: 1.59 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -7,7 +7,7 @@
 # Supports:	hpux, hpux_no_ansi, hpux-10.1, hpux_no_ansi-10.1,
 #		sppux, sppux-10.1, ghpux, sppux, 
 #		convex, FreeBSD, OpenBSD, OSFV3, OSFV4, OSFV5, SCO
-#		SCO_Unixware_gcc,NetBSD
+#		SCO_Unixware_gcc,NetBSD,TRU64
 
 
 all:  
@@ -48,6 +48,7 @@ all:
 	@echo "        ->   sppux                (32bit)   <-"
 	@echo "        ->   sppux-10.1           (32bit)   <-"
 	@echo "        ->   sppux_no_ansi-10.1   (32bit)   <-"
+	@echo "        ->   TRU64                (32bit)   <-"
 	@echo "        ->   UWIN                 (32bit)   <-"
 	@echo "        ->   Windows (95/98/NT)   (32bit)   <-"
 	@echo ""
@@ -329,6 +330,16 @@ OSFV4:	iozone_OSFV4.o libbif.o libasync.o
 OSFV5:	iozone_OSFV5.o libbif.o libasync.o
 	cc -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 \
 		-DNO_PRINT_LLD -DOSF_64 iozone_OSFV5.o libbif.o -lpthread \
+		libasync.o -laio -o iozone
+
+#
+# GNU C compiler TRU64 build 
+# Has threads and async I/O but no largefiles.
+#
+
+TRU64:	iozone_TRU64.o libbif.o libasync.o
+	cc -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 -DTRU64 \
+		-DNO_PRINT_LLD -DOSF_64 iozone_TRU64.o libbif.o -lpthread \
 		libasync.o -laio -o iozone
 
 #
@@ -718,6 +729,17 @@ iozone_OSFV5.o:	iozone.c libbif.c
 	@echo ""
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 \
 		-DNO_PRINT_LLD -DOSF_64 iozone.c -o iozone_OSFV5.o
+	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 \
+		-DNO_PRINT_LLD  -DOSF_64 libbif.c -o libbif.o
+	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 \
+		-DNO_PRINT_LLD -DOSF_64 libasync.c -o libasync.o
+
+iozone_TRU64.o:	iozone.c libbif.c
+	@echo ""
+	@echo "Build iozone for TRU64"
+	@echo ""
+	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 -DTRU64 \
+		-DNO_PRINT_LLD -DOSF_64 -pthread iozone.c -o iozone_TRU64.o
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 \
 		-DNO_PRINT_LLD  -DOSF_64 libbif.c -o libbif.o
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 \

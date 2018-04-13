@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.102 $"
+#define THISVERSION "        Version $Revision: 3.103 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -69,6 +69,10 @@ extern  int h_errno; /* imported for errors */
 #define _64BIT_ARCH_
 #else
 #define MODE "\tCompiled for 32 bit mode."
+#endif
+
+#ifndef NO_THREADS
+#include <pthread.h>
 #endif
 
 #ifdef HAVE_PROTO
@@ -125,7 +129,7 @@ char *help[] = {
 "                 3=Read-backwards, 4=Re-write-record, 5=stride-read, 6=fwrite/re-fwrite",
 "                 7=fread/Re-fread, 8=pwrite/Re-pwrite, 9=pread/Re-pread",
 "                 10=pwritev/Re-pwritev, 11=preadv/Re-preadv)",
-"           -I  Use VxFS VX_DIRECT or O_DIRECT for all file operations",
+"           -I  Use VxFS VX_DIRECT, O_DIRECT,or O_DIRECTIO for all file operations",
 "           -j #  Set stride of file accesses to (# * record size)",
 "           -J #  milliseconds of compute cycle before each I/O operation",
 "           -k #  Use POSIX async I/O (no bcopy) with # async operations",
@@ -587,9 +591,6 @@ struct master_neutral_command {
  */
 #define STRIDE 17
 
-#ifndef NO_THREADS
-#include <pthread.h>
-#endif
 
 
 /************************************************************************/
@@ -786,7 +787,7 @@ void purgeit();			/* Purge on chip cache		  */
 void throughput_test();		/* Multi process throughput 	  */
 void multi_throughput_test();	/* Multi process throughput 	  */
 void prepage();			/* Pre-fault user buffer	  */
-#if defined(linux) || defined(solaris) || defined(__AIX__)
+#if defined(linux) || defined(solaris) || defined(__AIX__) || defined(OSFV5)
 float do_compute(float);	/* compute cycle simulation       */
 #else
 float do_compute();		/* compute cycle simulation       */
@@ -840,7 +841,7 @@ void create_temp(off64_t, long long );
 FILE *open_w_traj(void);
 FILE *open_r_traj(void);
 void traj_vers(void);
-long long r_traj_size(void);
+void r_traj_size(void);
 long long w_traj_size(void);
 void init_file_sizes();
 off64_t get_next_file_size(off64_t);
@@ -853,7 +854,7 @@ void del_record_sizes( void );
 #else
 void find_remote_shell();
 void traj_vers();
-long long r_traj_size();
+void r_traj_size();
 long long w_traj_size();
 FILE *open_w_traj();
 FILE *open_r_traj();
@@ -880,6 +881,21 @@ void init_record_sizes();
 off64_t get_next_record_size();
 void add_record_size();
 #endif
+
+#ifdef _LARGEFILE64_SOURCE
+#define I_LSEEK(x,y,z) 	lseek64(x,(off64_t)y,z)
+#define I_OPEN(x,y,z) 	open64(x,y,z)
+#define I_CREAT(x,y) 	creat64(x,y)
+#define I_FOPEN(x,y) 	fopen64(x,y)
+#define I_MMAP(a,b,c,d,e,f) 	mmap64((int)a,(off64_t)b,(int)c,(int)d,(int)e,(off64_t)f)
+#else
+#define I_LSEEK(x,y,z) 	lseek(x,(off_t)y,z)
+#define I_OPEN(x,y,z) 	open(x,y,z)
+#define I_CREAT(x,y) 	creat(x,y)
+#define I_FOPEN(x,y) 	fopen(x,y)
+#define I_MMAP(a,b,c,d,e,f) 	mmap((int)a,(off_t)b,(int)c,(int)d,(int)e,(off_t)f)
+#endif
+
 
 /************************************************************************/
 /* The list of tests to be called.					*/
@@ -1353,7 +1369,7 @@ char **argv;
 #endif
 			async_flag++;
 			break;
-		case 'I':	/* Use VXFS direct advisory or O_DIRECT from Linux */
+		case 'I':	/* Use VXFS direct advisory or O_DIRECT from Linux, or O_DIRECTIO for TRU64 */
 			direct_flag++;
 #ifdef VXFS
 			sprintf(splash[splash_line++],"\tVxFS advanced feature SET_CACHE, VX_DIRECT enabled\n");
@@ -1361,6 +1377,10 @@ char **argv;
 #endif
 #if defined(linux)
 			sprintf(splash[splash_line++],"\tO_DIRECT feature enabled\n");
+			break;
+#endif
+#if defined(TRU64)
+			sprintf(splash[splash_line++],"\tO_DIRECTIO feature enabled\n");
 			break;
 #endif
 		case 'B':	/* Use mmap file for test file */
@@ -5053,6 +5073,10 @@ long long *data2;
 	if(direct_flag)
 		file_flags |=O_DIRECT;
 #endif
+#if defined(TRU64)
+	if(direct_flag)
+		file_flags |=O_DIRECTIO;
+#endif
 
 	for( j=0; j<2; j++)
 	{
@@ -5067,44 +5091,24 @@ long long *data2;
 		}
 		if(j==0)
 		{
-#ifdef _LARGEFILE64_SOURCE 
-	  		if((fd = creat64(filename, 0640))<0)
+	  		if((fd = I_CREAT(filename, 0640))<0)
 	  		{
 				printf("\nCan not create temp file: %s\n", 
 					filename);
 				perror("creat");
 				exit(42);
 	  		}
-#else
-		  	if((fd = creat(filename, 0640))<0)
-		  	{
-				printf("\nCan not create temp file: %s\n", 
-					filename);
-				perror("creat");
-				exit(43);
-		  	}
-#endif
 		}
 		if(fd) 
 			close(fd);
 
-#ifdef _LARGEFILE64_SOURCE 
-	  	if((fd = open64(filename, (int)file_flags))<0)
+	  	if((fd = I_OPEN(filename, (int)file_flags,0))<0)
 	  	{
 			printf("\nCan not open temp file: %s\n", 
 				filename);
 			perror("open");
 			exit(44);
 	  	}
-#else
-	  	if((fd = open(filename, (int)file_flags))<0)
-	  	{
-			printf("\nCan not open temp file: %s\n", 
-				filename);
-			perror("open");
-			exit(45);
-	  	}
-#endif
 #ifdef VXFS
 		if(direct_flag)
 		{
@@ -5127,8 +5131,8 @@ long long *data2;
 		}
 		if(mmap_mix)
 		{
-			wval=write(fd, buffer, (size_t) 1);
-			if(wval != 1)
+			wval=write(fd, buffer, (size_t) page_size);
+			if(wval != page_size)
 			{
 #ifdef NO_PRINT_LLD
 			    	printf("\nError writing block %ld, fd= %d\n", (long long)0, fd);
@@ -5139,15 +5143,11 @@ long long *data2;
 					perror("write");
 				signal_handler();
 			}
-#ifdef _LARGEFILE64_SOURCE
-			lseek64(fd,(off64_t)0,SEEK_SET);
-#else
-			lseek(fd,0,SEEK_SET);
-#endif
+			I_LSEEK(fd,0,SEEK_SET);
 		};
 		fsync(fd);
 #ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
+#if defined (_HPUX_SOURCE) || defined(linux)
 		if(async_flag)
 			async_init(&gc,fd,direct_flag);
 #else
@@ -5178,19 +5178,11 @@ long long *data2;
 			{
 				traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(float *)&compute_time,(long)1);
 				reclen=traj_size;
-#ifdef _LARGEFILE64_SOURCE
-				lseek64(fd,(off64_t)traj_offset,SEEK_SET);
-#else
-				lseek(fd,(off_t)traj_offset,SEEK_SET);
-#endif
+				I_LSEEK(fd,traj_offset,SEEK_SET);
 			}
 			if(Q_flag)
 			{
-#ifdef _LARGEFILE64_SOURCE
-				traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
-#else
-				traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
-#endif
+				traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 			}
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
@@ -5436,8 +5428,7 @@ long long *data2;
 			exit(48);
 		}
 #else
-#ifdef _LARGEFILE64_SOURCE
-		if((stream=(FILE *)fopen64(filename,how)) == 0)
+		if((stream=(FILE *)I_FOPEN(filename,how)) == 0)
 		{
 #ifdef NO_PRINT_LLD
 			printf("\nCan not fdopen temp file: %s %ld\n", 
@@ -5449,20 +5440,6 @@ long long *data2;
 			perror("fdopen");
 			exit(49);
 		}
-#else
-		if((stream=(FILE *)fopen(filename,how)) == 0)
-		{
-#ifdef NO_PRINT_LLD
-			printf("\nCan not fdopen temp file: %s %ld\n", 
-				filename,errno);
-#else
-			printf("\nCan not fdopen temp file: %s %lld\n", 
-				filename,errno);
-#endif
-			perror("fdopen");
-			exit(50);
-		}
-#endif
 #endif
 		fd=open(filename,O_RDONLY);
 		fsync(fd);
@@ -5622,23 +5599,13 @@ long long *data1,*data2;
 			exit(51);
 		}
 #else
-#ifdef _LARGEFILE64_SOURCE
-		if((stream=(FILE *)fopen64(filename,"r")) == 0)
+		if((stream=(FILE *)I_FOPEN(filename,"r")) == 0)
 		{
 			printf("\nCan not fdopen temp file: %s\n", 
 				filename);
 			perror("fdopen");
 			exit(52);
 		}
-#else
-		if((stream=(FILE *)fopen(filename,"r")) == 0)
-		{
-			printf("\nCan not fdopen temp file: %s\n", 
-				filename);
-			perror("fdopen");
-			exit(53);
-		}
-#endif
 #endif
 		fd=open(filename,O_RDONLY);
 		fsync(fd);
@@ -5762,9 +5729,11 @@ long long *data1,*data2;
 /* Read and re-fread test						*/
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
-void read_perf_test(off64_t kilo64,long long reclen,long long *data1,long long *data2)
+void 
+read_perf_test(off64_t kilo64,long long reclen,long long *data1,long long *data2)
 #else
-void read_perf_test(kilo64,reclen,data1,data2)
+void 
+read_perf_test(kilo64,reclen,data1,data2)
 off64_t kilo64;
 long long reclen;
 long long *data1,*data2;
@@ -5802,6 +5771,10 @@ long long *data1,*data2;
 #if defined(linux)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
+#endif
+#if defined(TRU64)
+	if(direct_flag)
+		open_flags |=O_DIRECTIO;
 #endif
 	if(r_traj_flag)
 	{
@@ -5844,15 +5817,14 @@ long long *data1,*data2;
 		{
 			purge_buffer_cache();
 		}
-#ifdef _LARGEFILE64_SOURCE
-		if((fd = open64(filename, open_flags))<0)
+		if((fd = I_OPEN(filename, open_flags,0))<0)
 		{
 			printf("\nCan not open temporary file for read\n");
 			perror("open");
 			exit(58);
 		}
 #ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
+#if defined (_HPUX_SOURCE) || defined(linux)
 		if(async_flag)
 			async_init(&gc,fd,direct_flag);
 #else
@@ -5860,23 +5832,7 @@ long long *data1,*data2;
 			async_init(&gc,fd,0);
 #endif
 #endif
-#else
-		if((fd = open(filename, open_flags))<0)
-		{
-			printf("\nCan not open temporary file for read\n");
-			perror("open");
-			exit(59);
-		}
-#ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
-		if(async_flag)
-			async_init(&gc,fd,direct_flag);
-#else
-		if(async_flag)
-			async_init(&gc,fd,0);
-#endif
-#endif
-#endif
+
 #ifdef VXFS
 		if(direct_flag)
 		{
@@ -5904,7 +5860,7 @@ long long *data1,*data2;
 		buffer=mainbuffer;
 		if(fetchon)
 			fetchit(buffer,reclen);
-		if(read(fd, (void *)buffer, (size_t) 1) != 1)
+		if(read(fd, (void *)buffer, (size_t) page_size) != page_size)
 		{
 #ifdef _64BIT_ARCH_
 			printf("\nError reading block %d %x\n", 0,
@@ -5916,11 +5872,7 @@ long long *data1,*data2;
 			perror("read");
 			exit(60);
 		}
-#ifdef _LARGEFILE64_SOURCE
-		lseek64(fd,(off64_t)0,SEEK_SET);
-#else
-		lseek(fd,0,SEEK_SET);
-#endif
+		I_LSEEK(fd,0,SEEK_SET);
 		buffer=mainbuffer;
 
 		if(fetchon)
@@ -5950,19 +5902,11 @@ long long *data1,*data2;
 			{
 				traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(float *)&compute_time, (long)0);
 				reclen=traj_size;
-#ifdef _LARGEFILE64_SOURCE
-				lseek64(fd,(off64_t)traj_offset,SEEK_SET);
-#else
-				lseek(fd,(off_t)traj_offset,SEEK_SET);
-#endif
+				I_LSEEK(fd,traj_offset,SEEK_SET);
 			}
 			if(Q_flag)
 			{
-#ifdef _LARGEFILE64_SOURCE
-				traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
-#else
-				traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
-#endif
+				traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 			}
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
@@ -6205,6 +6149,10 @@ long long *data1, *data2;
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
+#if defined(TRU64)
+	if(direct_flag)
+		flags |=O_DIRECTIO;
+#endif
 	fd=0;
 	if(oflag)
 		flags |= O_SYNC;
@@ -6221,14 +6169,13 @@ long long *data1, *data2;
 	     {
 			purge_buffer_cache();
 	     }
-#ifdef _LARGEFILE64_SOURCE
-	     if((fd = open64(filename, (int)flags,0640))<0){
+	     if((fd = I_OPEN(filename, ((int)flags),0640))<0){
 			printf("\nCan not open temporary file for read/write\n");
 			perror("open");
 			exit(66);
 	     }
 #ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
+#if defined (_HPUX_SOURCE) || defined(linux)
 		if(async_flag)
 			async_init(&gc,fd,direct_flag);
 #else
@@ -6237,23 +6184,6 @@ long long *data1, *data2;
 #endif
 #endif
 
-#else
-	     if((fd = open(filename, (int)flags,0640))<0){
-			printf("\nCan not open temporary file for read/write\n");
-			perror("open");
-			exit(67);
-	     }
-#ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
-		if(async_flag)
-			async_init(&gc,fd,direct_flag);
-#else
-		if(async_flag)
-			async_init(&gc,fd,0);
-#endif
-#endif
-
-#endif
 #ifdef VXFS
 		if(direct_flag)
 		{
@@ -6308,25 +6238,14 @@ long long *data1, *data2;
 #endif
 #endif
 
-#ifdef _LARGEFILE64_SOURCE
 			if( !(h_flag || k_flag || mmapflag))
 			{
-			   if(lseek64( fd, offset64, SEEK_SET )<0)
+			   if(I_LSEEK( fd, offset64, SEEK_SET )<0)
 			   {
-				perror("lseek64");
+				perror("lseek");
 				exit(68);
 			   };
 			}
-#else
-			if (!(h_flag || k_flag || mmapflag))
-			{
-			  if(lseek( fd, (off_t )offset64, SEEK_SET )<0)
-			  {
-				perror("lseek");
-				exit(69);
-			  };
-			}
-#endif
 			if(mmapflag)
 			{
 				wmaddr=&maddr[offset64];
@@ -6411,11 +6330,7 @@ long long *data1, *data2;
 
 				if (!(h_flag || k_flag || mmapflag))
 				{
-#ifdef _LARGEFILE64_SOURCE
-				  lseek64( fd, offset64, SEEK_SET );
-#else
-				  lseek( fd, (off_t)offset64, SEEK_SET );
-#endif
+				  I_LSEEK( fd, offset64, SEEK_SET );
 				}
 				if(mmapflag)
 				{
@@ -6582,6 +6497,10 @@ long long *data1,*data2;
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
+#if defined(TRU64)
+	if(direct_flag)
+		open_flags |=O_DIRECTIO;
+#endif
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	fd = 0;
@@ -6596,14 +6515,13 @@ long long *data1,*data2;
 		{
 			purge_buffer_cache();
 		}
-#ifdef _LARGEFILE64_SOURCE
-	 	if((fd = open64(filename, (int)O_RDONLY))<0){
+	 	if((fd = I_OPEN(filename, O_RDONLY,0))<0){
 	 		printf("\nCan not open temporary file for read\n");
 	 		perror("open");
 	 		exit(75);
 	 	}
 #ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
+#if defined (_HPUX_SOURCE) || defined(linux)
 		if(async_flag)
 			async_init(&gc,fd,direct_flag);
 #else
@@ -6612,23 +6530,6 @@ long long *data1,*data2;
 #endif
 #endif
 
-#else
-	 	if((fd = open(filename, open_flags))<0){
-	 		printf("\nCan not open temporary file for read\n");
-	 		perror("open");
-	 		exit(76);
-	 	}
-#ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
-		if(async_flag)
-			async_init(&gc,fd,direct_flag);
-#else
-		if(async_flag)
-			async_init(&gc,fd,0);
-#endif
-#endif
-
-#endif
 #ifdef VXFS
 		if(direct_flag)
 		{
@@ -6652,25 +6553,14 @@ long long *data1,*data2;
 		if(fetchon)
 			fetchit(buffer,reclen);
 		starttime2 = time_so_far();
-#ifdef _LARGEFILE64_SOURCE
 		if (!(h_flag || k_flag || mmapflag))
 		{
-		  if(lseek64( fd, (off64_t)-reclen, SEEK_END )<0)
+		  if(I_LSEEK( fd, -reclen, SEEK_END )<0)
 		  {
-			perror("lseek64");
+			perror("lseek");
 			exit(77);
 		  };
 		}
-#else
-		if (!(h_flag || k_flag || mmapflag))
-		{
-		  if(lseek( fd, (off_t)-reclen, SEEK_END )<0)
-		  {
-			perror("lseek");
-			exit(78);
-		  };
-		}
-#endif
 		for(i=0; i<numrecs64; i++) 
 		{
 			if(compute_flag)
@@ -6730,11 +6620,7 @@ long long *data1,*data2;
 				async_release(gc);
 			if (!(h_flag || k_flag || mmapflag))
 			{
-#ifdef _LARGEFILE64_SOURCE
-			  lseek64( fd, (off64_t)-2*reclen, SEEK_CUR );
-#else
-			  lseek( fd, (off_t)(-2*reclen), SEEK_CUR );
-#endif
+			  I_LSEEK( fd, (off64_t)-2*reclen, SEEK_CUR );
 			}
 		}
 #ifdef ASYNC_IO
@@ -6856,6 +6742,10 @@ long long *data1,*data2;
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
+#if defined(TRU64)
+	if(direct_flag)
+		flags |=O_DIRECTIO;
+#endif
 	if(oflag)
 		flags |= O_SYNC;
 	if (!no_unlink)
@@ -6864,21 +6754,12 @@ long long *data1,*data2;
 	{
 		purge_buffer_cache();
 	}
-#ifdef _LARGEFILE64_SOURCE
-        if((fd = open64(dummyfile[0], (int)flags,0640))<0)
+        if((fd = I_OPEN(dummyfile[0], (int)flags,0640))<0)
         {
                     printf("\nCan not open temporary file %s for write.\n",dummyfile[0]);
 		    perror("open");
                     exit(84);
         }
-#else
-        if((fd = open(dummyfile[0], (int)flags, 0640))<0)
-        {
-                    printf("\nCan not open temporary file %s for write.\n",dummyfile[0]);
-		    perror("open");
-                    exit(85);
-        }
-#endif
 #ifdef VXFS
 	if(direct_flag)
 	{
@@ -6897,7 +6778,7 @@ long long *data1,*data2;
 		maddr=(char *)initfile(fd,filebytes64,1,PROT_READ|PROT_WRITE);
 	}
 #ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
+#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
 #else
@@ -6988,11 +6869,7 @@ long long *data1,*data2;
 		}
 		if (!(h_flag || k_flag || mmapflag))
 		{
-#ifdef _LARGEFILE64_SOURCE
-		  lseek64(fd, (off64_t)0,SEEK_SET);
-#else
-		  lseek(fd, 0,SEEK_SET);
-#endif
+		  I_LSEEK(fd, (off64_t)0,SEEK_SET);
 		}
 	}
 
@@ -7110,6 +6987,10 @@ long long *data1, *data2;
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
+#if defined(TRU64)
+	if(direct_flag)
+		open_flags |=O_DIRECTIO;
+#endif
 	next64 = (off64_t)0;
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
@@ -7117,31 +6998,14 @@ long long *data1, *data2;
 	{
 		purge_buffer_cache();
 	}
-#ifdef _LARGEFILE64_SOURCE
-        if((fd = open64(filename, (int)open_flags, 0640))<0)
+        if((fd = I_OPEN(filename, (int)open_flags, 0640))<0)
         {
                     printf("\nCan not open temporary file for read\n");
 		    perror("open");
                     exit(86);
         }
 #ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
-	if(async_flag)
-		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
-#endif
-#else
-        if((fd = open(filename, open_flags, 0640))<0)
-        {
-                    printf("\nCan not open temporary file for read\n");
-		    perror("open");
-                    exit(87);
-        }
-#ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
+#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
 #else
@@ -7150,7 +7014,6 @@ long long *data1, *data2;
 #endif
 #endif
 
-#endif
 #ifdef VXFS
 	if(direct_flag)
 	{
@@ -7267,28 +7130,16 @@ long long *data1, *data2;
 			}
 			else
 			{
-#ifdef _LARGEFILE64_SOURCE
 				current_position = (off64_t)((stripewrap)%numrecs64)*reclen;
-#else
-				current_position = (long long)((stripewrap)%numrecs64)*reclen;
-#endif
 			}
 
 			if (!(h_flag || k_flag || mmapflag))
 			{
-#ifdef _LARGEFILE64_SOURCE
-			  if(lseek64(fd,current_position,SEEK_SET)<0)
-			  {
-				perror("lseek64");
-				exit(91);
-			  }
-#else
-			  if(lseek(fd,(off_t )current_position,SEEK_SET)<0)
+			  if(I_LSEEK(fd,current_position,SEEK_SET)<0)
 			  {
 				perror("lseek");
-				exit(92);
+				exit(91);
 			  }
-#endif
 			}
 		}
 		else			
@@ -7296,19 +7147,11 @@ long long *data1, *data2;
 			current_position+=(stride*reclen)-reclen;
 			if (!(h_flag || k_flag || mmapflag))
 			{
-#ifdef _LARGEFILE64_SOURCE
-			  if(lseek64(fd,(off64_t)current_position,SEEK_SET)<0)
-			  {
-				perror("lseek64");
-				exit(93);
-			  };
-#else
-			  if(lseek(fd,(off_t )current_position,SEEK_SET)<0)
+			  if(I_LSEEK(fd,current_position,SEEK_SET)<0)
 			  {
 				perror("lseek");
-				exit(94);
+				exit(93);
 			  };
-#endif
 			}
 		}
 	}
@@ -7428,6 +7271,10 @@ long long *data1,*data2;
 	if(direct_flag)
 		flags_here |=O_DIRECT;
 #endif
+#if defined(TRU64)
+	if(direct_flag)
+		flags_here |=O_DIRECTIO;
+#endif
 	for( j=0; j<2; j++)
 	{
 		if(cpuutilflag)
@@ -7441,40 +7288,20 @@ long long *data1,*data2;
 		}
 		if( j==0 )
 		{
-#ifdef _LARGEFILE64_SOURCE
-		  	if((fd = creat64(filename, 0640))<0)
+		  	if((fd = I_CREAT(filename, 0640))<0)
 		  	{
 				printf("\nCan not create temp file: %s\n", 
 					filename);
 				perror("creat");
 				exit(95);
 		  	}
-#else
-		  	if((fd = creat(filename, 0640))<0)
-		  	{
-				printf("\nCan not create temp file: %s\n", 
-					filename);
-				perror("creat");
-				exit(96);
-		  	}
-#endif
-#ifdef _LARGEFILE64_SOURCE
-			if((fd = open64(filename, (int)flags_here))<0)
+			if((fd = I_OPEN(filename, (int)flags_here,0))<0)
 			{
 				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
 				exit(97);
 			}
-#else
-			if((fd = open(filename, (int)flags_here))<0)
-			{
-				printf("\nCan not open temp file: %s\n", 
-					filename);
-				perror("open");
-				exit(98);
-			}
-#endif
 #ifdef VXFS
 			if(direct_flag)
 			{
@@ -7491,23 +7318,13 @@ long long *data1,*data2;
 		}
 		else
 		{
-#ifdef _LARGEFILE64_SOURCE
-			if((fd = open64(filename, (int)flags_here))<0)
+			if((fd = I_OPEN(filename, (int)flags_here,0))<0)
 			{
 				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
 				exit(99);
 			}
-#else
-			if((fd = open(filename, (int)flags_here))<0)
-			{
-				printf("\nCan not open temp file: %s\n", 
-					filename);
-				perror("open");
-				exit(100);
-			}
-#endif
 #ifdef VXFS
 			if(direct_flag)
 			{
@@ -7649,6 +7466,10 @@ long long *data1, *data2;
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
+#if defined(TRU64)
+	if(direct_flag)
+		open_flags |=O_DIRECTIO;
+#endif
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	fd = 0;
@@ -7663,21 +7484,12 @@ long long *data1, *data2;
 		{
 			purge_buffer_cache();
 		}
-#ifdef _LARGEFILE64_SOURCE
-		if((fd = open64(filename, (int)open_flags))<0)
+		if((fd = I_OPEN(filename, (int)open_flags,0))<0)
 		{
 			printf("\nCan not open temporary file for read\n");
 			perror("open");
 			exit(101);
 		}
-#else
-		if((fd = open(filename, open_flags))<0)
-		{
-			printf("\nCan not open temporary file for read\n");
-			perror("open");
-			exit(102);
-		}
-#endif
 #ifdef VXFS
 		if(direct_flag)
 		{
@@ -7827,6 +7639,10 @@ long long *data1,*data2;
 	if(direct_flag)
 		flags_here |=O_DIRECT;
 #endif
+#if defined(TRU64)
+	if(direct_flag)
+		flags_here |=O_DIRECTIO;
+#endif
 	 
 	for( j=0; j<2; j++)
 	{
@@ -7841,40 +7657,20 @@ long long *data1,*data2;
 		}
 		if( j==0 )
 		{
-#ifdef _LARGEFILE64_SOURCE
-		  	if((fd = creat64(filename, 0640))<0)
+		  	if((fd = I_CREAT(filename, 0640))<0)
 		  	{
 				printf("\nCan not create temp file: %s\n", 
 					filename);
 				perror("creat");
 				exit(107);
 		  	}
-#else
-		  	if((fd = creat(filename, 0640))<0)
-		  	{
-				printf("\nCan not create temp file: %s\n", 
-					filename);
-				perror("creat");
-				exit(108);
-		  	}
-#endif
-#ifdef _LARGEFILE64_SOURCE
-			if((fd = open64(filename, (int)flags_here))<0)
+			if((fd = I_OPEN(filename, (int)flags_here,0))<0)
 			{
 				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
 				exit(109);
 			}
-#else
-			if((fd = open(filename, (int)flags_here))<0)
-			{
-				printf("\nCan not open temp file: %s\n", 
-					filename);
-				perror("open");
-				exit(110);
-			}
-#endif
 #ifdef VXFS
 			if(direct_flag)
 			{
@@ -7891,23 +7687,13 @@ long long *data1,*data2;
 		}
 		else
 		{
-#ifdef _LARGEFILE64_SOURCE
-			if((fd = open64(filename, (int)flags_here))<0)
+			if((fd = I_OPEN(filename, (int)flags_here,0))<0)
 			{
 				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
 				exit(111);
 			}
-#else
-			if((fd = open(filename, (int)flags_here))<0)
-			{
-				printf("\nCan not open temp file: %s\n", 
-					filename);
-				perror("open");
-				exit(112);
-			}
-#endif
 #ifdef VXFS
 			if(direct_flag)
 			{
@@ -8115,6 +7901,10 @@ long long *data1,*data2;
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
+#if defined(TRU64)
+	if(direct_flag)
+		open_flags |=O_DIRECTIO;
+#endif
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	buffer = mainbuffer;
@@ -8131,21 +7921,12 @@ long long *data1,*data2;
 			purge_buffer_cache();
 		}
 
-#ifdef _LARGEFILE64_SOURCE
-		if((fd = open64(filename, (int)open_flags))<0)
+		if((fd = I_OPEN(filename, (int)open_flags,0))<0)
 		{
 			printf("\nCan not open temporary file for preadv\n");
 			perror("open");
 			exit(114);
 		}
-#else
-		if((fd = open(filename, open_flags))<0)
-		{
-			printf("\nCan not open temporary file for preadv\n");
-			perror("open");
-			exit(115);
-		}
-#endif
 #ifdef VXFS
 		if(direct_flag)
 		{
@@ -9267,19 +9048,11 @@ thread_write_test( x)
 	/*******************************************************************/
 	/* Initial write throughput performance test. **********************/
 	/*******************************************************************/
-#ifdef _LARGEFILE64_SOURCE
-	if((fd = creat64(dummyfile[xx], 0640))<0)
+	if((fd = I_CREAT(dummyfile[xx], 0640))<0)
 	{
 		perror(dummyfile[xx]);
 		exit(123);
 	}
-#else
-	if((fd = creat(dummyfile[xx], 0640))<0)
-	{
-		perror(dummyfile[xx]);
-		exit(124);
-	}
-#endif
 	close(fd);
 	if(oflag)
 		flags=O_RDWR|O_SYNC;
@@ -9289,23 +9062,17 @@ thread_write_test( x)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
-#ifdef _LARGEFILE64_SOURCE
-	if((fd = open64(dummyfile[xx], (int)flags))<0)
+#if defined(TRU64)
+	if(direct_flag)
+		flags |=O_DIRECTIO;
+#endif
+	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
 	{
 		printf("\nCan not open temp file: %s\n", 
 			filename);
 		perror("open");
 		exit(125);
 	}
-#else
-	if((fd = open(dummyfile[xx], (int)flags))<0)
-	{
-		printf("\nCan not open temp file: %s\n", 
-			filename);
-		perror("open");
-		exit(126);
-	}
-#endif
 #ifdef VXFS
 	if(direct_flag)
 	{
@@ -9320,7 +9087,7 @@ thread_write_test( x)
 	}
 #endif
 #ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
+#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
 #else
@@ -9404,19 +9171,11 @@ thread_write_test( x)
 		{
 			traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(float *)&delay, (long)1);
 			reclen=traj_size;
-#ifdef _LARGEFILE64_SOURCE
-			lseek64(fd,(off64_t)traj_offset,SEEK_SET);
-#else
-			lseek(fd,(off_t)traj_offset,SEEK_SET);
-#endif
+			I_LSEEK(fd,traj_offset,SEEK_SET);
 		}
 		if(Q_flag)
 		{
-#ifdef _LARGEFILE64_SOURCE
-			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
-#else
-			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
-#endif
+			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 		}
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -9801,8 +9560,12 @@ thread_rwrite_test(x)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
-#ifdef _LARGEFILE64_SOURCE
-	if((fd = open64(dummyfile[xx], (int)flags))<0)
+#if defined(TRU64)
+	if(direct_flag)
+		flags |=O_DIRECTIO;
+#endif
+
+	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
 	{
 #ifdef NO_PRINT_LLD
 		printf("\nChild %ld\n",xx);
@@ -9813,19 +9576,6 @@ thread_rwrite_test(x)
 		perror(dummyfile[xx]);
 		exit(128);
 	}
-#else
-	if((fd = open(dummyfile[xx], (int)flags))<0)
-	{
-#ifdef NO_PRINT_LLD
-		printf("\nChild %ld\n",xx);
-#else
-		printf("\nChild %lld\n",xx);
-#endif
-		child_stat->flag = CHILD_STATE_HOLD;
-		perror(dummyfile[xx]);
-		exit(129);
-	}
-#endif
 #ifdef VXFS
 	if(direct_flag)
 	{
@@ -9840,7 +9590,7 @@ thread_rwrite_test(x)
 	}
 #endif
 #ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
+#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
 #else
@@ -9906,19 +9656,11 @@ thread_rwrite_test(x)
 		{
 			traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(float *)&delay,(long)1);
 			reclen=traj_size;
-#ifdef _LARGEFILE64_SOURCE
-			lseek64(fd,(off64_t)traj_offset,SEEK_SET);
-#else
-			lseek(fd,(off_t)traj_offset,SEEK_SET);
-#endif
+			I_LSEEK(fd,traj_offset,SEEK_SET);
 		}
 		if(Q_flag)
 		{
-#ifdef _LARGEFILE64_SOURCE
-			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
-#else
-			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
-#endif
+			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 		}
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -10210,14 +9952,17 @@ thread_read_test(x)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
-#ifdef _LARGEFILE64_SOURCE
-	if((fd = open64(dummyfile[xx], (int)flags))<0)
+#if defined(TRU64)
+	if(direct_flag)
+		flags |=O_DIRECTIO;
+#endif
+	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
 	{
 		perror(dummyfile[xx]);
 		exit(130);
 	}
 #ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
+#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
 #else
@@ -10237,36 +9982,6 @@ thread_read_test(x)
 			exit(3);
 		}
 	}
-#endif
-#else
-	if((fd = open(dummyfile[xx], (int)flags))<0)
-	{
-		perror(dummyfile[xx]);
-		exit(131);
-	}
-#ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
-	if(async_flag)
-		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
-#endif
-#ifdef VXFS
-	if(direct_flag)
-	{
-		ioctl(fd,VX_SETCACHE,VX_DIRECT);
-		ioctl(fd,VX_GETCACHE,&test_foo);
-		if(test_foo == 0)
-		{
-			if(!client_iozone)
-			  printf("\nVxFS advanced setcache feature not available.\n");
-			exit(3);
-		}
-	}
-#endif
-
 #endif
 	if(mmapflag)
 	{
@@ -10345,19 +10060,11 @@ thread_read_test(x)
 		{
 			traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(float *)&delay,(long)0);
 			reclen=traj_size;
-#ifdef _LARGEFILE64_SOURCE
-			lseek64(fd,(off64_t)traj_offset,SEEK_SET);
-#else
-			lseek(fd,(off_t)traj_offset,SEEK_SET);
-#endif
+			I_LSEEK(fd,traj_offset,SEEK_SET);
 		}
 		if(Q_flag)
 		{
-#ifdef _LARGEFILE64_SOURCE
-			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
-#else
-			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
-#endif
+			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 		}
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -10673,14 +10380,18 @@ thread_rread_test(x)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
-#ifdef _LARGEFILE64_SOURCE
-	if((fd = open64(dummyfile[xx], (int)flags))<0)
+#if defined(TRU64)
+	if(direct_flag)
+		flags |=O_DIRECTIO;
+#endif
+
+	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
 		perror(dummyfile[xx]);
 		exit(135);
 	}
 #ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
+#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
 #else
@@ -10700,35 +10411,6 @@ thread_rread_test(x)
 			exit(3);
 		}
 	}
-#endif
-#else
-	if((fd = open(dummyfile[xx], (int)flags))<0)
-	{
-		perror(dummyfile[xx]);
-		exit(136);
-	}
-#ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
-	if(async_flag)
-		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
-#endif
-#ifdef VXFS
-	if(direct_flag)
-	{
-		ioctl(fd,VX_SETCACHE,VX_DIRECT);
-		ioctl(fd,VX_GETCACHE,&test_foo);
-		if(test_foo == 0)
-		{
-			if(!client_iozone)
-			  printf("\nVxFS advanced setcache feature not available.\n");
-			exit(3);
-		}
-	}
-#endif
 #endif
 	if(mmapflag)
 	{
@@ -10787,19 +10469,11 @@ thread_rread_test(x)
 		{
 			traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(float *)&delay,(long)0);
 			reclen=traj_size;
-#ifdef _LARGEFILE64_SOURCE
-			lseek64(fd,(off64_t)traj_offset,SEEK_SET);
-#else
-			lseek(fd,(off_t)traj_offset,SEEK_SET);
-#endif
+			I_LSEEK(fd,traj_offset,SEEK_SET);
 		}
 		if(Q_flag)
 		{
-#ifdef _LARGEFILE64_SOURCE
-			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
-#else
-			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
-#endif
+			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 		}
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -11104,14 +10778,18 @@ thread_reverse_read_test(x)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
-#ifdef _LARGEFILE64_SOURCE
-	if((fd = open64(dummyfile[xx], (int)flags))<0)
+#if defined(TRU64)
+	if(direct_flag)
+		flags |=O_DIRECTIO;
+#endif
+
+	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
 		perror(dummyfile[xx]);
 		exit(140);
 	}
 #ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
+#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
 #else
@@ -11131,36 +10809,6 @@ thread_reverse_read_test(x)
 			exit(3);
 		}
 	}
-#endif
-#else
-	if((fd = open(dummyfile[xx], (int)flags))<0)
-	{
-		perror(dummyfile[xx]);
-		exit(141);
-	}
-#ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
-	if(async_flag)
-		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
-#endif
-#ifdef VXFS
-	if(direct_flag)
-	{
-		ioctl(fd,VX_SETCACHE,VX_DIRECT);
-		ioctl(fd,VX_GETCACHE,&test_foo);
-		if(test_foo == 0)
-		{
-			if(!client_iozone)
-			  printf("\nVxFS advanced setcache feature not available.\n");
-			exit(3);
-		}
-	}
-#endif
-
 #endif
 	if(mmapflag)
 	{
@@ -11201,26 +10849,15 @@ thread_reverse_read_test(x)
 		cputime = cputime_so_far();
 	}
 
-#ifdef _LARGEFILE64_SOURCE
 	t_offset = (off64_t)reclen;
 	if (!(h_flag || k_flag || mmapflag))
 	{
-	  if((lseek64( fd, -t_offset, SEEK_END ))<0)
+	  if((I_LSEEK( fd, -t_offset, SEEK_END ))<0)
 	  {
-		perror("lseek64");
+		perror("lseek");
 		exit(142);
 	  };
 	}
-#else
-	if (!(h_flag || k_flag || mmapflag))
-	{
-	  if((lseek( fd, (off_t)-reclen, SEEK_END ))<0)
-	  {
-		perror("lseek");
-		exit(143);
-	  };
-	}
-#endif
 	current_position=(reclen*numrecs64)-reclen;
 	if(file_lock)
 		if(mylockf((int) fd, (int) 1, (int)1)!=0)
@@ -11235,11 +10872,7 @@ thread_reverse_read_test(x)
 			compute_val+=do_compute(delay);
 		if(Q_flag)
 		{
-#ifdef _LARGEFILE64_SOURCE
-			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
-#else
-			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
-#endif
+			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 		}
 		if(*stop_flag)
 		{
@@ -11315,18 +10948,11 @@ thread_reverse_read_test(x)
 		}
 		if(async_flag && no_copy_flag)
 			async_release(gc);
-#ifdef _LARGEFILE64_SOURCE
 		t_offset = (off64_t)reclen*2;
 		if (!(h_flag || k_flag || mmapflag))
 		{
-		  lseek64( fd, -t_offset, SEEK_CUR );
+		  I_LSEEK( fd, -t_offset, SEEK_CUR );
 		}
-#else
-		if (!(h_flag || k_flag || mmapflag))
-		{
-		  lseek( fd, (off_t)(-2*reclen), SEEK_CUR );
-		}
-#endif
 		current_position-=(2 *reclen);
 		reverse_read +=reclen/1024;
 		if(*stop_flag)
@@ -11544,14 +11170,18 @@ thread_stride_read_test(x)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
-#ifdef _LARGEFILE64_SOURCE
-	if((fd = open64(dummyfile[xx], (int)flags))<0)
+#if defined(TRU64)
+	if(direct_flag)
+		flags |=O_DIRECTIO;
+#endif
+
+	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
 		perror(dummyfile[xx]);
 		exit(147);
 	}
 #ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
+#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
 #else
@@ -11573,36 +11203,6 @@ thread_stride_read_test(x)
 	}
 #endif
 
-#else
-	if((fd = open(dummyfile[xx], (int)flags))<0)
-	{
-		perror(dummyfile[xx]);
-		exit(148);
-	}
-#ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
-	if(async_flag)
-	async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
-#endif
-#ifdef VXFS
-	if(direct_flag)
-	{
-		ioctl(fd,VX_SETCACHE,VX_DIRECT);
-		ioctl(fd,VX_GETCACHE,&test_foo);
-		if(test_foo == 0)
-		{
-			if(!client_iozone)
-			  printf("\nVxFS advanced setcache feature not available.\n");
-			exit(3);
-		}
-	}
-#endif
-
-#endif
 	if(mmapflag)
 	{
 		maddr=(char *)initfile(fd,(numrecs64*reclen),0,PROT_READ);
@@ -11653,11 +11253,7 @@ thread_stride_read_test(x)
 			compute_val+=do_compute(delay);
 		if(Q_flag)
 		{
-#ifdef _LARGEFILE64_SOURCE
-			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
-#else
-			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
-#endif
+			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 		}
 		if(*stop_flag)
 		{
@@ -11747,27 +11343,15 @@ thread_stride_read_test(x)
 			}
 			else
 			{
-#ifdef _LARGEFILE64_SOURCE
 				current_position = (off64_t)((stripewrap)%numrecs64)*reclen;
-#else
-				current_position = (long long)((stripewrap)%numrecs64)*reclen;
-#endif
 			}
 			if (!(h_flag || k_flag || mmapflag))
 			{
-#ifdef _LARGEFILE64_SOURCE
-			  if(lseek64(fd,current_position,SEEK_SET)<0)
-			  {
-				perror("lseek64");
-				exit(152);
-			  }
-#else
-			  if(lseek(fd,(off_t)current_position,SEEK_SET)<0)
+			  if(I_LSEEK(fd,current_position,SEEK_SET)<0)
 			  {
 				perror("lseek");
-				exit(153);
+				exit(152);
 			  }
-#endif
 			}
 		}
 		else			
@@ -11775,19 +11359,11 @@ thread_stride_read_test(x)
 			current_position+=(stride*reclen)-reclen;
 			if (!(h_flag || k_flag || mmapflag))
 			{
-#ifdef _LARGEFILE64_SOURCE
-			  if(lseek64(fd,(off64_t)current_position,SEEK_SET)<0)
-			  {
-				perror("lseek64");
-				exit(154);
-			  };
-#else
-			  if(lseek(fd,(off_t)current_position,SEEK_SET)<0)
+			  if(I_LSEEK(fd,current_position,SEEK_SET)<0)
 			  {
 				perror("lseek");
-				exit(155);
+				exit(154);
 			  };
-#endif
 			}
 		}
 		stride_read +=reclen/1024;
@@ -11986,14 +11562,18 @@ thread_ranread_test(x)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
-#ifdef _LARGEFILE64_SOURCE
-	if((fd = open64(dummyfile[xx], (int)flags))<0)
+#if defined(TRU64)
+	if(direct_flag)
+		flags |=O_DIRECTIO;
+#endif
+
+	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
 		perror(dummyfile[xx]);
 		exit(156);
 	}
 #ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
+#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
 #else
@@ -12016,36 +11596,6 @@ thread_ranread_test(x)
 	}
 #endif
 
-#else
-	if((fd = open(dummyfile[xx], (int)flags))<0)
-	{
-		perror(dummyfile[xx]);
-		exit(157);
-	}
-#ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
-	if(async_flag)
-		async_init(&gc,fd,direct_flag);
-#else
-	if(async_flag)
-		async_init(&gc,fd,0);
-#endif
-#endif
-#ifdef VXFS
-	if(direct_flag)
-	{
-		ioctl(fd,VX_SETCACHE,VX_DIRECT);
-		ioctl(fd,VX_GETCACHE,&test_foo);
-		if(test_foo == 0)
-		{
-			if(!client_iozone)
-			  printf("\nVxFS advanced setcache feature not available.\n");
-			exit(3);
-		}
-	}
-#endif
-
-#endif
 	if(mmapflag)
 	{
 		maddr=(char *)initfile(fd,(numrecs64*reclen),0,PROT_READ);
@@ -12140,27 +11690,15 @@ thread_ranread_test(x)
 
 		if (!(h_flag || k_flag || mmapflag))
 		{
-#ifdef _LARGEFILE64_SOURCE
-		  if(lseek64( fd, current_offset, SEEK_SET )<0)
-		  {
-			perror("lseek64");
-			exit(158);
-		  };
-#else
-		  if(lseek( fd, (off_t)current_offset, SEEK_SET )<0)
+		  if(I_LSEEK( fd, current_offset, SEEK_SET )<0)
 		  {
 			perror("lseek");
-			exit(159);
+			exit(158);
 		  };
-#endif
 		}
 		if(Q_flag)
 		{
-#ifdef _LARGEFILE64_SOURCE
-			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
-#else
-			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
-#endif
+			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
                         thread_qtime_start=time_so_far();
 		}
 		if(mmapflag)
@@ -12448,19 +11986,11 @@ thread_ranwrite_test( x)
 	/* Random write throughput performance test. **********************/
 	/*******************************************************************/
 #ifdef foobar
-#ifdef _LARGEFILE64_SOURCE
-	if((fd = creat64(dummyfile[xx], 0640))<0)
+	if((fd = I_CREAT(dummyfile[xx], 0640))<0)
 	{
 		perror(dummyfile[xx]);
 		exit(123);
 	}
-#else
-	if((fd = creat(dummyfile[xx], 0640))<0)
-	{
-		perror(dummyfile[xx]);
-		exit(124);
-	}
-#endif
 	close(fd);
 #endif
 	if(oflag)
@@ -12471,23 +12001,17 @@ thread_ranwrite_test( x)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
-#ifdef _LARGEFILE64_SOURCE
-	if((fd = open64(dummyfile[xx], (int)flags))<0)
+#if defined(TRU64)
+	if(direct_flag)
+		flags |=O_DIRECTIO;
+#endif
+	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
 		printf("\nCan not open temp file: %s\n", 
 			filename);
 		perror("open");
 		exit(125);
 	}
-#else
-	if((fd = open(dummyfile[xx], (int)flags))<0)
-	{
-		printf("\nCan not open temp file: %s\n", 
-			filename);
-		perror("open");
-		exit(126);
-	}
-#endif
 #ifdef VXFS
 	if(direct_flag)
 	{
@@ -12502,7 +12026,7 @@ thread_ranwrite_test( x)
 	}
 #endif
 #ifdef ASYNC_IO
-#ifdef _HPUX_SOURCE
+#if defined(_HPUX_SOURCE) || defined(linux)
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
 #else
@@ -12579,27 +12103,15 @@ thread_ranwrite_test( x)
 
 		if (!(h_flag || k_flag || mmapflag))
 		{
-#ifdef _LARGEFILE64_SOURCE
-		  if(lseek64( fd, current_offset, SEEK_SET )<0)
-		  {
-			perror("lseek64");
-			exit(158);
-		  };
-#else
-		  if(lseek( fd, (off_t)current_offset, SEEK_SET )<0)
+		  if(I_LSEEK( fd, current_offset, SEEK_SET )<0)
 		  {
 			perror("lseek");
-			exit(159);
+			exit(158);
 		  };
-#endif
 		}
 		if(Q_flag)
 		{
-#ifdef _LARGEFILE64_SOURCE
-			traj_offset=lseek64(fd,(off64_t)0,SEEK_CUR);
-#else
-			traj_offset=lseek(fd,(off_t)0,SEEK_CUR);
-#endif
+			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
                         thread_qtime_start=time_so_far();
 		}
 		if(*stop_flag && !stopped){
@@ -13266,21 +12778,13 @@ int flag, prot;
 	 if(flag)
 	 {
 
-#ifdef _LARGEFILE64_SOURCE 
-	 	lseek64(fd,filebytes-1,SEEK_SET);
-#else
-	 	lseek(fd,(off_t)filebytes-1,SEEK_SET);
-#endif
+	 	I_LSEEK(fd,(filebytes-1),SEEK_SET);
 		x=write(fd,"b",1);
 		if(x < 1)
 		{
 			printf("Unable to write file\n");
 		}
-#ifdef _LARGEFILE64_SOURCE 
-	 	lseek64(fd,0,SEEK_SET);
-#else
-	 	lseek(fd,0,SEEK_SET);
-#endif
+	 	I_LSEEK(fd,0,SEEK_SET);
 	 }
 
 #ifdef IRIX64
@@ -13303,23 +12807,11 @@ int flag, prot;
 #endif
 
 #ifdef bsd4_2
-#ifdef _LARGEFILE64_SOURCE 
-	 pa = (char *)mmap64( 0,&filebytes, (int)prot, 
+	 pa = (char *)mmap( 0,&filebytes, (int)prot, 
 	 		(int)mflags, (int)fd, 0);
 #else
-	 tfilebytes=(size_t)filebytes;
-	 pa = (char *)mmap( 0,&tfilebytes, (int)prot, 
-	 		(int)mflags, (int)fd, 0);
-#endif
-#else
-#ifdef _LARGEFILE64_SOURCE 
-	 pa = (char *)mmap64( (char *)0,(off64_t)filebytes, (int)prot, 
-	 		(int)mflags, (int)fd, (off64_t)0);
-#else
-	 tfilebytes=(size_t)filebytes;
-	 pa = (char *)mmap( (int)0,tfilebytes, (int)prot, 
-	 		(int)mflags, (int)fd, (off_t)0);
-#endif
+	 pa = (char *)I_MMAP( ((char *)0),filebytes, prot, 
+	 		mflags, fd, 0);
 #endif
 #ifdef __convex_spp
 	if(pa == (char *)-1)
@@ -13750,42 +13242,22 @@ int fd;
 #endif
 {
 	char buf[1024];
-#ifdef _LARGEFILE64_SOURCE
 	off64_t current;
-#else
-	off_t current;
-#endif
 	/* Save current position */
-#ifdef _LARGEFILE64_SOURCE
-	current = lseek64(fd,(off64_t)0,SEEK_CUR);
-#else
-	current = lseek(fd,0,SEEK_CUR);
-#endif
+	current = I_LSEEK(fd,0,SEEK_CUR);
 
 	/* Move to beginning of file */
-#ifdef _LARGEFILE64_SOURCE
-	lseek64(fd,(off64_t)0,SEEK_SET);
-#else
-	lseek(fd,0,SEEK_SET);
-#endif
+	I_LSEEK(fd,0,SEEK_SET);
 	/* Read a little of the file */
 	read(fd,buf,1);
 
 	/* Skip to 3k into the file */
-#ifdef _LARGEFILE64_SOURCE
-	lseek64(fd,(off64_t)3096,SEEK_SET);
-#else
-	lseek(fd,3096,SEEK_SET);
-#endif
+	I_LSEEK(fd,3096,SEEK_SET);
 	/* Read a little of the file */
 	read(fd,buf,1);
 
 	/* Restore current position in file, before disruption */
-#ifdef _LARGEFILE64_SOURCE
-	lseek64(fd,(off64_t)current,SEEK_SET);
-#else
-	lseek(fd,current,SEEK_SET);
-#endif
+	I_LSEEK(fd,current,SEEK_SET);
 	
 }
 
@@ -13931,10 +13403,10 @@ open_w_traj()
 /* and the maximum file offset.						*/
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
-long long
+void 
 r_traj_size(void)
 #else
-long long
+void
 r_traj_size()
 #endif
 {
