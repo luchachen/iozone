@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.214 $"
+#define THISVERSION "        Version $Revision: 3.215 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -920,6 +920,7 @@ int create_xls();
 void close_xls();
 void do_label();
 int mylockf(int, int, int);
+int mylockr(int,int, int, long long, long long);
 int rand(void);
 void srand(unsigned int);
 int get_client_info(void);
@@ -990,6 +991,7 @@ int async_read();
 int async_read_no_copy();
 #endif
 int mylockf();
+int mylockr();
 int rand();
 void srand();
 int get_client_info();
