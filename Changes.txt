@@ -1227,5 +1227,10 @@ of zeros.
 Revision 3.60
 =============================================================================
 Fix headers in the Excel output when cross over kicks in.
+=============================================================================
+Revision 3.61
+=============================================================================
+Added -y and -q to set record size range
+Added command line to output
 
 

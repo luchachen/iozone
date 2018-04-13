@@ -11,7 +11,7 @@
 /* 		Plano, TX 75025						*/
 /*  									*/
 /************************************************************************/
-/*    	Copyright 1991, 1992, 1994, 1998  William D. Norcott		*/
+/*  Copyright 1991, 1992, 1994, 1998, 2000, 2001  William D. Norcott	*/
 /************************************************************************/
 /*									*/
 /* Iozone is based on the original work done by William Norrcot. It has	*/
@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.60 $"
+#define THISVERSION "        Version $Revision: 3.61 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -77,6 +77,7 @@ int atoi();
 int close();
 int unlink();
 int main();
+void record_command_line();
 long wait();
 int fsync();
 void srand48();
@@ -94,15 +95,15 @@ long long mythread_create();
 
 
 char *help[] = {
-"    Usage: iozone [-s kilobytes] [-r record_length in kb ] [-f [path]filename] ",
-"                  [-i test] [-E] [-p] [-a] [-A] [-m] [-M] [-t children] [-h] [-o] ",
+"    Usage: iozone [-s kilobytes] [-r record_length in kb] [-f [path]filename] ",
+"                  [-i test] [-E] [-p] [-a] [-A] [-z] [-m] [-M] [-t children] [-h] [-o] ",
 "                  [-l min_number_procs] [-u] max_number_procs] [-v] [-R] [-x]",
-"                  [-d microseconds] [-F path1 path2...] [-V pattern ] [-j stride ]",
+"                  [-d microseconds] [-F path1 path2...] [-V pattern] [-j stride]",
 "                  [-T ] [-C] [-B] [-D] [-G] [-I] [-H depth] [-k depth] [-U mount_point]",
 "                  [-S cache_size] [-O] [-L line_size] [-K] [-g maxfilesize_in_kb]",
 "                  [-n] minfilesize_in_kb] [-N] [-Q] [-P start_cpu] [-e] [-c] [-b Excel.xls]",
 "                  [-J milliseconds] [-X write_telemetry_filename]",
-"                  [-Y read_telemetry_filename]",
+"                  [-Y read_telemetry_filename] [-y minrecsize_in_kb] [-q maxrecsize_in_kb]",
 " ",
 "           -s # Kilobytes in file.",
 "              or -s #k .. size in Kb",
@@ -160,6 +161,8 @@ char *help[] = {
 "           -X filename  Write telemetry file. Contains lines with (offset reclen compute_time) in ascii",
 "           -Y filename  Read  telemetry file. Contains lines with (offset reclen compute_time) in ascii",
 "           -z Used in conjunction with -a to test all possible record sizes",
+"           -y #  Set minimum record size (in kbytes) for auto mode",
+"           -q #  Set maximum record size (in kbytes) for auto mode",
 "" };
 
 char *head1[] = {
@@ -356,10 +359,10 @@ struct child_stats {
 #define NUMRECS FILESIZE/RECLEN		/* number of records */
 
 #ifdef __bsdi__
-#define CROSSOVER (8*1024)		/* At 16 Meg switch to large records */
+#define CROSSOVER (8*1024)		/* At 8 Meg switch to large records */
 #define MAXBUFFERSIZE (8*1024*1024)		/*maximum buffer size*/
 #else
-#define CROSSOVER (16*1024)		/* At 16 Meg switch to large records */
+#define CROSSOVER (1*1024)		/* At 16 Meg switch to large records */
 #define MAXBUFFERSIZE (16*1024*1024)		/*maximum buffer size*/
 #endif
 
@@ -597,6 +600,7 @@ int bif_row,bif_column;
 char aflag, mflag, pflag, Eflag, hflag, oflag, Rflag, rflag, sflag;
 char no_copy_flag,h_flag,k_flag,include_close,include_flush,bif_flag;
 char stride_flag,gflag,nflag;
+char yflag,qflag;
 int direct_flag;
 char async_flag;
 char trflag; 
@@ -670,11 +674,12 @@ off64_t min_file_size = KILOBYTES_START;
 off64_t max_file_size = KILOBYTES_END;
 long long min_rec_size = RECLEN_START;
 long long max_rec_size = RECLEN_END;
-long long orig_min_rec_size;
-long long orig_max_rec_size;
+long long orig_min_rec_size = RECLEN_START;
+long long orig_max_rec_size = RECLEN_END;
 long long xover = CROSSOVER;
 char *throughput_tests[] = {"Initial write","Rewrite","Read","Re-read",
 	"Reverse Read","Stride read","Random read","Random write"};
+char command_line[1024] = "\0";
 
 /****************************************************************/
 /*								*/
@@ -719,6 +724,7 @@ char **argv;
 	printf("\t             Al Slater, Scott Rhine, Mike Wisner, Ken Goss\n");
     	printf("\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR.\n\n");
 	printf("\tRun began: %s\n",ctime(&time_run));
+	record_command_line(argc, argv);
 
     	signal(SIGINT, signal_handler);	 /* handle user interrupt */
     	signal(SIGTERM, signal_handler);	 /* handle kill from shell */
@@ -752,7 +758,7 @@ char **argv;
 	auto_mode = 0;
 	inp_pat = PATTERN;
 	pattern = ((inp_pat << 24) | (inp_pat << 16) | (inp_pat << 8) | inp_pat);
-	while((cret = getopt(argc,argv,"ZQNIBDGCTOMREWovAxamwphcezKJ:j:k:V:r:t:s:f:F:d:l:u:U:S:L:H:P:i:b:X:Y:g:n: ")) != EOF){
+	while((cret = getopt(argc,argv,"ZQNIBDGCTOMREWovAxamwphcezKJ:j:k:V:r:t:s:f:F:d:l:u:U:S:L:H:P:i:b:X:Y:g:n:y:q: ")) != EOF){
 		switch(cret){
 		case 'k':	/* Async I/O with no bcopys */
 			depth = (long long)(atoi(optarg));
@@ -862,7 +868,7 @@ char **argv;
 			multi_buffer=0;
 	    		auto_mode = 1;
 			aflag++;
-	    		printf("\tAuto Mode\n");
+	    		printf("\tAuto Mode 2. This option is obsolete. Use -az -i0 -i1 \n");
 			RWONLYflag++;
 			NOCROSSflag++;
 			break;
@@ -1010,7 +1016,7 @@ char **argv;
 	    		show_help();
 			exit(0);
 			break;
-		case 'E':	/* show help */
+		case 'E':	/* Extended testing for pread/pwrite... */
 			Eflag++;
 			break;
 		case 'R':	/* Generate Report */
@@ -1256,10 +1262,84 @@ char **argv;
 #endif
 			break;
 		case 'z':	/* Set no cross over */
+			printf("\tCross over of record size disabled.\n");
 			NOCROSSflag=1;
+			break;
+		case 'y':		/* set min record size for auto mode */
+			yflag=1;
+			min_rec_size = ((long long)(atoi(optarg))*1024);
+			if(optarg[strlen(optarg)-1]=='k' ||
+				optarg[strlen(optarg)-1]=='K'){
+				min_rec_size = (long long)(1024 * atoi(optarg));
+			}
+			if(optarg[strlen(optarg)-1]=='m' ||
+				optarg[strlen(optarg)-1]=='M'){
+				min_rec_size = (long long)(1024 * 1024 * atoi(optarg));
+			}
+			if(optarg[strlen(optarg)-1]=='g' ||
+				optarg[strlen(optarg)-1]=='G'){
+				min_rec_size = (long long)(1024 * 1024 * 1024 *(long long)atoi(optarg));
+			}
+			if(min_rec_size <= 0)
+				min_rec_size=(long long)RECLEN_START;
+#ifdef NO_PRINT_LLD
+	    		printf("\tUsing Minimum Record Size %ld KB\n", min_rec_size/1024);
+#else
+	    		printf("\tUsing Minimum Record Size %lld KB\n", min_rec_size/1024);
+#endif
+			break;
+		case 'q':		/* set max record size for auto mode */
+			qflag=1;
+			max_rec_size = ((long long)(atoi(optarg))*1024);
+			if(optarg[strlen(optarg)-1]=='k' ||
+				optarg[strlen(optarg)-1]=='K'){
+				max_rec_size = (long long)(1024 * atoi(optarg));
+			}
+			if(optarg[strlen(optarg)-1]=='m' ||
+				optarg[strlen(optarg)-1]=='M'){
+				max_rec_size = (long long)(1024 * 1024 * atoi(optarg));
+			}
+			if(optarg[strlen(optarg)-1]=='g' ||
+				optarg[strlen(optarg)-1]=='G'){
+				max_rec_size = (long long)(1024 * 1024 * 1024 *(long long)atoi(optarg));
+			}
+			if(max_rec_size <= 0)
+				min_rec_size=(long long)RECLEN_END;
+			if(max_rec_size > MAXBUFFERSIZE) {
+#ifdef NO_PRINT_LLD
+				printf("Error: maximum record size %ld KB is greater than maximum buffer size %ld KB\n ",
+					max_rec_size/1024, MAXBUFFERSIZE/1024);
+#else
+				printf("Error: maximum record size %lld KB is greater than maximum buffer size %lld KB\n ",
+					(long long)(max_rec_size/1024LL), (long long)MAXBUFFERSIZE/1024LL);
+#endif
+				exit(23);
+			}
+#ifdef NO_PRINT_LLD
+			printf("\tUsing Maximum Record Size %ld KB\n", max_rec_size/1024);
+#else
+			printf("\tUsing Maximum Record Size %lld KB\n", max_rec_size/1024);
+#endif
 			break;
 		}
 	}
+
+	if(!OPS_flag && !MS_flag)
+	{
+		printf("\tOutput is in Kbytes/sec\n");
+	}
+	if (min_rec_size > max_rec_size) {
+#ifdef NO_PRINT_LLD
+		printf("Error: minimum record size %ld KB is greater than maximum record size %ld KB\n ",
+			min_rec_size/1024, max_rec_size/1024);
+#else
+		printf("Error: minimum record size %lld KB is greater than maximum record size %lld KB\n ",
+			min_rec_size/1024, max_rec_size/1024);
+#endif
+		exit(23);
+        }
+	orig_min_rec_size=min_rec_size;
+	orig_max_rec_size=max_rec_size;
 	/*
  	 * No telemetry files... just option selected 
 	 */
@@ -1553,6 +1633,35 @@ out:
 	return(0);	
 }
 
+#ifdef HAVE_ANSIC_C
+void
+record_command_line(int argc, char **argv)
+#else
+void
+record_command_line(argc, argv)
+int argc;
+char **argv;
+#endif
+{
+	int ix, len = 0;
+
+	/* print and save the entire command line */
+	printf("\tCommand line used:");
+	for (ix=0; ix < argc; ix++) {
+		printf(" %s", argv[ix]);
+		if ((len + strlen(argv[ix])) < sizeof(command_line)) {
+			strcat (command_line, argv[ix]);
+			strcat (command_line, " ");
+			len += strlen(argv[ix]) + 1;
+		}
+		else {
+			printf ("Command line too long to save completely.\n");
+			break;
+		}
+	}
+	printf("\n");
+}
+
 /*************************************************************************/
 /* BEGIN()								 */
 /* This is the main work horse. It is called from main and from 	 */
@@ -1805,7 +1914,7 @@ void auto_test()
              if(!rflag && !sflag )
              	if(kilosi > xover){
                 	min_rec_size = LARGE_REC;
-			mult = RECLEN_START/1024;
+			mult = orig_min_rec_size/1024;
 			del_record_sizes();
 			init_record_sizes(min_rec_size, max_rec_size);
 		     	/************************************/
@@ -1814,7 +1923,7 @@ void auto_test()
 			/* record sizes			 */
 			/************************************/
 			for(count1=min_rec_size;
-			     	(count1 != RECLEN_START) && (
+			     	(count1 != orig_min_rec_size) && (
 				     	mult <= (kilosi*1024)) ;
 						count1=(count1>>1))
 			{
@@ -6673,8 +6782,10 @@ void dump_excel()
 	if(bif_flag)
 	{
 		bif_fd=create_xls(bif_filename);
+		do_label(bif_fd,command_line,bif_row++,bif_column);
 		do_label(bif_fd,"Writer Report",bif_row++,bif_column);
 	}
+	printf("Excel output is below:\n");
 	printf("\n%cWriter report%c\n",042,042);
 	dump_report(2); 
 	if(bif_flag)
