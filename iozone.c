@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.318 $"
+#define THISVERSION "        Version $Revision: 3.319 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1707,14 +1707,14 @@ char **argv;
 #endif
 			async_flag++;
 			break;
-		case 'I':	/* Use VXFS direct advisory or O_DIRECT from Linux or AIX , or O_DIRECTIO for TRU64 */
+		case 'I':	/* Use VXFS direct advisory or O_DIRECT from Linux or AIX , or O_DIRECTIO for TRU64  or Solaris directio */
 #ifdef VXFS
 			direct_flag++;
 			sprintf(splash[splash_line++],"\tVxFS advanced feature SET_CACHE, VX_DIRECT enabled\n");
 			break;
 #endif
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined(__FreeBSD__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined(__FreeBSD__) || defined(solaris)
 			direct_flag++;
 			sprintf(splash[splash_line++],"\tO_DIRECT feature enabled\n");
 			break;
@@ -6786,6 +6786,19 @@ long long *data2;
 			}
 		}
 #endif
+#if defined(solaris)
+               if(direct_flag)
+               {
+                       test_foo = directio(fd, DIRECTIO_ON);
+                       if(test_foo != 0)
+                       {
+                               if(!client_iozone)
+                                 printf("\ndirectio not available.\n");
+                               exit(3);
+                       }
+               }
+#endif
+
 		if(file_lock)
 			if(mylockf((int) fd, (int) 1, (int)0)!=0)
 				printf("File lock for write failed. %d\n",errno);
@@ -7692,6 +7705,18 @@ long long *data1,*data2;
 			}
 		}
 #endif
+#if defined(solaris)
+               if(direct_flag)
+               {
+                       test_foo = directio(fd, DIRECTIO_ON);
+                       if(test_foo != 0)
+                       {
+                               if(!client_iozone)
+                                 printf("\ndirectio not available.\n");
+                               exit(3);
+                       }
+               }
+#endif
 		if(file_lock)
 			if(mylockf((int) fd, (int) 1, (int)1) != 0)
 				printf("File lock for read failed. %d\n",errno);
@@ -8174,6 +8199,18 @@ long long *data1, *data2;
 			}
 		}
 #endif
+#if defined(solaris)
+               if(direct_flag)
+               {
+                       test_foo = directio(fd, DIRECTIO_ON);
+                       if(test_foo != 0)
+                       {
+                               if(!client_iozone)
+                                 printf("\ndirectio not available.\n");
+                               exit(3);
+                       }
+               }
+#endif
 	     if(mmapflag)
 	     {
 			maddr=(char *)initfile(fd,filebytes64,0,PROT_READ|PROT_WRITE);
@@ -8615,6 +8652,18 @@ long long *data1,*data2;
 			}
 		}
 #endif
+#if defined(solaris)
+               if(direct_flag)
+               {
+                       test_foo = directio(fd, DIRECTIO_ON);
+                       if(test_foo != 0)
+                       {
+                               if(!client_iozone)
+                                 printf("\ndirectio not available.\n");
+                               exit(3);
+                       }
+               }
+#endif
 		if(mmapflag)
 		{
 			maddr=(char *)initfile(fd,filebytes64,0,PROT_READ);
@@ -8893,6 +8942,18 @@ long long *data1,*data2;
 			exit(3);
 		}
 	}
+#endif
+#if defined(solaris)
+               if(direct_flag)
+               {
+                       test_foo = directio(fd, DIRECTIO_ON);
+                       if(test_foo != 0)
+                       {
+                               if(!client_iozone)
+                                 printf("\ndirectio not available.\n");
+                               exit(3);
+                       }
+               }
 #endif
 	if(mmapflag)
 	{
@@ -9192,6 +9253,18 @@ long long *data1, *data2;
 			exit(3);
 		}
 	}
+#endif
+#if defined(solaris)
+               if(direct_flag)
+               {
+                       test_foo = directio(fd, DIRECTIO_ON);
+                       if(test_foo != 0)
+                       {
+                               if(!client_iozone)
+                                 printf("\ndirectio not available.\n");
+                               exit(3);
+                       }
+               }
 #endif
 	if(mmapflag)
 	{
@@ -9533,6 +9606,18 @@ long long *data1,*data2;
 				}
 			}
 #endif
+#if defined(solaris)
+               		if(direct_flag)
+               		{
+                       		test_foo = directio(fd, DIRECTIO_ON);
+                       		if(test_foo != 0)
+                       		{
+                               	   if(!client_iozone)
+                                      printf("\ndirectio not available.\n");
+                               	      exit(3);
+                       		}
+               		}
+#endif
 		}
 		else
 		{
@@ -9555,6 +9640,18 @@ long long *data1,*data2;
 					exit(3);
 				}
 			}
+#endif
+#if defined(solaris)
+               		if(direct_flag)
+               		{
+                       		test_foo = directio(fd, DIRECTIO_ON);
+                       		if(test_foo != 0)
+                       		{
+                               	   if(!client_iozone)
+                                 	printf("\ndirectio not available.\n");
+                               		exit(3);
+                       		}
+               		}
 #endif
 		}
 		fsync(fd);
@@ -9807,6 +9904,18 @@ long long *data1, *data2;
 			}
 		}
 #endif
+#if defined(solaris)
+               if(direct_flag)
+               {
+                       test_foo = directio(fd, DIRECTIO_ON);
+                       if(test_foo != 0)
+                       {
+                               if(!client_iozone)
+                                 printf("\ndirectio not available.\n");
+                               exit(3);
+                       }
+               }
+#endif
 		nbuff=mainbuffer;
 		mbuffer=mainbuffer;
 		if(fetchon)
@@ -10049,6 +10158,18 @@ long long *data1,*data2;
 				}
 			}
 #endif
+#if defined(solaris)
+               		if(direct_flag)
+               		{
+                       		test_foo = directio(fd, DIRECTIO_ON);
+                       		if(test_foo != 0)
+                       		{
+                                   if(!client_iozone)
+                                     printf("\ndirectio not available.\n");
+                               	   exit(3);
+                       		}
+               		}
+#endif
 		}
 		else
 		{
@@ -10071,6 +10192,18 @@ long long *data1,*data2;
 					exit(3);
 				}
 			}
+#endif
+#if defined(solaris)
+               		if(direct_flag)
+               		{
+                       		test_foo = directio(fd, DIRECTIO_ON);
+                       		if(test_foo != 0)
+                       		{
+                               	   if(!client_iozone)
+                                 	printf("\ndirectio not available.\n");
+                               	   exit(3);
+                       		}
+               		}
 #endif
 		}
 		nbuff=mainbuffer;
@@ -10376,6 +10509,18 @@ long long *data1,*data2;
 				exit(3);
 			}
 		}
+#endif
+#if defined(solaris)
+               if(direct_flag)
+               {
+                       test_foo = directio(fd, DIRECTIO_ON);
+                       if(test_foo != 0)
+                       {
+                               if(!client_iozone)
+                                 printf("\ndirectio not available.\n");
+                               exit(3);
+                       }
+               }
 #endif
 		nbuff=mainbuffer;
 		mbuffer=mainbuffer;
@@ -11678,6 +11823,18 @@ thread_write_test( x)
 		}
 	}
 #endif
+#if defined(solaris)
+               if(direct_flag)
+               {
+                       test_foo = directio(fd, DIRECTIO_ON);
+                       if(test_foo != 0)
+                       {
+                               if(!client_iozone)
+                                 printf("\ndirectio not available.\n");
+                               exit(3);
+                       }
+               }
+#endif
 #ifdef ASYNC_IO
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
@@ -12315,6 +12472,18 @@ thread_pwrite_test( x)
 		}
 	}
 #endif
+#if defined(solaris)
+        if(direct_flag)
+        {
+                test_foo = directio(fd, DIRECTIO_ON);
+                if(test_foo != 0)
+                {
+                        if(!client_iozone)
+                          printf("\ndirectio not available.\n");
+                        exit(3);
+                }
+        }
+#endif
 #ifdef ASYNC_IO
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
@@ -12903,6 +13072,18 @@ thread_rwrite_test(x)
 		}
 	}
 #endif
+#if defined(solaris)
+        if(direct_flag)
+        {
+                test_foo = directio(fd, DIRECTIO_ON);
+                if(test_foo != 0)
+                {
+                        if(!client_iozone)
+                          printf("\ndirectio not available.\n");
+                        exit(3);
+                }
+        }
+#endif
 #ifdef ASYNC_IO
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
@@ -13409,6 +13590,18 @@ thread_read_test(x)
 			exit(3);
 		}
 	}
+#endif
+#if defined(solaris)
+        if(direct_flag)
+        {
+                test_foo = directio(fd, DIRECTIO_ON);
+                if(test_foo != 0)
+                {
+                        if(!client_iozone)
+                          printf("\ndirectio not available.\n");
+                        exit(3);
+                }
+        }
 #endif
 	if(mmapflag)
 	{
@@ -13929,6 +14122,18 @@ thread_pread_test(x)
 			exit(3);
 		}
 	}
+#endif
+#if defined(solaris)
+        if(direct_flag)
+        {
+                test_foo = directio(fd, DIRECTIO_ON);
+                if(test_foo != 0)
+                {
+                        if(!client_iozone)
+                          printf("\ndirectio not available.\n");
+                        exit(3);
+                }
+        }
 #endif
 	if(mmapflag)
 	{
@@ -14452,6 +14657,18 @@ thread_rread_test(x)
 		}
 	}
 #endif
+#if defined(solaris)
+        if(direct_flag)
+        {
+                test_foo = directio(fd, DIRECTIO_ON);
+                if(test_foo != 0)
+                {
+                        if(!client_iozone)
+                          printf("\ndirectio not available.\n");
+                        exit(3);
+                }
+        }
+#endif
 	if(mmapflag)
 	{
 		maddr=(char *)initfile(fd,(filebytes64),0,PROT_READ);
@@ -14967,6 +15184,18 @@ thread_reverse_read_test(x)
 		}
 	}
 #endif
+#if defined(solaris)
+        if(direct_flag)
+        {
+                test_foo = directio(fd, DIRECTIO_ON);
+                if(test_foo != 0)
+                {
+                        if(!client_iozone)
+                          printf("\ndirectio not available.\n");
+                        exit(3);
+                }
+        }
+#endif
 	if(mmapflag)
 	{
 		maddr=(char *)initfile(fd,(numrecs64*reclen),0,PROT_READ);
@@ -15454,6 +15683,18 @@ thread_stride_read_test(x)
 			exit(3);
 		}
 	}
+#endif
+#if defined(solaris)
+        if(direct_flag)
+        {
+                test_foo = directio(fd, DIRECTIO_ON);
+                if(test_foo != 0)
+                {
+                        if(!client_iozone)
+                          printf("\ndirectio not available.\n");
+                        exit(3);
+                }
+        }
 #endif
 
 	if(mmapflag)
@@ -16057,6 +16298,18 @@ thread_ranread_test(x)
 		}
 	}
 #endif
+#if defined(solaris)
+        if(direct_flag)
+        {
+                test_foo = directio(fd, DIRECTIO_ON);
+                if(test_foo != 0)
+                {
+                        if(!client_iozone)
+                          printf("\ndirectio not available.\n");
+                        exit(3);
+                }
+        }
+#endif
 
 	if(mmapflag)
 	{
@@ -16648,6 +16901,18 @@ thread_ranwrite_test( x)
 			exit(3);
 		}
 	}
+#endif
+#if defined(solaris)
+        if(direct_flag)
+        {
+                test_foo = directio(fd, DIRECTIO_ON);
+                if(test_foo != 0)
+                {
+                        if(!client_iozone)
+                          printf("\ndirectio not available.\n");
+                        exit(3);
+                }
+        }
 #endif
 #ifdef ASYNC_IO
 	if(async_flag)

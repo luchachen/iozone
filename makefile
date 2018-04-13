@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.124 $
+# Version $Revision: 1.126 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -15,8 +15,8 @@ GCC	= gcc
 CCS	= /usr/ccs/bin/cc
 NACC	= /opt/ansic/bin/cc
 CFLAGS	=
-S10GCCFLAGS    = -m64 -mcpu=v9
-S10CCFLAGS     = -xarch=amd64
+S10GCCFLAGS    = -m64
+S10CCFLAGS     = -m64
 
 all:  
 	@echo ""
@@ -779,7 +779,7 @@ fileop_macosx.o:	fileop.c
 	@echo ""
 	@echo "Building fileop for MAC OS X"
 	@echo ""
-	$(CC) -Wall -c -O $(CFLAGS) fileop.c -o fileop_macosx.o
+	$(CC) -Wall -c -O -Dmacosx $(CFLAGS) fileop.c -o fileop_macosx.o
 
 fileop_linux-ia64.o:	fileop.c
 	@echo ""

@@ -2191,3 +2191,6 @@ Fix for defines in FreeBSD
 Revision 3.318
 Add IMON_SYNC to enable monitor scripts to be run sync.
 =============================================================================
+Revision 3.319
+Add directio() for Solaris
+=============================================================================

@@ -52,8 +52,14 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <string.h>
+
+#include <limits.h>
+
 #if defined(Windows)
 #include <Windows.h>
+#endif
+#if !defined(PATH_MAX)
+#define PATH_MAX 255
 #endif
 
 int x,excel;
@@ -108,7 +114,7 @@ void bzero();
 void clear_stats();
 int validate(char *, int , char );
 
-#define THISVERSION "        $Revision: 1.48 $"
+#define THISVERSION "        $Revision: 1.51 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;
