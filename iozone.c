@@ -20,7 +20,7 @@
 /* Its purpose is to provide automated filesystem characterization.	*/
 /* Enhancements have been made by:					*/
 /*									*/
-/* Don Capps	   (HP)	         capps@iozone.org			*/ 
+/* Don Capps	   	         capps@iozone.org			*/ 
 /*									*/
 /* Iozone can perform single stream and multi stream I/O		*/
 /* also it now performs read, write, re-read, re-write, 		*/
@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.338 $"
+#define THISVERSION "        Version $Revision: 3.342 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -211,7 +211,8 @@ char *help[] = {
 "                                  3=dontneed, 4=willneed",
 #endif
 "           -+N Do not truncate existing files on sequential writes.",
-"           -+S # Dedup file set number.",
+"           -+S # Dedup-able data is limited to sharing within each numerically",
+"                 identified file set",
 "           -+V Enable shared file. No locking.",
 #if defined(Windows)
 "           -+U Windows Unbufferd I/O API (Very Experimental)",
@@ -224,6 +225,8 @@ char *help[] = {
 "           -+w ## Percent of dedup-able data in buffers.",
 "           -+y ## Percent of dedup-able within & across files in buffers.",
 "           -+C ## Percent of dedup-able within & not across files in buffers.",
+"           -+H Hostname    Hostname of the PIT server.",
+"           -+P Service     Service  of the PIT server.",
 "" };
 
 char *head1[] = {
@@ -470,6 +473,7 @@ struct runtime {
  */
 struct client_command {
 	char c_host_name[100];
+	char c_pit_host_name[40];
 	char c_client_name[100];
 	char c_working_dir[200];
 	char c_file_name[200];
@@ -564,6 +568,7 @@ struct client_command {
  */
 struct client_neutral_command {
 	char c_host_name[40];
+	char c_pit_host_name[40];
 	char c_client_name[100];
 	char c_working_dir[100];
 	char c_file_name[100];
@@ -923,6 +928,9 @@ struct master_neutral_command {
 /*								  */
 /******************************************************************/
 char *initfile();
+int pit_gettimeofday( struct timeval *, struct timezone *, char *, char *);
+static int openSckt( const char *, const char *, unsigned int );
+static void pit( int, struct timeval *);
 void mmap_end();
 void alloc_pbuf();
 void auto_test();		/* perform automatic test series  */
@@ -1343,6 +1351,9 @@ char client_filename[256];
 char remote_shell[256];
 int client_error;
 
+char pit_hostname[40];
+char pit_service[7];
+
 /* 
  * Host ports used to listen, and handle errors.
  */
@@ -1583,9 +1594,9 @@ char **argv;
 	for(ind=0;ind<MAXSTREAMS;ind++)
 		filearray[ind]=(char *)tfile;
 
-	base_time=(long)time_so_far();
+	/* base_time=(long)time_so_far(); */
 	myid=(long long)getpid(); 	/* save the master's PID */
-	get_resolution(); 		/* Get clock resolution */
+	/* get_resolution(); 		 Get clock resolution */
 	time_run = time(0);		/* Start a timer */
 	(void)find_external_mon(imon_start, imon_stop);
 
@@ -1602,7 +1613,7 @@ char **argv;
     	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million, Gavin Brebner,\n");
     	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg, Benny Halevy, Dave Boone,\n");
     	sprintf(splash[splash_line++],"\t             Erik Habbinga, Kris Strecker, Walter Wong, Joshua Root,\n");
-    	sprintf(splash[splash_line++],"\t             Fabrice Bacchella, Zhenghua Xue.\n\n");
+    	sprintf(splash[splash_line++],"\t             Fabrice Bacchella, Zhenghua Xue, Qin Li.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
 	argvsave=argv;
@@ -2565,6 +2576,27 @@ char **argv;
 						dedup_mseed = 1;
 					sprintf(splash[splash_line++],"\tDedup manual seed %d .\n",dedup_mseed);
 					break;
+				case 'H':  /* Argument is hostname of the PIT */
+					subarg=argv[optind++];
+					if(subarg==(char *)0)
+					{
+					     printf("-+H takes operand !!\n");
+					     exit(200);
+					}
+					strcpy(pit_hostname,subarg);
+					sprintf(splash[splash_line++],"\tPIT_host %s\n",pit_hostname);
+					
+					break;
+				case 'P':  /* Argument is port of the PIT */
+					subarg=argv[optind++];
+					if(subarg==(char *)0)
+					{
+					     printf("-+P takes operand !!\n");
+					     exit(200);
+					}
+					strcpy(pit_service,subarg);
+					sprintf(splash[splash_line++],"\tPIT_port %s\n",pit_service);
+					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
 					exit(0);
@@ -2573,6 +2605,8 @@ char **argv;
 			break;
 		}
 	}
+	base_time=(long)time_so_far();
+	get_resolution(); 		/* Get clock resolution */
 	if(speed_code)
 	{
 		do_speed_check(client_iozone);
@@ -6242,16 +6276,27 @@ time_so_far()
 #ifdef Windows
    LARGE_INTEGER freq,counter;
    double wintime,bigcounter;
-	/* For Windows the time_of_day() is useless. It increments in 55 milli second   */
-	/* increments. By using the Win32api one can get access to the high performance */
-	/* measurement interfaces. With this one can get back into the 8 to 9  		*/
-	/* microsecond resolution.							*/
+   struct timeval tp;
+   /* For Windows the time_of_day() is useless. It increments in 55 milli 
+    * second increments. By using the Win32api one can get access to the 
+    * high performance measurement interfaces. With this one can get back 
+    * into the 8 to 9 microsecond resolution.
+    */
+   if(pit_hostname[0]){
+     if (pit_gettimeofday(&tp, (struct timezone *) NULL, pit_hostname, 
+ 		pit_service) == -1)
+         perror("pit_gettimeofday");
+  	 return ((double) (tp.tv_sec)) + (((double) tp.tv_usec) * 0.000001 );
+   }
+   else
+   {
         QueryPerformanceFrequency(&freq);
         QueryPerformanceCounter(&counter);
         bigcounter=(double)counter.HighPart *(double)0xffffffff +
                 (double)counter.LowPart;
         wintime = (double)(bigcounter/(double)freq.LowPart);
         return((double)wintime);
+   }
 #else
 #if defined (OSFV4) || defined(OSFV3) || defined(OSFV5)
   struct timespec gp;
@@ -6263,10 +6308,17 @@ time_so_far()
 #else
   struct timeval tp;
 
-  if (gettimeofday(&tp, (struct timezone *) NULL) == -1)
-    perror("gettimeofday");
-  return ((double) (tp.tv_sec)) +
-    (((double) tp.tv_usec) * 0.000001 );
+  if(pit_hostname[0]){
+     if (pit_gettimeofday(&tp, (struct timezone *) NULL, pit_hostname, pit_service) == -1)
+         perror("pit_gettimeofday");
+  	 return ((double) (tp.tv_sec)) + (((double) tp.tv_usec) * 0.000001 );
+  }
+  else
+  {
+     if (gettimeofday(&tp, (struct timezone *) NULL) == -1)
+         perror("gettimeofday");
+  	 return ((double) (tp.tv_sec)) + (((double) tp.tv_usec) * 0.000001 );
+  }
 #endif
 #endif
 }
@@ -18195,21 +18247,32 @@ static double
 time_so_far1()
 #endif
 {
-	/* For Windows the time_of_day() is useless. It increments in 55 milli second   */
-	/* increments. By using the Win32api one can get access to the high performance */
-	/* measurement interfaces. With this one can get back into the 8 to 9  		*/
-	/* microsecond resolution.							*/
+     /* For Windows the time_of_day() is useless. It increments in 
+        55 milli second  increments. By using the Win32api one can 
+	get access to the high performance measurement interfaces. 
+	With this one can get back into the 8 to 9 microsecond resolution
+      */
 #ifdef Windows
 	LARGE_INTEGER freq,counter;
 	double wintime;
 	double bigcounter;
+  	struct timeval tp;
 
-       	QueryPerformanceFrequency(&freq);
-        QueryPerformanceCounter(&counter);
-        bigcounter=(double)counter.HighPart *(double)0xffffffff +
-                (double)counter.LowPart;
-        wintime = (double)(bigcounter/(double)freq.LowPart);
-        return((double)wintime*1000000.0);
+  	if(pit_hostname[0]){
+  	   pit_gettimeofday(&tp, (struct timezone *) NULL, pit_hostname, 
+		pit_service);
+	   return ((double) (tp.tv_sec)*1000000.0)+(((double)tp.tv_usec));
+	}
+	else
+	{	
+
+       	   QueryPerformanceFrequency(&freq);
+           QueryPerformanceCounter(&counter);
+           bigcounter=(double)counter.HighPart *(double)0xffffffff +
+                   (double)counter.LowPart;
+           wintime = (double)(bigcounter/(double)freq.LowPart);
+           return((double)wintime*1000000.0);
+	}
 #else
 #if defined (OSFV4) || defined(OSFV3) || defined(OSFV5)
   struct timespec gp;
@@ -18221,10 +18284,18 @@ time_so_far1()
 #else
   struct timeval tp;
 
-  if (gettimeofday(&tp, (struct timezone *) NULL) == -1)
-    perror("gettimeofday");
-  return ((double) (tp.tv_sec)*1000000.0) +
-    (((double) tp.tv_usec) );
+  if(pit_hostname[0]){
+     if (pit_gettimeofday(&tp, (struct timezone *) NULL, pit_hostname, 
+		pit_service) == -1)
+        perror("pit_gettimeofday");
+     return ((double) (tp.tv_sec)*1000000.0) + (((double) tp.tv_usec) );
+  }
+  else
+  {
+     if (gettimeofday(&tp, (struct timezone *) NULL) == -1)
+        perror("gettimeofday");
+     return ((double) (tp.tv_sec)*1000000.0) + (((double) tp.tv_usec) );
+  }
 #endif
 #endif
 }
@@ -19431,6 +19502,7 @@ int send_size;
 	 * Convert internal commands to string format for neutral format/portability
 	 */
 	strcpy(outbuf.c_host_name,send_buffer->c_host_name);
+	strcpy(outbuf.c_pit_host_name,send_buffer->c_pit_host_name);
 	strcpy(outbuf.c_client_name,send_buffer->c_client_name);
 	strcpy(outbuf.c_working_dir,send_buffer->c_working_dir);
 	strcpy(outbuf.c_file_name,send_buffer->c_file_name);
@@ -20319,6 +20391,7 @@ long long numrecs64, reclen;
 	/* Step 4. Send message to client telling him his name, number, */
 	/*             rsize, fsize, and test to run.			*/
 	strcpy(cc.c_host_name ,controlling_host_name);
+	strcpy(cc.c_pit_host_name ,pit_hostname);
 	strcpy(cc.c_client_name ,child_idents[x-1].child_name);
 	strcpy(cc.c_working_dir ,child_idents[x-1].workdir);
 	strcpy(cc.c_file_name ,child_idents[x-1].file_name);
@@ -20531,6 +20604,7 @@ become_client()
 	sscanf(cnc->c_client_name,"%s",cc.c_client_name);
 	sscanf(cnc->c_client_number,"%d",&cc.c_client_number);
 	sscanf(cnc->c_host_name,"%s",cc.c_host_name);
+	sscanf(cnc->c_pit_host_name,"%s",cc.c_pit_host_name);
 
 	if(cc.c_command == R_TERMINATE || cc.c_command==R_DEATH)
 	{
@@ -22750,6 +22824,191 @@ int main(void)
     }
     return 0;
 }
-
-
 #endif
+
+/*----------------------------------------------------------------------*/
+/* 									*/
+/* The PIT Programmable Interdimensional Timer 				*/
+/* 									*/
+/* This is used to measure time, when you know something odd is going   */
+/* to be happening with your wrist watch. For example, you have entered	*/
+/* a temporal distortion field where time its-self is not moving        */
+/* as it does in your normal universe. ( thing either intense 		*/
+/* gravitational fields bending space-time, or virtual machines playing */
+/* with time )  							*/
+/* So.. you need to measure time, but with respect to a normal 		*/
+/* space-time.  So.. we deal with this by calling for time from another */
+/* machine, but do so with a very similar interface to that of 		*/
+/* gettimeofday().							*/
+/* To activate this, one only needs to set an environmental variable.   */
+/*      Example:   setenv IOZ_PIT hostname_of_PIT_server		*/
+/* The environmental variable tells this client where to go to get 	*/
+/* correct timeofday time stamps, with the usual gettimeofday() 	*/
+/* resolution. (microsecond resolution)					*/
+/*----------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------*/
+/* The PIT client: Adapted from source found on the web for someone's   */
+/* daytime client code. (Used in many examples for network programming  */
+/* Reads PIT info over a socket from a PIT server. 			*/
+/* The PIT server sends its raw microsecond version of gettimeofday 	*/
+/* The PIT client converts this back into timeval structure format.     */
+/* Written by: Don Capps. [ capps@iozone.org ] 				*/
+/*----------------------------------------------------------------------*/
+
+/*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<      */
+/* >>>> DON'T forget, you must put a definition for PIT <<<<<<<<<<      */
+/* >>>> in /etc/services  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<      */
+/*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<      */
+#define DFLT_SERVICE   "PIT"     /* Default service name.            	*/
+#define INVALID_DESC   -1        /* Invalid file (socket) descriptor.	*/
+#define MAXBFRSIZE     256       /* Max bfr sz to read remote TOD.   	*/
+
+/*
+** Type definitions (for convenience).
+*/
+typedef enum { false = 0, true } boolean;
+typedef struct sockaddr_in       sockaddr_in_t;
+typedef struct sockaddr_in6      sockaddr_in6_t;
+
+/*
+ * Routine to mimic gettimeofday() using a remote PIT server 
+ */
+int pit_gettimeofday( struct timeval *tp, struct timezone *foo,
+	char *pit_hostname, char *pit_service)
+{
+	int            	sckt;          /* socket descriptor */
+	unsigned scopeId = 0;
+
+	/* See if the interdimensional rift is active */
+	
+	if(pit_hostname[0] == 0)
+	{
+		return gettimeofday(tp,foo);
+	}
+
+ 	if ( ( sckt = openSckt( pit_hostname,
+                           pit_service,
+                           scopeId ) ) == INVALID_DESC )
+   	{
+      		fprintf( stderr,
+                  "Sorry... a connectionless socket could "
+                  "not be set up.\n");
+                return -1;
+   	}
+	/*
+   	** Get the remote PIT.
+   	*/
+   	pit( sckt ,tp );
+	close(sckt);
+    	return 0;
+}
+
+/*
+ * Opens a socket for the PIT to use to get the time
+ * from a remote time server ( A PIT server ) 
+ */
+static int openSckt( const char   *host,
+                     const char   *service,
+                     unsigned int  scopeId )
+{
+   struct addrinfo *ai;
+   int              aiErr;
+   struct addrinfo *aiHead;
+   struct addrinfo  hints;
+   sockaddr_in6_t  *pSadrIn6;
+   int              sckt;
+   /*
+    * Initialize the 'hints' structure for getaddrinfo(3).
+   */
+   memset( &hints, 0, sizeof( hints ) );
+   hints.ai_family   = PF_UNSPEC;     /* IPv4 or IPv6 records */
+   hints.ai_socktype = SOCK_STREAM;    /* Connection oriented communication.*/
+   hints.ai_protocol = IPPROTO_TCP;   /* TCP transport layer protocol only. */
+   /*
+   ** Look up the host/service information.
+   */
+   if ( ( aiErr = getaddrinfo( host,
+                               service,
+                               &hints,
+                               &aiHead ) ) != 0 )
+   {
+      fprintf( stderr, "(line %d): ERROR - %s.\n", __LINE__, 
+	 gai_strerror( aiErr ) );
+      return INVALID_DESC;
+   }
+   /*
+   ** Go through the list and try to open a connection.  Continue until either
+   ** a connection is established or the entire list is exhausted.
+   */
+   for ( ai = aiHead,   sckt = INVALID_DESC;
+         ( ai != NULL ) && ( sckt == INVALID_DESC );
+         ai = ai->ai_next )
+   {
+      /*
+      ** IPv6 kluge.  Make sure the scope ID is set.
+      */
+      if ( ai->ai_family == PF_INET6 )
+      {
+         pSadrIn6 = (sockaddr_in6_t*) ai->ai_addr;
+         if ( pSadrIn6->sin6_scope_id == 0 )
+         {
+            pSadrIn6->sin6_scope_id = scopeId;
+         }  /* End IF the scope ID wasn't set. */
+      }  /* End IPv6 kluge. */
+      /*
+      ** Create a socket.
+      */
+      sckt = socket( ai->ai_family, ai->ai_socktype, ai->ai_protocol );
+      if(sckt == -1)
+      {
+         sckt = INVALID_DESC;
+         continue;   /* Try the next address record in the list. */
+      }
+      /*
+      ** Set the target destination for the remote host on this socket.  That
+      ** is, this socket only communicates with the specified host.
+      */
+      if (connect( sckt, ai->ai_addr, ai->ai_addrlen ) )
+      {
+         (void) close( sckt );   /* Could use system call again here, 
+					but why? */
+         sckt = INVALID_DESC;
+         continue;   /* Try the next address record in the list. */
+      }
+   }  /* End FOR each address record returned by getaddrinfo(3). */
+   /*
+   ** Clean up & return.
+   */
+   freeaddrinfo( aiHead );
+   return sckt;
+}  /* End openSckt() */
+
+/*
+ * Read the PIT, and convert this back into timeval 
+ * info, and store it in the timeval structure that was
+ * passed in.
+ */
+static void pit( int sckt, struct timeval *tp)
+{
+   char bfr[ MAXBFRSIZE+1 ];
+   int  inBytes;
+   long long value;
+   /*
+   ** Send a datagram to the server to wake it up.  The content isn't
+   ** important, but something must be sent to let it know we want the TOD.
+   */
+   write( sckt, "Are you there?", 14 );
+   /*
+   ** Read the PIT from the remote host.
+   */
+   inBytes = read( sckt, bfr, MAXBFRSIZE );
+   bfr[ inBytes ] = '\0';   /* Null-terminate the received string. */
+   /* 
+    * Convert result to timeval structure format 
+    */
+   sscanf(bfr,"%lld\n",&value);
+   tp->tv_sec = (long)(value / 1000000);
+   tp->tv_usec = (long)(value % 1000000);
+}  
+

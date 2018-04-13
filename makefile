@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.128 $
+# Version $Revision: 1.130 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -78,7 +78,7 @@ all:
 	@echo ""
 
 clean:
-	rm -f *.o iozone fileop
+	rm -f *.o iozone fileop pit_server
 
 rpm:
 	cp ../../iozone*.tar /usr/src/red*/SO*
@@ -103,10 +103,11 @@ hpux-11.0w:	iozone_hpux-11.0w.o libasyncw.o libbif.o
 #
 # Simple build with largefiles, Posix threads and Posix async I/O
 #
-hpuxs-11.0:	iozone_hpuxs-11.0.o libasync.o libbif.o fileop_hpuxs-11.0.o 
+hpuxs-11.0:	iozone_hpuxs-11.0.o libasync.o libbif.o fileop_hpuxs-11.0.o pit_server.o
 	 $(CC) -O $(LDFLAGS)  iozone_hpuxs-11.0.o \
 		libasync.o libbif.o -lpthread -lrt -o iozone
 	 $(CC) -O $(LDFLAGS) fileop_hpuxs-11.0.o -o fileop
+	 $(CC) -O $(LDFLAGS) pit_server.o -o pit_server
 
 #
 # Simple build with wide-mode, largefiles, Posix threads and Posix async I/O
@@ -157,59 +158,66 @@ hpux_no_ansi:	iozone_hpux_no.o  libbif.o
 #
 # GNU 'C' compiler Linux build with threads, largefiles, async I/O 
 #
-linux:	iozone_linux.o libasync.o libbif.o fileop_linux.o
+linux:	iozone_linux.o libasync.o libbif.o fileop_linux.o pit_server.o
 	$(CC)  -O3 $(LDFLAGS) iozone_linux.o libasync.o libbif.o -lpthread \
 		-lrt -o iozone
 	$(CC)  -O3 -Dlinux fileop_linux.o -o fileop
+	$(CC)  -O3 -Dlinux pit_server.o -o pit_server
 
 #
 # GNU 'C' compiler Linux build for powerpc chip with threads, largefiles, async I/O 
 #
-linux-powerpc: iozone_linux-powerpc.o  libbif.o libasync.o fileop_linux-ppc.o
+linux-powerpc: iozone_linux-powerpc.o  libbif.o libasync.o fileop_linux-ppc.o pit_server.o
 	$(CC) -O3 $(LDFLAGS) iozone_linux-powerpc.o libasync.o \
 		libbif.o -lpthread  -lrt -o iozone
 	$(CC)  -O3 -Dlinux fileop_linux-ppc.o -o fileop
+	$(CC)  -O3 -Dlinux pit_server.o -o pit_server
 #
 # GNU 'C' compiler Linux build for sparc chip with threads, largefiles, async I/O 
 #
-linux-sparc: iozone_linux-sparc.o  libbif.o libasync.o fileop_linux.o
+linux-sparc: iozone_linux-sparc.o  libbif.o libasync.o fileop_linux.o pit_server.o
 	$(CC) -O3 $(LDFLAGS) iozone_linux-sparc.o libasync.o libbif.o \
 		-lpthread -lrt -o iozone
 	$(CC) -O3 -Dlinux fileop_linux.o -o fileop
+	$(CC) -O3 -Dlinux pit_server.o -o pit_server
 
 #
 # GNU 'C' compiler Linux build with threads, largefiles, async I/O 
 #
-linux-ia64:	iozone_linux-ia64.o  libbif.o libasync.o fileop_linux-ia64.o
+linux-ia64:	iozone_linux-ia64.o  libbif.o libasync.o fileop_linux-ia64.o pit_server.o
 	$(CC) -O3 $(LDFLAGS) iozone_linux-ia64.o libbif.o libasync.o \
 		-lrt -lpthread -o iozone
 	$(CC)  -O3 -Dlinux fileop_linux-ia64.o -o fileop
+	$(CC)  -O3 -Dlinux pit_server.o -o pit_server
 
 #
 # GNU 'C' compiler Linux build for powerpc chip with threads, largefiles, async I/O 
 #
-linux-powerpc64: iozone_linux-powerpc64.o  libbif.o libasync.o fileop_linux-ppc64.o
+linux-powerpc64: iozone_linux-powerpc64.o  libbif.o libasync.o fileop_linux-ppc64.o pit_server.o
 	$(CC) -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE -Dlinux \
 		iozone_linux-powerpc64.o libasync.o libbif.o -lpthread \
 		-lrt $(FLAG64BIT) -o iozone
 	$(CC)  -O3 -Dlinux fileop_linux-ppc64.o $(FLAG64BIT) -o fileop
+	$(CC)  -O3 -Dlinux pit_server.o $(FLAG64BIT) -o pit_server
 		
 #
 # GNU 'C' compiler Linux build with threads, largefiles, async I/O
 #
-linux-arm:	iozone_linux-arm.o  libbif.o libasync.o fileop_linux-arm.o
+linux-arm:	iozone_linux-arm.o  libbif.o libasync.o fileop_linux-arm.o pit_server.o
 	$(CC) -O3 $(LDFLAGS) iozone_linux-arm.o libbif.o libasync.o \
 		-lrt -lpthread -o iozone
 	$(CC) -O3 -Dlinux fileop_linux-arm.o -o fileop
+	$(CC) -O3 -Dlinux pit_server.o -o pit_server
 
 #
 # GNU 'C' compiler Linux build with threads, largefiles, async I/O 
 #
-linux-AMD64:	iozone_linux-AMD64.o  libbif.o libasync.o fileop_linux-AMD64.o
+linux-AMD64:	iozone_linux-AMD64.o  libbif.o libasync.o fileop_linux-AMD64.o pit_server.o
 	$(CC)  -O3 $(LDFLAGS) iozone_linux-AMD64.o libbif.o libasync.o \
 		-lrt -lpthread -o iozone
 	$(CC)  -O3 -Dlinux fileop_linux-AMD64.o -o fileop
+	$(CC)  -O3 -Dlinux pit_server.o -o pit_server
 
 #
 # GNU 'C' compiler Linux build with S/390, threads, largfiles, async I/O
@@ -243,10 +251,11 @@ AIX:	iozone_AIX.o  libbif.o  fileop_AIX.o
 # POSIX 1003.1b compliant async I/O header files.  Has threads, and
 # largefile support.
 # 
-AIX-LF:	iozone_AIX-LF.o  libbif.o   fileop_AIX-LF.o
+AIX-LF:	iozone_AIX-LF.o  libbif.o   fileop_AIX-LF.o pit_server.o
 	$(CC)  -O $(LDFLAGS) iozone_AIX-LF.o libbif.o \
 		-lpthreads -o iozone
 	$(CC)  -O fileop_AIX-LF.o -o fileop
+	$(CC)  -O pit_server.o -o pit_server
 
 #
 # IRIX 32 bit build with threads, largefiles, async I/O 
@@ -310,11 +319,12 @@ convex:	iozone_convex.o libbif.o
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
 #
-Solaris:	iozone_solaris.o libasync.o libbif.o fileop_Solaris.o
+Solaris:	iozone_solaris.o libasync.o libbif.o fileop_Solaris.o pit_server.o
 	$(CC)  -O $(LDFLAGS) iozone_solaris.o libasync.o libbif.o \
 		-lthread -lpthread -lposix4 -lnsl -laio -lsocket \
 		-o iozone
 	$(CC)  -O fileop_Solaris.o -o fileop
+	$(CC)  -O pit_server.o -o pit_server
 
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
@@ -326,48 +336,53 @@ Solaris7gcc:	iozone_solaris7gcc.o libasync7.o libbif7.o
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
 #
-Solaris10:	iozone_solaris10.o libasync10.o libbif10.o fileop_Solaris10.o
+Solaris10:	iozone_solaris10.o libasync10.o libbif10.o fileop_Solaris10.o pit_server.o
 	$(CC)  -O $(LDFLAGS) iozone_solaris10.o libasync10.o libbif10.o \
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
 	$(CC)  -O fileop_Solaris10.o -o fileop
+	$(CC)  -O pit_server.o -o pit_server
 
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
 #
-Solaris10cc:	iozone_solaris10cc.o libasync10cc.o libbif10cc.o fileop_Solaris10cc.o
+Solaris10cc:	iozone_solaris10cc.o libasync10cc.o libbif10cc.o fileop_Solaris10cc.o pit_server.o
 	$(CC)  -O $(LDFLAGS) iozone_solaris10cc.o libasync10cc.o libbif10cc.o \
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
 	$(CC)  -O fileop_Solaris10cc.o -o fileop
+	$(CC)  -O pit_server.o -o pit_server
 
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
 #
-Solaris10gcc:	iozone_solaris10gcc.o libasync10.o libbif10.o fileop_Solaris10gcc.o
+Solaris10gcc:	iozone_solaris10gcc.o libasync10.o libbif10.o fileop_Solaris10gcc.o pit_server.o
 	$(GCC)  -O $(LDFLAGS) iozone_solaris10gcc.o libasync10.o libbif10.o \
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
 	$(GCC)  -O fileop_Solaris10gcc.o -o fileop
+	$(GCC)  -O pit_server.o -o pit_server
 
 #
 # Solaris 64 bit build with threads, largefiles, and async I/O
 #
-Solaris10gcc-64:	iozone_solaris10gcc-64.o libasync10-64.o libbif10-64.o fileop_Solaris10gcc-64.o
+Solaris10gcc-64:	iozone_solaris10gcc-64.o libasync10-64.o libbif10-64.o fileop_Solaris10gcc-64.o pit_server.o
 	$(GCC)  -O $(LDFLAGS) $(S10GCCFLAGS) iozone_solaris10gcc-64.o libasync10-64.o libbif10-64.o \
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
 	$(GCC)  -O $(S10GCCFLAGS) fileop_Solaris10gcc-64.o -o fileop
+	$(GCC)  -O $(S10GCCFLAGS) pit_server.o -o pit_server
 
 
 #
 # Solaris 64 bit build with threads, largefiles, and async I/O
 #
-Solaris10cc-64:	iozone_solaris10cc-64.o libasync10-64.o libbif10-64.o fileop_Solaris10cc-64.o
+Solaris10cc-64:	iozone_solaris10cc-64.o libasync10-64.o libbif10-64.o fileop_Solaris10cc-64.o pit_server.o
 	$(CC)  -O $(LDFLAGS) $(S10CCFLAGS) iozone_solaris10cc-64.o libasync10-64.o libbif10-64.o \
               -lthread -lpthread -lposix4 -lnsl -laio \
               -lsocket -o iozone
 	$(CC)  -O $(S10CCFLAGS) fileop_Solaris10cc-64.o -o fileop
+	$(CC)  -O $(S10CCFLAGS) pit_server.o -o pit_server
 
 
 
@@ -400,9 +415,10 @@ Solaris8-64-VXFS: iozone_solaris8-64-VXFS.o libasync.o libbif.o
 # can get this from www.cygwin.com
 # No largefiles, No async I/O
 #
-Windows:	iozone_windows.o libbif.o fileop_windows.o
+Windows:	iozone_windows.o libbif.o fileop_windows.o pit_server_win.o
 	$(GCC) -O $(LDFLAGS) iozone_windows.o libbif.o -o iozone
 	$(GCC) -O $(LDFLAGS) fileop_windows.o -o fileop
+	$(GCC) -O $(LDFLAGS) pit_server_win.o -o pit_server
 
 #
 # Uwin build requires UWIN development environment. 
@@ -415,41 +431,46 @@ UWIN:	iozone_uwin.o libbif.o
 # GNU C compiler BSD/OS build with threads, largefiles, no async I/O
 #
 
-bsdi:	iozone_bsdi.o libbif.o fileop_bsdi.o
+bsdi:	iozone_bsdi.o libbif.o fileop_bsdi.o pit_server.o
 	$(CC) -O $(LDFLAGS) iozone_bsdi.o libbif.o -o iozone
 	$(CC) -O fileop_bsdi.o -o fileop
+	$(CC) -O pit_server.o -o pit_server
 
 #
 # GNU C compiler FreeBSD build with no threads, no largefiles, no async I/O
 #
 
-freebsd:	iozone_freebsd.o libbif.o fileop_freebsd.o libasync.o
+freebsd:	iozone_freebsd.o libbif.o fileop_freebsd.o libasync.o pit_server.o
 	$(CC) $(LDFLAGS) iozone_freebsd.o libbif.o -lpthread libasync.o \
 		-o iozone
 	$(CC)  -O fileop_freebsd.o -o fileop
+	$(CC)  -O pit_server.o -o pit_server
 
 #
 # GNU C compiler DragonFly build with no threads, no largefiles
 #
-dragonfly:	iozone_dragonfly.o libbif.o fileop_dragonfly.o
+dragonfly:	iozone_dragonfly.o libbif.o fileop_dragonfly.o pit_server.o
 	$(CC) $(LDFLAGS) iozone_dragonfly.o libbif.o -o iozone
 	$(CC)  -O fileop_dragonfly.o -o fileop
+	$(CC)  -O pit_server.o -o pit_server
 
 #
 # GNU C compiler MacosX build with no threads, no largefiles, no async I/O
 #
 
-macosx:	iozone_macosx.o libbif.o fileop_macosx.o
+macosx:	iozone_macosx.o libbif.o fileop_macosx.o pit_server.o
 	$(CC) -O $(LDFLAGS) iozone_macosx.o libbif.o -o iozone
 	$(CC)  -O fileop_macosx.o -o fileop
+	$(CC)  -O pit_server.o -o pit_server
 #
 #
 # GNU C compiler OpenBSD build with no threads, no largefiles, no async I/O
 #
 
-openbsd:	iozone_openbsd.o libbif.o fileop_openbsd.o
+openbsd:	iozone_openbsd.o libbif.o fileop_openbsd.o pit_server.o
 	$(CC) -O $(LDFLAGS) iozone_openbsd.o libbif.o -o iozone
 	$(CC)  -O fileop_openbsd.o -o fileop
+	$(CC)  -O pit_server.o -o pit_server
 
 #
 # GNU C compiler OpenBSD build with threads, no largefiles, no async I/O
@@ -521,9 +542,10 @@ SCO_Unixware_gcc:	iozone_SCO_Unixware_gcc.o  libbif.o libasync.o
 # GNU C compiler NetBSD build with no threads, no largefiles, no async I/O
 #
 
-netbsd:	iozone_netbsd.o  libbif.o fileop_netbsd.o
+netbsd:	iozone_netbsd.o  libbif.o fileop_netbsd.o pit_server.o
 	$(CC) -O $(LDFLAGS) iozone_netbsd.o libbif.o -o iozone
 	$(CC) -O fileop_netbsd.o -o fileop
+	$(CC) -O pit_server.o -o pit_server
 
 #
 #
@@ -580,6 +602,18 @@ fileop_hpuxs-11.0.o:	fileop.c
 	@echo "Building simple fileop for HP-UX (11.0)"
 	@echo ""
 	$(CC) -c  $(CFLAGS) fileop.c  -o fileop_hpuxs-11.0.o 
+
+pit_server.o:	pit_server.c
+	@echo ""
+	@echo "Building the pit_server"
+	@echo ""
+	$(CC) -c  $(CFLAGS) pit_server.c  -o pit_server.o 
+
+pit_server_win.o:	pit_server.c
+	@echo ""
+	@echo "Building the pit_server for Windows"
+	@echo ""
+	$(CC) -c  $(CFLAGS) -DWindows pit_server.c  -o pit_server_win.o 
 
 iozone_hpuxs-11.0w.o:	iozone.c libasync.c libbif.c
 	@echo ""

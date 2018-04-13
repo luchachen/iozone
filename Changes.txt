@@ -2252,4 +2252,13 @@ Bug fix for -+S
 Revision 3.338
 Make umount/remount more robust, in the face of server errors.
 =============================================================================
+Revision 3.339
+Improve the help string for the -+S option.
+=============================================================================
+Revision 3.340
+Add new contributor name.
+=============================================================================
+Revision 3.342
+Add support for the programmable interdimensional timer.
+=============================================================================
 
