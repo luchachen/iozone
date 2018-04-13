@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.398 $"
+#define THISVERSION "        Version $Revision: 3.403 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -70,7 +70,7 @@
 #include <windows.h>
 #include <errno.h>
 #else
-#if defined(linux) || defined(solaris) || defined(macosx) || defined(__AIX__) || defined(FreeBSD) || defined(_HPUX_SOURCE)
+#if defined(linux) || defined(solaris) || defined(macosx) || defined(__AIX__) || defined(FreeBSD) || defined(_HPUX_SOURCE) || defined(__OpenBSD__) || defined(__DragonFly__)
 #include <errno.h>
 #else
 extern  int errno;   /* imported for errors */
@@ -226,6 +226,10 @@ char *help[] = {
 "           -+N Do not truncate existing files on sequential writes.",
 "           -+S # Dedup-able data is limited to sharing within each numerically",
 "                 identified file set",
+"           -+W # Add this value to the child thread ID, so that additional files\n",
+"                 can be added while maintaining the proper dedupability with previously\n",
+"                 existing files that are within the same seed group (-+S).",
+"                 identified file set",
 "           -+V Enable shared file. No locking.",
 #if defined(Windows)
 "           -+U Windows Unbufferd I/O API (Very Experimental)",
@@ -296,7 +300,7 @@ THISVERSION,
 #endif
 #endif
 
-#if defined (__FreeBSD__)
+#if defined (__FreeBSD__) || defined(__DSragonFly__)
 #ifndef O_RSYNC
 #define O_RSYNC O_FSYNC
 #endif
@@ -518,6 +522,7 @@ struct client_command {
 	int c_dedup_interior;
 	int c_dedup_compress;
 	int c_dedup_mseed;
+	int c_chid_skew;
 	int c_hist_summary;
 	int c_op_rate;
 	int c_op_rate_flag;
@@ -618,6 +623,7 @@ struct client_neutral_command {
 	char c_dedup_interior[4];
 	char c_dedup_compress[4];
 	char c_dedup_mseed[4];
+	char c_chid_skew[4];
 	char c_hist_summary[4];
 	char c_op_rate[4];
 	char c_op_rate_flag[2];
@@ -1297,6 +1303,7 @@ char master_iozone, client_iozone,distributed;
 int bif_fd,s_count;
 int bif_row,bif_column;
 int dedup_mseed = 1;
+int chid_skew = 0;
 int hist_summary;
 int op_rate;
 int op_rate_flag;
@@ -2658,6 +2665,16 @@ char **argv;
 					if(dedup_mseed ==0)
 						dedup_mseed = 1;
 					sprintf(splash[splash_line++],"\tDedup manual seed %d .\n",dedup_mseed);
+					break;
+				case 'W':  /* Argument is the child_skew for dedup */
+					subarg=argv[optind++];
+					if(subarg==(char *)0)
+					{
+					     printf("-+W takes an operand !!\n");
+					     exit(200);
+					}
+					chid_skew = atoi(subarg);
+					sprintf(splash[splash_line++],"\tDedup chid_skew %d .\n",chid_skew);
 					break;
 				case 'H':  /* Argument is hostname of the PIT */
 					subarg=argv[optind++];
@@ -9779,7 +9796,7 @@ long long *data1,*data2;
 			purgeit(nbuff,reclen);
 		if(mmapflag)
 		{
-			wmaddr = &maddr[i*reclen];
+			wmaddr = &maddr[0];
 			fill_area((long long*)nbuff,(long long*)wmaddr,(long long)reclen);
 			if(!mmapnsflag)
 			{
@@ -20603,6 +20620,7 @@ int send_size;
 	sprintf(outbuf.c_dedup_interior,"%d",send_buffer->c_dedup_interior);
 	sprintf(outbuf.c_dedup_compress,"%d",send_buffer->c_dedup_compress);
 	sprintf(outbuf.c_dedup_mseed,"%d",send_buffer->c_dedup_mseed);
+	sprintf(outbuf.c_chid_skew,"%d",send_buffer->c_chid_skew);
 	sprintf(outbuf.c_hist_summary,"%d",send_buffer->c_hist_summary);
 	sprintf(outbuf.c_op_rate,"%d",send_buffer->c_op_rate);
 	sprintf(outbuf.c_op_rate_flag,"%d",send_buffer->c_op_rate_flag);
@@ -21454,6 +21472,7 @@ long long numrecs64, reclen;
 	cc.c_dedup_interior = dedup_interior;
 	cc.c_dedup_compress = dedup_compress;
 	cc.c_dedup_mseed = dedup_mseed;
+	cc.c_chid_skew = chid_skew;
 	cc.c_hist_summary = hist_summary;
 	cc.c_op_rate = op_rate;
 	cc.c_op_rate_flag = op_rate_flag;
@@ -21709,6 +21728,7 @@ become_client()
 	sscanf(cnc->c_dedup_interior,"%d",&cc.c_dedup_interior);
 	sscanf(cnc->c_dedup_compress,"%d",&cc.c_dedup_compress);
 	sscanf(cnc->c_dedup_mseed,"%d",&cc.c_dedup_mseed);
+	sscanf(cnc->c_chid_skew,"%d",&cc.c_chid_skew);
 	sscanf(cnc->c_hist_summary,"%d",&cc.c_hist_summary);
 	sscanf(cnc->c_op_rate,"%d",&cc.c_op_rate);
 	sscanf(cnc->c_op_rate_flag,"%d",&cc.c_op_rate_flag);
@@ -21791,6 +21811,7 @@ become_client()
 	dedup_interior = cc.c_dedup_interior;
 	dedup_compress = cc.c_dedup_compress;
 	dedup_mseed = cc.c_dedup_mseed;
+	chid_skew = cc.c_chid_skew;
 	hist_summary = cc.c_hist_summary;
 	op_rate = cc.c_op_rate;
 	op_rate_flag = cc.c_op_rate_flag;
@@ -22477,7 +22498,7 @@ int line_num;
 		child_idents[line_num].workdir,
 		child_idents[line_num].execute_path,
 		child_idents[line_num].file_name);
-	if((num > 0) && (num !=3) && (num !=4))
+	if((num < 0) || ((num > 0) && (num !=3) && (num !=4)))
 	{
 		printf("Bad Client Identity at entry %d\n",line_num);
 		printf("Client: -> %s  Workdir: -> %s  Execute_path: -> %s \n",
@@ -23768,7 +23789,7 @@ gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,
 	w=interior_size - compress_size;
 	op=(long *)&obuf[w];
 	ip=(long *)&ibuf[w];
-	srand(chid+1+dedup_mseed);            /* set randdom seed 	*/
+	srand(chid+chid_skew+1+dedup_mseed);            /* set randdom seed 	*/
 	cseed = rand();		/* generate random value */
 	for(w=(interior_size-compress_size);w<interior_size;w+=sizeof(long))	
 	{
@@ -23788,7 +23809,7 @@ gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,
 	/* make the rest of the buffer non-dedupable */
 	if(100-percent > 0)
 	{
-		srand(1+seed+((chid+1)*(int)numrecs64)*dedup_mseed);
+		srand(1+seed+((chid+chid_skew+1)*(int)numrecs64)*dedup_mseed);
 		value=rand();
 /* printf("Non-dedup value %x seed %x\n",value,seed);*/
 		for( ; x<size;x+=sizeof(long))

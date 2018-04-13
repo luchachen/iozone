@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.141 $
+# Version $Revision: 1.142 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -838,6 +838,12 @@ fileop_freebsd.o:	fileop.c
 	@echo "Building fileop for FreeBSD"
 	@echo ""
 	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_freebsd.o
+
+fileop_dragonfly.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for DragonFly"
+	@echo ""
+	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_dragonfly.o
 
 fileop_netbsd.o:	fileop.c
 	@echo ""
