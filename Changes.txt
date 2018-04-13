@@ -1914,4 +1914,9 @@ Add sanity check to validate that open(name, O_CREAT | O_WRONLY | O_TRUNC, 0)
 does work correctly. This is an NFS client test that
 detects if the NFS server's local filesystem is broken and
 fails to support the sequence above correctly. 
+=============================================================================
+Revision 3.235
+=============================================================================
+add a close(fd) to the sanity test.
+
 

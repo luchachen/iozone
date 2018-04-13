@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.234 $"
+#define THISVERSION "        Version $Revision: 3.235 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -6254,6 +6254,7 @@ long long *data2;
                 printf("Sanity check failed. Do not deploy this filesystem in a production environment !\n");
                 exit(44);
         }
+	close(fd);
         unlink(filename);
 /* Sanity check */
 
