@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.154 $"
+#define THISVERSION "        Version $Revision: 3.156 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -519,9 +519,9 @@ struct client_neutral_command {
 	char c_version[20]; 		/* int */
 	char c_base_time[20]; 		/* int */
 	char c_num_child[20]; 		/* int */
-	char c_pct_read[6]; 		/* int */
-	char c_advise_op[6]; 		/* int */
-	char c_advise_flag[6]; 		/* int */
+	char c_pct_read[6]; 		/* small int */
+	char c_advise_op[4]; 		/* small int */
+	char c_advise_flag[4]; 		/* small int */
 	char c_depth[20]; 		/* small long long */
 	char c_child_flag[40]; 		/* small long long */
 	char c_delay[80]; 		/* long long */
@@ -1088,7 +1088,7 @@ char *barray[MAXSTREAMS];
 char *haveshm;
 extern int optind;
 long long onetime, auto_mode, sfd, multi_buffer;
-int fd,advise_op,advise_flag;
+int fd;
 int sp_msfd,sp_mrfd,sp_csfd,sp_crfd;
 int begin_proc,num_processors,ioz_processor_bind;
 long long res_prob,rec_prob;
@@ -1257,7 +1257,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 8;
+int proto_version = 9;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1288,6 +1288,7 @@ char disrupt_flag,compute_flag,xflag;
 int no_unlink = 0;
 int r_traj_flag,w_traj_flag;
 char MS_flag;
+int advise_op,advise_flag;
 int direct_flag;
 int current_client_number;
 long long chid;
@@ -3040,7 +3041,12 @@ throughput_test()
 	/* rags: skip writer test */
 	if(include_tflag)
 		if(!(include_mask & (long long)WRITER_MASK))
+		{
+			store_dvalue( (double)0);
+			store_dvalue( (double)0);
+			toutputindex++;
 			goto next0;
+		}
 
 	/* Hooks to start the distributed Iozone client/server code */
 	if(distributed)
@@ -3750,7 +3756,10 @@ jumpend:
 	sleep(2);
 
 	if (no_unlink)
+	{
+		toutputindex++;
 		goto next1;	/* rags: skip rereader */
+	}
 
 	/**************************************************************/
 	/*** ReReader throughput tests **********************************/

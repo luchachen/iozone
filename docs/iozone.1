@@ -60,6 +60,8 @@ Iozone \- Filesystem Benchmark
 [\fB\-+m\fP \fIclient_filename\fP]
 [\fB\-+p\fP \fIpercent_read\fP]
 [\fB\-+r\fP]
+[\fB\-+t\fP]
+[\fB\-+A\fP \fImadvise_selector\fP]
 
 .hy
 .SH DESCRIPTION
@@ -481,6 +483,12 @@ testing.
 .TP
 .BI \-+r
 Enable O_RSYNC | O_SYNC on all testing. 
+.TP
+.BI \-+t
+Enable network performance test. Use with -+m
+.TP
+.BI \-+A #
+Enable madvise behavior. 0 = normal, 1=random, 2=sequential, 3=dontneed, 4=willneed
 
 .SH AUTHOR
 Original Author: William D. Norcott. wnorcott@us.oracle.com
