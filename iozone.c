@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.271 $"
+#define THISVERSION "        Version $Revision: 3.279 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -67,6 +67,7 @@ extern  int h_errno; /* imported for errors */
 
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #if defined (__LP64__) || defined(OSF_64) || defined(__alpha__) || defined(__arch64__) || defined(_LP64) || defined(__s390x__) || defined(__AMD64__)
 #define MODE "\tCompiled for 64 bit mode."
 #define _64BIT_ARCH_
@@ -238,7 +239,7 @@ THISVERSION,
   " ",
   "  Other contributors:",
   " ",
-  "  Don Capps       (Hewlett Packard)	capps@iozone.org",
+  "  Don Capps       (Network Appliance)	capps@iozone.org",
   " ",
   ""};
 
@@ -973,6 +974,9 @@ void srand(unsigned int);
 int get_client_info(void);
 void exit(int);
 void find_remote_shell(char *);
+void find_external_mon(char *,char *);
+void start_monitor(char *);
+void stop_monitor(char *);
 void takeoff_cache();
 void del_cache();
 void fill_area(long long *, long long *, long long);
@@ -1213,6 +1217,7 @@ char *build_name = "Windows";
 #else
 char *build_name = NAME;
 #endif
+char imon_start[256],imon_stop[256]; 
 char trflag; 
 char cpuutilflag;
 char seq_mix;
@@ -1534,6 +1539,7 @@ char **argv;
 	myid=(long long)getpid(); 	/* save the master's PID */
 	get_resolution(); 		/* Get clock resolution */
 	time_run = time(0);		/* Start a timer */
+	(void)find_external_mon(imon_start, imon_stop);
 
 	/*
  	 * Save the splash screen for later display. When in distributed network
@@ -1546,7 +1552,7 @@ char **argv;
 	sprintf(splash[splash_line++],"\t             Al Slater, Scott Rhine, Mike Wisner, Ken Goss\n");
     	sprintf(splash[splash_line++],"\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR,\n");
     	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million, \n");
-    	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg,\n");
+    	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg, Benny Halevy,\n");
     	sprintf(splash[splash_line++],"\t             Erik Habbinga, Kris Strecker, Walter Wong.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
@@ -1653,6 +1659,8 @@ char **argv;
 			sprintf(splash[splash_line++],"\tO_DIRECTIO feature enabled\n");
 			break;
 #endif
+#else
+			break;
 #endif
 		case 'B':	/* Use mmap file for test file */
 			sprintf(splash[splash_line++],"\tUsing mmap files\n");
@@ -3295,6 +3303,8 @@ throughput_test()
 			goto next0;
 		}
 
+	if((!distributed) || (distributed && master_iozone))
+		start_monitor("Write");
 	/* Hooks to start the distributed Iozone client/server code */
 	if(distributed)
 	{
@@ -3533,6 +3543,8 @@ waitout:
 			}
 		}
 	}
+	if((!distributed) || (distributed && master_iozone))
+		stop_monitor("Write");
 	/**********************************************************/
 	/*************** End of intitial writer *******************/
 	/**********************************************************/
@@ -3561,6 +3573,8 @@ waitout:
 		store_dvalue( (double)0);
 		goto next0;
 	}
+	if((!distributed) || (distributed && master_iozone))
+		start_monitor("Rewrite");
 	/* Hooks to start the distributed Iozone client/server code */
 	if(distributed)
 	{
@@ -3768,6 +3782,8 @@ jump3:
 		}
 	}
 	*stop_flag=0;
+	if((!distributed) || (distributed && master_iozone))
+		stop_monitor("Rewrite");
 	/**********************************************************/
 	/*************** End of rewrite throughput ****************/
 	/**********************************************************/
@@ -3787,6 +3803,8 @@ next0:
 	/**************************************************************/
 	/*** Reader throughput tests **********************************/
 	/**************************************************************/
+	if((!distributed) || (distributed && master_iozone))
+		start_monitor("Read");
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[2]);
 	walltime = 0.0;
@@ -3984,6 +4002,8 @@ jumpend:
 			}
 		}
 	}
+	if((!distributed) || (distributed && master_iozone))
+		stop_monitor("Read");
 	/**********************************************************/
 	/*************** End of readers throughput ****************/
 	/**********************************************************/
@@ -4007,6 +4027,8 @@ jumpend:
 		store_dvalue( (double)0);
 		goto next1;
 	}
+	if((!distributed) || (distributed && master_iozone))
+		start_monitor("Reread");
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -4208,6 +4230,8 @@ jumpend2:
 			}
 		}
 	}
+	if((!distributed) || (distributed && master_iozone))
+		stop_monitor("Reread");
 	/**********************************************************/
 	/*************** End of re-readers throughput ****************/
 	/**********************************************************/
@@ -4233,6 +4257,8 @@ next1:
 	/**************************************************************/
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[4]);
+	if((!distributed) || (distributed && master_iozone))
+		start_monitor("Revread");
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -4433,6 +4459,8 @@ next1:
 			}
 		}
 	}
+	if((!distributed) || (distributed && master_iozone))
+		stop_monitor("Revread");
 	sync();
 	sleep(2);
 	if(restf)
@@ -4451,6 +4479,8 @@ next2:
 	/**************************************************************/
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[5]);
+	if((!distributed) || (distributed && master_iozone))
+		start_monitor("Strideread");
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -4653,6 +4683,8 @@ next2:
 			}
 		}
 	}
+	if((!distributed) || (distributed && master_iozone))
+		stop_monitor("Strideread");
 	sync();
 	sleep(2);
 	if(restf)
@@ -4672,6 +4704,8 @@ next3:
 	
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[6]);
+	if((!distributed) || (distributed && master_iozone))
+		start_monitor("Randread");
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -4869,6 +4903,8 @@ next3:
 			}
 		}
 	}
+	if((!distributed) || (distributed && master_iozone))
+		stop_monitor("Randread");
 	sync();
 	sleep(2);
 	if(restf)
@@ -4888,6 +4924,8 @@ next4:
 	
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[7]);
+	if((!distributed) || (distributed && master_iozone))
+		start_monitor("Mixed");
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -5085,6 +5123,8 @@ next4:
 			}
 		}
 	}
+	if((!distributed) || (distributed && master_iozone))
+		stop_monitor("Mixed");
 	sync();
 	sleep(2);
 	if(restf)
@@ -5104,6 +5144,8 @@ next5:
 	
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[8]);
+	if((!distributed) || (distributed && master_iozone))
+		start_monitor("Randwrite");
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -5301,6 +5343,8 @@ next5:
 			}
 		}
 	}
+	if((!distributed) || (distributed && master_iozone))
+		stop_monitor("Randwrite");
 	sync();
 	sleep(2);
 	if(restf)
@@ -5323,6 +5367,8 @@ next6:
 	
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[9]);
+	if((!distributed) || (distributed && master_iozone))
+		start_monitor("Pwrite");
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -5520,6 +5566,8 @@ next6:
 			}
 		}
 	}
+	if((!distributed) || (distributed && master_iozone))
+		stop_monitor("Pwrite");
 	sync();
 	sleep(2);
 	if(restf)
@@ -5544,6 +5592,8 @@ next7:
 	
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[10]);
+	if((!distributed) || (distributed && master_iozone))
+		start_monitor("Pread");
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -5741,6 +5791,8 @@ next7:
 			}
 		}
 	}
+	if((!distributed) || (distributed && master_iozone))
+		stop_monitor("Pread");
 	sync();
 	sleep(2);
 	if(restf)
@@ -6891,7 +6943,7 @@ long long *data2;
 			exit(49);
 		}
 #endif
-		fd=open(filename,O_RDONLY);
+		fd=open(filename,O_RDWR);
 		fsync(fd);
 		setvbuf(stream,stdio_buf,_IOFBF,reclen);
 		buffer=mainbuffer;
@@ -11060,6 +11112,7 @@ thread_write_test( x)
 	double thread_qtime_stop,thread_qtime_start;
 	off64_t traj_offset;
 	off64_t lock_offset=0;
+	off64_t save_offset=0;
 	long long flags,traj_size;
 	long long w_traj_bytes_completed;
 	long long w_traj_ops_completed;
@@ -11392,8 +11445,25 @@ thread_write_test( x)
 				else
 					fsync(fd);
 			}
+			/* Close and re-open to get close in measurment */
+			if(include_close)
+			{
+			  save_offset=I_LSEEK(fd,0,SEEK_CUR);
+			  close(fd);
+			}
 			child_stat->throughput = 
 				(time_so_far() - starttime1)-time_res;
+			if(include_close)
+			{
+			  if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
+			  {
+				printf("\nCan not open temp file: %s\n", 
+					filename);
+				perror("open");
+				exit(125);
+			  }
+			  I_LSEEK(fd,save_offset,SEEK_SET);
+			}
 			if(child_stat->throughput < (double).000001) 
 			{
 				child_stat->throughput = time_res;
@@ -20500,6 +20570,30 @@ char *shell;
 #endif
 	return;
 }	
+#ifdef HAVE_ANSIC_C
+void
+find_external_mon(char * imon_start, char * imon_stop)
+#else
+void
+find_external_mon(imon_start,imon_stop)
+char *imon_start,*imon_stop;
+#endif
+{
+	char *start,*stop;
+	imon_start[0]=(char)0;
+	imon_stop[0]=(char)0;
+	start=(char *)getenv("IMON_START");
+	if(start)
+	{
+		strcpy(imon_start,start);
+	}
+	stop=(char *)getenv("IMON_STOP");
+	if(stop)
+	{
+		strcpy(imon_stop,stop);
+	}
+	return;
+}	
 
 /*
  * This test is only valid in throughput mode.
@@ -21236,8 +21330,13 @@ int client_flag;
 	}
 }
 
+#ifdef HAVE_ANSIC_C
 void
 get_date(char *where)
+#else
+get_date(where)
+char *where;
+#endif
 {
 	time_t t;
 	char *value;
@@ -21259,8 +21358,12 @@ get_date(char *where)
  * See: http://lists.samba.org/archive/samba-technical/2005-April/040541.html
  */
 
+#ifdef HAVE_ANSIC_C
 int
 get_pattern(void)
+#else
+get_pattern(void)
+#endif
 {
         int i,x,y;
         char cp[100],*ptr;
@@ -21291,8 +21394,12 @@ get_pattern(void)
 /* 
  * Allocate the buffer for purge. 
 */
+#ifdef HAVE_ANSIC_C
 void
 alloc_pbuf(void)
+#else
+alloc_pbuf(void)
+#endif
 {
 	pbuffer = (char *) alloc_mem((long long)(3 * cache_size),(int)0);
 	if(pbuffer == 0) {
@@ -21314,8 +21421,13 @@ alloc_pbuf(void)
  * Check to see if the file descriptor points at a file
  * or a device.
  */
+#ifdef HAVE_ANSIC_C
 int
 check_filename(char *name)
+#else
+check_filename(name)
+char *name;
+#endif
 {
 	struct stat mystat;
 	int x;
@@ -21330,5 +21442,35 @@ check_filename(char *name)
 		return(1);
 	}
 	return(0);
+}
+#ifdef HAVE_ANSIC_C
+void
+start_monitor(char *test)
+#else
+start_monitor(test)
+char *test;
+#endif
+{
+	char command_line[256];
+	if(strlen(imon_start)!=0)
+	{
+		sprintf(command_line,"%s %s&",imon_start,test);
+		system(command_line);
+	}
+}
+#ifdef HAVE_ANSIC_C
+void
+stop_monitor(char *test)
+#else
+stop_monitor(test)
+char *test;
+#endif
+{
+	char command_line[256];
+	if(strlen(imon_stop)!=0)
+	{
+		sprintf(command_line,"%s %s &",imon_stop,test);
+		system(command_line);
+	}
 }
 
