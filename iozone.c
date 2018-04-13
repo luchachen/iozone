@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.162 $"
+#define THISVERSION "        Version $Revision: 3.163 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -831,7 +831,7 @@ void purgeit();			/* Purge on chip cache		  */
 void throughput_test();		/* Multi process throughput 	  */
 void multi_throughput_test();	/* Multi process throughput 	  */
 void prepage();			/* Pre-fault user buffer	  */
-#if defined(linux) || defined(solaris) || defined(__AIX__) || defined(OSFV5) || defined(UWIN) || defined(Windows) || defined(__APPLE__) || defined(OSFV4) || defined(IRIX) || defined(IRIX64) || defined(__FreeBSD__)
+#ifdef HAVE_ANSIC_C
 float do_compute(float);	/* compute cycle simulation       */
 #else
 float do_compute();		/* compute cycle simulation       */

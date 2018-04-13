@@ -1622,4 +1622,8 @@ Special handling for mmap of a file that is opened (O_DIRECT)
 Revision 3.162 
 =============================================================================
 Fixup for systems that do not have O_DIRECT.
+=============================================================================
+Revision 3.163 
+=============================================================================
+Simplify the prototype for do_compute()
 
