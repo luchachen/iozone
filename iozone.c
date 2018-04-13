@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.257 $"
+#define THISVERSION "        Version $Revision: 3.259 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -868,6 +868,7 @@ struct master_neutral_command {
 /******************************************************************/
 char *initfile();
 void mmap_end();
+void alloc_pbuf();
 void auto_test();		/* perform automatic test series  */
 void show_help();		/* show development help          */
 static double time_so_far();	/* time since start of program    */
@@ -2395,20 +2396,7 @@ char **argv;
 
 	if(pflag) /* Allocate after cache_size is set */
 	{
-     		pbuffer = (char *) alloc_mem((long long)(3 * cache_size),(int)0);
-		if(pbuffer == 0) {
-                       	perror("Memory allocation failed:");
-                       	exit(9);
-		}
-#ifdef _64BIT_ARCH_
-	     	pbuffer = (char *) 
-			(((unsigned long long)pbuffer + cache_size ) 
-				& ~(cache_size-1));
-#else
-	     	pbuffer = (char *) 
-			(((long)pbuffer + (long)cache_size ) 
-				& ~((long)cache_size-1));
-#endif
+		alloc_pbuf();
 	}
 	if(distributed && master_iozone)
 	{
@@ -2589,6 +2577,16 @@ char **argv;
 		&& (auto_mode || aflag || yflag || qflag || nflag || gflag))
 	{
 		printf("\n\tCan not mix throughput mode and auto-mode flags.\n\n");
+		exit(17);
+	}
+	if(fflag && trflag)
+	{
+		printf("\n\tYou must use -F when using multiple threads or processes.\n\n");
+		exit(17);
+	}
+	if(aflag && mfflag)
+	{
+		printf("\n\tYou must use -f when using auto mode.\n\n");
 		exit(17);
 	}
 	if(async_flag && mmapflag)
@@ -19264,6 +19262,8 @@ become_client()
 		printf("Child %d change directory to %s\n",(int)chid,workdir);
 		fflush(stdout);
 	}
+	if(purge)
+		alloc_pbuf();
 
 	/* 6. Change to the working directory */
 
@@ -20828,3 +20828,24 @@ get_pattern(void)
         return(pat);
 }
 
+/* 
+ * Allocate the buffer for purge. 
+*/
+void
+alloc_pbuf(void)
+{
+	pbuffer = (char *) alloc_mem((long long)(3 * cache_size),(int)0);
+	if(pbuffer == 0) {
+              	perror("Memory allocation failed:");
+               	exit(9);
+	}
+#ifdef _64BIT_ARCH_
+	pbuffer = (char *) 
+		(((unsigned long long)pbuffer + cache_size ) 
+		& ~(cache_size-1));
+#else
+	pbuffer = (char *) 
+		(((long)pbuffer + (long)cache_size ) 
+		& ~((long)cache_size-1));
+#endif
+}

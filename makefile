@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.98 $
+# Version $Revision: 1.99 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -468,7 +468,7 @@ iozone_hpux.o:	iozone.c libbif.c
 	$(C89) +e -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS \
 		-DNAME='"hpux"' $(CFLAGS) iozone.c  -o iozone_hpux.o
 	$(C89) +e -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS \
-		-DZBIG_ENDIAN $(CFLAGS) libbif.c -o libbif.o
+		$(CFLAGS) libbif.c -o libbif.o
 
 iozone_hpux-11.0.o:	iozone.c libasync.c libbif.c
 	@echo ""
@@ -480,7 +480,7 @@ iozone_hpux-11.0.o:	iozone.c libasync.c libbif.c
 	$(CC) -c  +O3 +Oparallel -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
 		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS $(CFLAGS) libasync.c  -o libasync.o
 	$(CC) -c  +O3 +Oparallel -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
-		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS -DZBIG_ENDIAN $(CFLAGS) libbif.c  -o libbif.o
+		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS $(CFLAGS) libbif.c  -o libbif.o
 
 iozone_hpux-11.0w.o:	iozone.c libasync.c libbif.c
 	@echo ""
@@ -492,7 +492,7 @@ iozone_hpux-11.0w.o:	iozone.c libasync.c libbif.c
 	$(CC) -c +DD64 +O3 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
 		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS $(CFLAGS) libasync.c  -o libasyncw.o
 	$(CC) -c +DD64 +O3 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
-		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS -DZBIG_ENDIAN $(CFLAGS) libbif.c  -o libbif.o
+		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS $(CFLAGS) libbif.c  -o libbif.o
 
 iozone_hpuxs-11.0.o:	iozone.c libasync.c libbif.c
 	@echo ""
@@ -504,7 +504,7 @@ iozone_hpuxs-11.0.o:	iozone.c libasync.c libbif.c
 	$(CC) -c  -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE -DHAVE_ANSIC_C \
 		-DASYNC_IO  -DVXFS $(CFLAGS) libasync.c  -o libasync.o 
 	$(CC) -c  -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE -DHAVE_ANSIC_C \
-		-DASYNC_IO -DVXFS -DZBIG_ENDIAN $(CFLAGS) libbif.c  -o libbif.o 
+		-DASYNC_IO -DVXFS $(CFLAGS) libbif.c  -o libbif.o 
 
 fileop_hpuxs-11.0.o:	fileop.c
 	@echo ""
@@ -522,7 +522,7 @@ iozone_hpuxs-11.0w.o:	iozone.c libasync.c libbif.c
 	$(CC) -c +DD64 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
 		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS $(CFLAGS) libasync.c  -o libasyncw.o 
 	$(CC) -c +DD64 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
-		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS -DZBIG_ENDIAN $(CFLAGS) libbif.c  -o libbif.o 
+		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS $(CFLAGS) libbif.c  -o libbif.o 
 
 iozone_hpux-10.1.o:	iozone.c libbif.c
 	@echo ""
@@ -531,7 +531,7 @@ iozone_hpux-10.1.o:	iozone.c libbif.c
 	$(C89) +e -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS \
 		-DNAME='"hpux-10.1"' $(CFLAGS) iozone.c  -o iozone_hpux-10.1.o
 	$(C89) +e -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS \
-		-DZBIG_ENDIAN $(CFLAGS) libbif.c  -o libbif.o
+		$(CFLAGS) libbif.c  -o libbif.o
 
 iozone_hpux-10.20.o:	iozone.c libbif.c
 	@echo ""
@@ -540,7 +540,7 @@ iozone_hpux-10.20.o:	iozone.c libbif.c
 	$(C89) +e -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS \
 		-DNAME='"hpux-10.20"' $(CFLAGS) iozone.c  -o iozone_hpux-10.20.o
 	$(C89) +e -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS \
-		-DZBIG_ENDIAN $(CFLAGS) libbif.c  -o libbif.o
+		$(CFLAGS) libbif.c  -o libbif.o
 
 iozone_ghpux.o:	iozone.c libbif.c
 	@echo ""
@@ -548,7 +548,7 @@ iozone_ghpux.o:	iozone.c libbif.c
 	@echo ""
 	$(GCC) -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS $(CFLAGS) iozone.c \
 		-DNAME='"h=ghpux"' -o iozone_ghpux.o
-	$(GCC) -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS -DZBIG_ENDIAN \
+	$(GCC) -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS \
 		$(CFLAGS) libbif.c -o libbif.o
 
 iozone_generic.o:	iozone.c libbif.c
@@ -558,7 +558,7 @@ iozone_generic.o:	iozone.c libbif.c
 	$(CC) -c -O -Dgeneric -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
 		-DNAME='"Generic"' $(CFLAGS) iozone.c -o iozone_generic.o
 	$(CC) -c -O -Dgeneric -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
-		-DZBIG_ENDIAN $(CFLAGS) libbif.c -o libbif.o
+		$(CFLAGS) libbif.c -o libbif.o
 
 iozone_hpux_no.o:	iozone.c libbif.c
 	@echo ""
@@ -567,7 +567,7 @@ iozone_hpux_no.o:	iozone.c libbif.c
 	$(NACC) -c -O -Dunix -D_HPUX_SOURCE -DNO_THREADS iozone.c \
 		-DNAME='"hpux_no_ansi"' -o iozone_hpux_no.o
 	$(NACC) -c -O -Dunix -D_HPUX_SOURCE -DNO_THREADS \
-		-DZBIG_ENDIAN libbif.c -o libbif.o
+		libbif.c -o libbif.o
 
 iozone_hpux_no-10.1.o:	iozone.c
 	@echo ""
@@ -576,7 +576,7 @@ iozone_hpux_no-10.1.o:	iozone.c
 	$(NACC) -c -O -Dunix -D_HPUX_SOURCE -DNO_THREADS iozone.c \
 		-DNAME='"hpux_no_ansi_10.1"' -o iozone_hpux_no-10.1.o
 	$(NACC) -c -O -Dunix -D_HPUX_SOURCE -DNO_THREADS \
-		-DZBIG_ENDIAN libbif.c -o libbif.o
+		libbif.c -o libbif.o
 
 iozone_linux-powerpc.o:	iozone.c libbif.c libasync.c
 	@echo ""
@@ -654,7 +654,7 @@ iozone_linux-arm.o:	iozone.c libbif.c libasync.c
 		-Dlinux -D_LARGEFILE64_SOURCE $(CFLAGS) iozone.c \
 		-o iozone_linux-arm.o
 	$(CC) -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
-		-DSHARED_MEM -DZBIG_ENDIAN2 -Dlinux $(CFLAGS) libbif.c -o libbif.o
+		-DSHARED_MEM -Dlinux $(CFLAGS) libbif.c -o libbif.o
 	$(CC) -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE $(CFLAGS) libasync.c  -o libasync.o
 
@@ -679,7 +679,7 @@ iozone_linux-s390.o:	iozone.c libbif.c libasync.c
 		-DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE $(CFLAGS) iozone.c \
 		-DNAME='"linux-s390"' -o iozone_linux-s390.o
 	$(CC) -c -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM -Dlinux \
-		-DZBIG_ENDIAN -D_LARGEFILE64_SOURCE $(CFLAGS) libbif.c -o libbif.o
+		-D_LARGEFILE64_SOURCE $(CFLAGS) libbif.c -o libbif.o
 	$(CC) -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE $(CFLAGS) libasync.c -o libasync.o
 
@@ -691,7 +691,7 @@ iozone_linux-s390x.o:	iozone.c libbif.c libasync.c
 		-DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE $(CFLAGS) iozone.c \
 		-DNAME='"linux-s390x"' -o iozone_linux-s390x.o
 	$(CC) -c -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM -Dlinux \
-		-DZBIG_ENDIAN -D_LARGEFILE64_SOURCE $(CFLAGS) libbif.c -o libbif.o
+		-D_LARGEFILE64_SOURCE $(CFLAGS) libbif.c -o libbif.o
 	$(CC) -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE $(CFLAGS) libasync.c -o libasync.o
 
@@ -703,7 +703,7 @@ iozone_AIX.o:	iozone.c libbif.c
 	$(CC) -c -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C  \
 		-DNAME='"AIX"' -DSHARED_MEM  $(CFLAGS) iozone.c -o iozone_AIX.o
 	$(CC) -c -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C  \
-		-DZBIG_ENDIAN -DSHARED_MEM $(CFLAGS) libbif.c -o libbif.o
+		-DSHARED_MEM $(CFLAGS) libbif.c -o libbif.o
 
 iozone_AIX-LF.o:	iozone.c libbif.c 
 	@echo ""
@@ -714,7 +714,7 @@ iozone_AIX-LF.o:	iozone.c libbif.c
 		-DNAME='"AIX-LF"' $(CFLAGS) iozone.c -o iozone_AIX-LF.o
 	$(CC) -c -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C  \
 		-DSHARED_MEM -D_LARGEFILE64_SOURCE -D_LARGE_FILES \
-		-DZBIG_ENDIAN $(CFLAGS) libbif.c -o libbif.o
+		$(CFLAGS) libbif.c -o libbif.o
 
 iozone_solaris.o:	iozone.c libasync.c libbif.c
 	@echo ""
@@ -728,7 +728,7 @@ iozone_solaris.o:	iozone.c libasync.c libbif.c
 		$(CFLAGS) libasync.c -o libasync.o
 	$(CC) -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
 		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
-		-DZBIG_ENDIAN $(CFLAGS) libbif.c -o libbif.o
+		$(CFLAGS) libbif.c -o libbif.o
 
 iozone_solaris7gcc.o:	iozone.c libasync.c libbif.c
 	@echo ""
@@ -739,7 +739,7 @@ iozone_solaris7gcc.o:	iozone.c libasync.c libbif.c
 		-DNAME='"Solaris7gcc"' $(CFLAGS) libasync.c -o libasync7.o
 	$(GCC) -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
 		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
-		-DZBIG_ENDIAN $(CFLAGS) libbif.c -o libbif7.o
+		$(CFLAGS) libbif.c -o libbif7.o
 	$(GCC) -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
 		-DNAME='"Solaris7gcc"' $(CFLAGS) iozone.c -o iozone_solaris7gcc.o
@@ -770,7 +770,7 @@ iozone_solaris-2.6.o:	iozone.c libbif.c
 	$(CC) -c -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
 		-DNAME='"Solaris-2.6"' -Dsolaris  $(CFLAGS) iozone.c -o iozone_solaris-2.6.o
 	$(CC) -O -c  -Dunix -DHAVE_ANSIC_C \
-		-Dsolaris -DZBIG_ENDIAN $(CFLAGS) libbif.c -o libbif.o
+		-Dsolaris $(CFLAGS) libbif.c -o libbif.o
 
 iozone_solaris8-64.o: iozone.c libasync.c libbif.c
 	@echo ""
@@ -785,7 +785,7 @@ iozone_solaris8-64.o: iozone.c libasync.c libbif.c
 		-Dsolaris -DHAVE_PREAD $(CFLAGS) libasync.c -o libasync.o
 	$(CC) -fast -xtarget=generic64 -v -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-D__LP64__ -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
-		-Dsolaris -DZBIG_ENDIAN -DHAVE_PREAD $(CFLAGS) libbif.c -o libbif.o
+		-Dsolaris -DHAVE_PREAD $(CFLAGS) libbif.c -o libbif.o
 
 iozone_solaris8-64-VXFS.o: iozone.c libasync.c libbif.c
 	@echo ""
@@ -803,7 +803,7 @@ iozone_solaris8-64-VXFS.o: iozone.c libasync.c libbif.c
 	$(CC) -fast -xtarget=generic64 -v -c -I/opt/VRTSvxfs/include/ -Dunix \
 		-DVXFS -DHAVE_ANSIC_C -DASYNC_IO \
 		-D__LP64__ -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
-		-Dsolaris -DZBIG_ENDIAN -DHAVE_PREAD $(CFLAGS) libbif.c -o libbif.o
+		-Dsolaris -DHAVE_PREAD $(CFLAGS) libbif.c -o libbif.o
 
 iozone_windows.o:	iozone.c libasync.c libbif.c
 	@echo ""
@@ -832,7 +832,7 @@ iozone_IRIX64.o:	iozone.c libasync.c libbif.c
 	$(CC) -32 -O -c  -Dunix -DHAVE_ANSIC_C -D_LARGEFILE64_SOURCE -DASYNC_IO \
 		-DIRIX64 -DSHARED_MEM $(CFLAGS) libasync.c -o libasyncw.o
 	$(CC) -32 -O -c  -Dunix -DHAVE_ANSIC_C -D_LARGEFILE64_SOURCE -DASYNC_IO \
-		-DIRIX64 -DSHARED_MEM -DZBIG_ENDIAN $(CFLAGS) libbif.c -o libbif.o
+		-DIRIX64 -DSHARED_MEM $(CFLAGS) libbif.c -o libbif.o
 
 iozone_IRIX.o:	iozone.c libasync.c libbif.c
 	@echo ""
@@ -843,7 +843,7 @@ iozone_IRIX.o:	iozone.c libasync.c libbif.c
 	$(CC)  -O -32 -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-DIRIX -DSHARED_MEM $(CFLAGS) libasync.c -o libasync.o
 	$(CC)  -O -32 -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
-		-DIRIX -DSHARED_MEM -DZBIG_ENDIAN $(CFLAGS) libbif.c -o libbif.o
+		-DIRIX -DSHARED_MEM $(CFLAGS) libbif.c -o libbif.o
 
 iozone_CrayX1.o: iozone.c libasync.c libbif.c
 	@echo ""
@@ -856,7 +856,7 @@ iozone_CrayX1.o: iozone.c libasync.c libbif.c
 		-DIRIX64 -DSHARED_MEM -D__CrayX1__ \
 		$(CFLAGS) libasync.c -o libasyncw.o
 	$(CC)  -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
-		-DIRIX64 -DSHARED_MEM -DZBIG_ENDIAN -D__CrayX1__ $(CFLAGS) libbif.c \
+		-DIRIX64 -DSHARED_MEM -D__CrayX1__ $(CFLAGS) libbif.c \
 		-o libbif.o
 
 iozone_sppux.o:	iozone.c libbif.c
@@ -867,7 +867,7 @@ iozone_sppux.o:	iozone.c libbif.c
 		-DNAME='"sppux"' -Wl,+parallel -DHAVE_ANSIC_C -DHAVE_PREAD \
 		-DHAVE_PREADV $(CFLAGS) iozone.c -o iozone_sppux.o
 	$(NACC) -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
-		-Wl,+parallel -DHAVE_ANSIC_C -DHAVE_PREAD -DHAVE_PREADV -DZBIG_ENDIAN \
+		-Wl,+parallel -DHAVE_ANSIC_C -DHAVE_PREAD -DHAVE_PREADV \
 		$(CFLAGS) libbif.c -o libbif.o
 
 iozone_sppux-10.1.o:	iozone.c libbif.c
@@ -878,7 +878,7 @@ iozone_sppux-10.1.o:	iozone.c libbif.c
 		-DHAVE_ANSIC_C -DHAVE_PREAD -DHAVE_PREADV $(CFLAGS) iozone.c \
 		 -DNAME='"sppux-10.1"' -Wl,+parallel -o iozone_sppux-10.1.o
 	$(NACC) -c -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
-		-DHAVE_ANSIC_C -DHAVE_PREAD -DHAVE_PREADV -DZBIG_ENDIAN \
+		-DHAVE_ANSIC_C -DHAVE_PREAD -DHAVE_PREADV \
 		$(CFLAGS) libbif.c -Wl,+parallel -o libbif.o
 
 iozone_sppux_no-10.1.o:	iozone.c libbif.c
@@ -889,7 +889,7 @@ iozone_sppux_no-10.1.o:	iozone.c libbif.c
 		-DNAME='"sppux_no_ansi_10.1"' -Wl,+parallel -DHAVE_PREAD \
 		-DHAVE_PREADV $(CFLAGS) iozone.c -o iozone_sppux_no-10.1.o
 	$(CCS) -c -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
-		-Wl,+parallel -DHAVE_PREAD -DHAVE_PREADV -DZBIG_ENDIAN $(CFLAGS) \
+		-Wl,+parallel -DHAVE_PREAD -DHAVE_PREADV $(CFLAGS) \
 		libbif.c -o libbif.o
 
 iozone_convex.o:	iozone.c libbif.c
@@ -898,7 +898,7 @@ iozone_convex.o:	iozone.c libbif.c
 	@echo ""
 		$(CC) -c -O -Dunix -DNO_THREADS -Dbsd4_2 $(CFLAGS) iozone.c \
 			-DNAME='"Convex"' -o iozone_convex.o 
-		$(CC) -c -O -Dunix -DNO_THREADS -Dbsd4_2 -DZBIG_ENDIAN \
+		$(CC) -c -O -Dunix -DNO_THREADS -Dbsd4_2 \
 			$(CFLAGS) libbif.c -o libbif.o 
 
 iozone_bsdi.o:	iozone.c libbif.c
@@ -1002,7 +1002,7 @@ iozone_SCO.o:	iozone.c libbif.c
 	$(GCC) -c -O -DSCO -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DNO_MADVISE \
 		-DNAME='"SCO"' $(CFLAGS) iozone.c -o iozone_SCO.o
 	$(GCC) -c -O -DSCO -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DNO_MADVISE \
-		-DZBIG_ENDIAN $(CFLAGS) libbif.c -o libbif.o
+		$(CFLAGS) libbif.c -o libbif.o
 
 iozone_SCO_Unixware_gcc.o:	iozone.c libbif.c libasync.c
 	@echo ""

@@ -43,6 +43,12 @@
 #include <stdlib.h>
 #include <string.h>
 #endif
+/* Little Endian */
+#define ENDIAN_1  1
+/* Big Endian    */
+#define ENDIAN_2  2
+/* Middle Endian */
+#define ENDIAN_3  3
 
 
 #ifdef HAVE_ANSIC_C
@@ -78,7 +84,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.13 $";
+char libbif_version[] = "Libbif Version $Revision: 3.14 $";
 void do_eof(int );		/* Used internally */
 void do_header(int );		/* Used internally */
 #endif
@@ -277,39 +283,41 @@ int row,column;
         floatrec.lo_column=(char)((s_column>>8)&0xff);
 	sptr =(unsigned char *) &value;
 	dptr =(unsigned char *) &floatrec.data;
-/*#if defined(BIG_ENDIAN) && !defined(linux)*/
-#if defined(ZBIG_ENDIAN) 
-	dptr[0]=sptr[7]; /* Convert to Little Endian */
-	dptr[1]=sptr[6];
-	dptr[2]=sptr[5];
-	dptr[3]=sptr[4];
-	dptr[4]=sptr[3];
-	dptr[5]=sptr[2];
-	dptr[6]=sptr[1];
-	dptr[7]=sptr[0];
-#endif
-#if defined(ZBIG_ENDIAN2)
-	dptr[0]=sptr[4]; /* 16 bit swapped ARM */
-	dptr[1]=sptr[5];
-	dptr[2]=sptr[6];
-	dptr[3]=sptr[7];
-	dptr[4]=sptr[0];
-	dptr[5]=sptr[1];
-	dptr[6]=sptr[2];
-	dptr[7]=sptr[3];
 
-#endif
+	if(endian()==ENDIAN_2) /* Big Endian */
+	{
+	   dptr[0]=sptr[7]; /* Convert to Little Endian */
+	   dptr[1]=sptr[6];
+	   dptr[2]=sptr[5];
+	   dptr[3]=sptr[4];
+	   dptr[4]=sptr[3];
+	   dptr[5]=sptr[2];
+	   dptr[6]=sptr[1];
+	   dptr[7]=sptr[0];
+	}
+	if(endian()==ENDIAN_3)  /* Middle Endian */
+	{
+	   dptr[0]=sptr[4]; /* 16 bit swapped ARM */
+	   dptr[1]=sptr[5];
+	   dptr[2]=sptr[6];
+	   dptr[3]=sptr[7];
+	   dptr[4]=sptr[0];
+	   dptr[5]=sptr[1];
+	   dptr[6]=sptr[2];
+	   dptr[7]=sptr[3];
+	}
 
-#if !defined(ZBIG_ENDIAN) && !defined(ZBIG_ENDIAN2)
-	dptr[0]=sptr[0]; /* Do not convert to Little Endian */
-	dptr[1]=sptr[1];
-	dptr[2]=sptr[2];
-	dptr[3]=sptr[3];
-	dptr[4]=sptr[4];
-	dptr[5]=sptr[5];
-	dptr[6]=sptr[6];
-	dptr[7]=sptr[7];
-#endif
+	if(endian()==ENDIAN_1) /* Little Endian */
+	{
+	   dptr[0]=sptr[0]; /* Do not convert to Little Endian */
+	   dptr[1]=sptr[1];
+	   dptr[2]=sptr[2];
+	   dptr[3]=sptr[3];
+	   dptr[4]=sptr[4];
+	   dptr[5]=sptr[5];
+	   dptr[6]=sptr[6];
+	   dptr[7]=sptr[7];
+	}
 	write(fd,&floatrec,11); /* Don't write floatrec. Padding problems */
 	write(fd,&floatrec.data,8); /* Write value seperately */
 }
@@ -373,3 +381,42 @@ int fd;
 	write(fd,buf,4);
 }
 	
+/* 
+ * Routine to determine the Endian-ness of the system. This
+ * is needed for Iozone to convert doubles (floats) into
+ * Little-endian format. This is needed for Excel to be 
+ * able to interpret the file 
+ */
+int
+endian(void)
+{
+	long long foo = 0x0102030405060708LL;
+	unsigned char *c,c1,c2,c3,c4,c5,c6,c7,c8;
+	c=(char *)&foo;
+	c1=*c++;
+	c2=*c++;
+	c3=*c++;
+	c4=*c++;
+	c5=*c++;
+	c6=*c++;
+	c7=*c++;
+	c8=*c;
+
+	/*--------------------------------------------------------------*/
+	/* printf("%x %x %x %x %x %x %x %x\n",c1,c2,c3,c4,c5,c6,c7,c8); */
+	/*--------------------------------------------------------------*/
+
+	/* Little Endian format ? ( Intel ) */
+	if( (c1==0x08) && (c2=0x07) && (c3==0x06) && (c4==0x05) &&
+		(c5==0x04) && (c6==0x03) && (c7==0x02) && (c8==0x01) )
+		return(ENDIAN_1);
+	/* Big Endian format ?    ( Sparc, Risc... */
+	if( (c1==0x01) && (c2=0x02) && (c3==0x03) && (c4==0x04) &&
+		(c5==0x05) && (c6==0x06) && (c7==0x07) && (c8==0x08) )
+		return(ENDIAN_2);
+	/* Middle Endian format ? ( ARM ... ) */
+	if( (c1==0x04) && (c2=0x03) && (c3==0x02) && (c4==0x01) &&
+		(c5==0x08) && (c6==0x07) && (c7==0x06) && (c8==0x05) )
+		return(ENDIAN_3);
+
+}
