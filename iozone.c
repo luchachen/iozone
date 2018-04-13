@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.434 $"
+#define THISVERSION "        Version $Revision: 3.446 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -346,6 +346,11 @@ THISVERSION,
 typedef long long off64_t;
 #endif
 
+#if defined(__FreeBSD__)
+#define __off64_t_defined
+typedef off_t off64_t;
+#endif
+
 #if defined(__DragonFly__)
 #define __off64_t_defined
 typedef off_t off64_t;
@@ -360,7 +365,9 @@ typedef off_t off64_t;
 #ifndef SCO_Unixware_gcc
 #ifndef UWIN
 #ifndef __DragonFly__
+#ifndef __FreeBSD__
 typedef long long off64_t;
+#endif
 #endif
 #endif
 #endif
@@ -759,8 +766,8 @@ struct master_neutral_command {
 /* These are the defaults for the processor. They can be 
  * over written by the command line options.
  */
-#define CACHE_LINE_SIZE 32
-#define CACHE_SIZE ( 1024 * 1024 )
+#define MY_CACHE_LINE_SIZE 32
+#define MY_CACHE_SIZE ( 1024 * 1024 )
 
 
 #define MEG (1024 * 1024)
@@ -1071,24 +1078,24 @@ static double cpu_util(double, double);
 void dump_cputimes(void);
 void purge_buffer_cache(void);
 char *alloc_mem(long long,int);
-void *(thread_rwrite_test)(void *);
-void *(thread_write_test)(void *);
-void *(thread_fwrite_test)(void *);
-void *(thread_fread_test)(void *);
-void *(thread_read_test)(void*);
+void *(thread_rwrite_test)(int);
+void *(thread_write_test)(int);
+void *(thread_fwrite_test)(int);
+void *(thread_fread_test)(int);
+void *(thread_read_test)(int);
 #ifdef HAVE_PREAD
-void *(thread_pread_test)(void*);
-void *(thread_pwrite_test)(void*);
+void *(thread_pread_test)(int);
+void *(thread_pwrite_test)(int);
 #endif
-void *(thread_cleanup_test)(void*);
-void *(thread_cleanup_quick)(void*);
-void *(thread_ranread_test)(void *);
-void *(thread_mix_test)(void *);
-void *(thread_ranwrite_test)(void *);
-void *(thread_rread_test)(void *);
-void *(thread_reverse_read_test)(void *);
-void *(thread_stride_read_test)(void *);
-void *(thread_set_base)(void *);
+void *(thread_cleanup_test)(int);
+void *(thread_cleanup_quick)(int);
+void *(thread_ranread_test)(int);
+void *(thread_mix_test)(int);
+void *(thread_ranwrite_test)(int);
+void *(thread_rread_test)(int);
+void *(thread_reverse_read_test)(int);
+void *(thread_stride_read_test)(int);
+void *(thread_set_base)(int);
 void *(thread_join)(long long, void *);
 void disrupt(int);
 #if defined(Windows)
@@ -1400,8 +1407,8 @@ char Cflag;
 char use_thread = 0;
 long long debug1=0;		
 long long debug=0;
-unsigned long cache_size=CACHE_SIZE;
-unsigned long cache_line_size=CACHE_LINE_SIZE;
+unsigned long cache_size=MY_CACHE_SIZE;
+unsigned long cache_line_size=MY_CACHE_LINE_SIZE;
 long long *pstatus;
 off64_t min_file_size = KILOBYTES_START;
 off64_t max_file_size = KILOBYTES_END;
@@ -2084,12 +2091,12 @@ char **argv;
 		case 'S':	/* Set the processor cache size */
 			cache_size = (long)(atoi(optarg)*1024);
 			if(cache_size == 0)
-				cache_size = CACHE_SIZE;
+				cache_size = MY_CACHE_SIZE;
 			break;
 		case 'L':	/* Set processor cache line size */
 			cache_line_size = (long)(atoi(optarg));
 			if(cache_line_size == 0)
-				cache_line_size = CACHE_LINE_SIZE;
+				cache_line_size = MY_CACHE_LINE_SIZE;
 			break;
 		case 'f':	/* Specify the file name */
 			if(mfflag) {
@@ -2130,18 +2137,18 @@ char **argv;
 			break;
 		case 'r':	/* Specify the record size to use */
 			rflag++;
-			reclen = ((long long)(atoi(optarg))*1024);
+			reclen = ((long long)(atoll(optarg))*1024LL);
 			if(optarg[strlen(optarg)-1]=='k' ||
 				optarg[strlen(optarg)-1]=='K'){
-				reclen = (long long)(1024 * atoi(optarg));
+				reclen = (long long)(1024LL * atoll(optarg));
 			}
 			if(optarg[strlen(optarg)-1]=='m' ||
 				optarg[strlen(optarg)-1]=='M'){
-				reclen = (long long)(1024 * 1024 * atoi(optarg));
+				reclen = (long long)(1024LL * 1024LL * atoll(optarg));
 			}
 			if(optarg[strlen(optarg)-1]=='g' ||
 				optarg[strlen(optarg)-1]=='G'){
-				reclen = (long long)(1024 * 1024 * 1024 *(long long)atoi(optarg));
+				reclen = (long long)(1024LL * 1024LL * 1024LL *(long long)atoll(optarg));
 			}
 			if(reclen <= 0)
 				reclen=(long long)4096;
@@ -2296,18 +2303,18 @@ char **argv;
 			break;
 		case 'n':	/* Set min file size for auto mode */
 			nflag=1;
-			minimum_file_size = (off64_t)atoi(optarg);
+			minimum_file_size = (off64_t)atoll(optarg);
 			if(optarg[strlen(optarg)-1]=='k' ||
 				optarg[strlen(optarg)-1]=='K'){
 				;
 			}
 			if(optarg[strlen(optarg)-1]=='m' ||
 				optarg[strlen(optarg)-1]=='M'){
-				minimum_file_size = (long long)(1024 * atoi(optarg));
+				minimum_file_size = (long long)(1024LL * atoll(optarg));
 			}
 			if(optarg[strlen(optarg)-1]=='g' ||
 				optarg[strlen(optarg)-1]=='G'){
-				minimum_file_size = (long long)(1024 * 1024 * (long long)atoi(optarg));
+				minimum_file_size = (long long)(1024LL * 1024LL * (long long)atoll(optarg));
 			}
 			if(minimum_file_size < RECLEN_START/1024)
 				minimum_file_size=(off64_t)(RECLEN_START/1024);
@@ -2321,21 +2328,21 @@ char **argv;
 			break;
 		case 'g':	/* Set maximum file size for auto mode */
 			gflag=1;
-			maximum_file_size = (off64_t)atoi(optarg);
+			maximum_file_size = (off64_t)atoll(optarg);
 			if(optarg[strlen(optarg)-1]=='k' ||
 				optarg[strlen(optarg)-1]=='K'){
 				;
 			}
 			if(optarg[strlen(optarg)-1]=='m' ||
 				optarg[strlen(optarg)-1]=='M'){
-				maximum_file_size = (long long)(1024 * atoi(optarg));
+				maximum_file_size = (long long)(1024LL * atoll(optarg));
 			}
 			if(optarg[strlen(optarg)-1]=='g' ||
 				optarg[strlen(optarg)-1]=='G'){
-				maximum_file_size = (long long)(1024 * 1024 * (long long)atoi(optarg));
+				maximum_file_size = (long long)(1024LL * 1024LL * (long long)atoll(optarg));
 			}
-			if(maximum_file_size < RECLEN_START/1024)
-				maximum_file_size=(off64_t)(RECLEN_START/1024);
+			if(maximum_file_size < RECLEN_START/1024LL)
+				maximum_file_size=(off64_t)(RECLEN_START/1024LL);
 #ifdef NO_PRINT_LLD
 			sprintf(splash[splash_line++],"\tUsing maximum file size of %ld kilobytes.\n",maximum_file_size);
 #else
@@ -2348,41 +2355,41 @@ char **argv;
 			break;
 		case 'y':		/* Set min record size for auto mode */
 			yflag=1;
-			min_rec_size = ((long long)(atoi(optarg))*1024);
+			min_rec_size = ((long long)(atoll(optarg))*1024);
 			if(optarg[strlen(optarg)-1]=='k' ||
 				optarg[strlen(optarg)-1]=='K'){
-				min_rec_size = (long long)(1024 * atoi(optarg));
+				min_rec_size = (long long)(1024LL * atoll(optarg));
 			}
 			if(optarg[strlen(optarg)-1]=='m' ||
 				optarg[strlen(optarg)-1]=='M'){
-				min_rec_size = (long long)(1024 * 1024 * atoi(optarg));
+				min_rec_size = (long long)(1024LL * 1024LL * atoll(optarg));
 			}
 			if(optarg[strlen(optarg)-1]=='g' ||
 				optarg[strlen(optarg)-1]=='G'){
-				min_rec_size = (long long)(1024 * 1024 * 1024 *(long long)atoi(optarg));
+				min_rec_size = (long long)(1024LL * 1024LL * 1024LL *(long long)atoll(optarg));
 			}
 			if(min_rec_size <= 0)
 				min_rec_size=(long long)RECLEN_START;
 #ifdef NO_PRINT_LLD
-	    		sprintf(splash[splash_line++],"\tUsing Minimum Record Size %ld kB\n", min_rec_size/1024);
+	    		sprintf(splash[splash_line++],"\tUsing Minimum Record Size %ld kB\n", min_rec_size/1024LL);
 #else
-	    		sprintf(splash[splash_line++],"\tUsing Minimum Record Size %lld kB\n", min_rec_size/1024);
+	    		sprintf(splash[splash_line++],"\tUsing Minimum Record Size %lld kB\n", min_rec_size/1024LL);
 #endif
 			break;
 		case 'q':		/* Set max record size for auto mode */
 			qflag=1;
-			max_rec_size = ((long long)(atoi(optarg))*1024);
+			max_rec_size = ((long long)(atoll(optarg))*1024);
 			if(optarg[strlen(optarg)-1]=='k' ||
 				optarg[strlen(optarg)-1]=='K'){
-				max_rec_size = (long long)(1024 * atoi(optarg));
+				max_rec_size = (long long)(1024LL * atoll(optarg));
 			}
 			if(optarg[strlen(optarg)-1]=='m' ||
 				optarg[strlen(optarg)-1]=='M'){
-				max_rec_size = (long long)(1024 * 1024 * atoi(optarg));
+				max_rec_size = (long long)(1024LL * 1024LL * atoll(optarg));
 			}
 			if(optarg[strlen(optarg)-1]=='g' ||
 				optarg[strlen(optarg)-1]=='G'){
-				max_rec_size = (long long)(1024 * 1024 * 1024 *(long long)atoi(optarg));
+				max_rec_size = (long long)(1024LL * 1024LL * 1024LL *(long long)atoll(optarg));
 			}
 			if(max_rec_size <= 0)
 				min_rec_size=(long long)RECLEN_END;
@@ -3800,9 +3807,9 @@ throughput_test()
 #endif
 		if( childids[xx] == 0 ){
 #ifdef _64BIT_ARCH_
-		  thread_write_test((void *)xx);
+		  thread_write_test((int)xx);
 #else
-		  thread_write_test((void *)(long)xx);
+		  thread_write_test((int)xx);
 #endif
 		}else {
 #ifdef NO_PRINT_LLD
@@ -4063,9 +4070,9 @@ waitout:
 		}
 		if(childids[xx] == 0){
 #ifdef _64BIT_ARCH_
-			thread_rwrite_test((void *)xx);
+			thread_rwrite_test((int)xx);
 #else
-			thread_rwrite_test((void *)((long)xx));
+			thread_rwrite_test((int)xx);
 #endif
 		}	
 	   }
@@ -4085,9 +4092,9 @@ waitout:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_rwrite_test,xx);
+		childids[xx] = mythread_create( thread_rwrite_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_rwrite_test,(void *)(long)xx);
+		childids[xx] = mythread_create( thread_rwrite_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -4308,9 +4315,9 @@ next0:
 		}
 		if(childids[xx]==0){
 #ifdef _64BIT_ARCH_
-			thread_read_test((void *)xx);
+			thread_read_test((int)xx);
 #else
-			thread_read_test((void *)((long)xx));
+			thread_read_test((int)xx);
 #endif
 		}	
 	   }
@@ -4330,9 +4337,9 @@ next0:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_read_test,xx);
+		childids[xx] = mythread_create( thread_read_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_read_test,(void *)(long)xx);
+		childids[xx] = mythread_create( thread_read_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -4542,9 +4549,9 @@ jumpend4:
 		}
 		if(childids[xx]==0){
 #ifdef _64BIT_ARCH_
-			thread_rread_test((void *)xx);
+			thread_rread_test((int)xx);
 #else
-			thread_rread_test((void *)((long)xx));
+			thread_rread_test((int)xx);
 #endif
 		}	
 	   }
@@ -4565,9 +4572,9 @@ jumpend4:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_rread_test,xx);
+		childids[xx] = mythread_create( thread_rread_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_rread_test,(void *)(long)xx);
+		childids[xx] = mythread_create( thread_rread_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -4782,9 +4789,9 @@ next1:
 		}
 		if(childids[xx]==0){
 #ifdef _64BIT_ARCH_
-			thread_reverse_read_test((void *)xx);
+			thread_reverse_read_test((int)xx);
 #else
-			thread_reverse_read_test((void *)((long)xx));
+			thread_reverse_read_test((int)xx);
 #endif
 		}	
 	   }
@@ -4805,9 +4812,9 @@ next1:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_reverse_read_test,xx);
+		childids[xx] = mythread_create( thread_reverse_read_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_reverse_read_test,(void *)(long)xx);
+		childids[xx] = mythread_create( thread_reverse_read_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -5016,9 +5023,9 @@ next2:
 		}
 		if(childids[xx]==0){
 #ifdef _64BIT_ARCH_
-			thread_stride_read_test((void *)xx);
+			thread_stride_read_test((int)xx);
 #else
-			thread_stride_read_test((void *)((long)xx));
+			thread_stride_read_test((int)xx);
 #endif
 		}	
 	   }
@@ -5039,9 +5046,9 @@ next2:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_stride_read_test,xx);
+		childids[xx] = mythread_create( thread_stride_read_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_stride_read_test,(void *)(long)xx);
+		childids[xx] = mythread_create( thread_stride_read_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -5251,9 +5258,9 @@ next3:
 		}
 		if(childids[xx]==0){
 #ifdef _64BIT_ARCH_
-			thread_ranread_test((void *)xx);
+			thread_ranread_test((int)xx);
 #else
-			thread_ranread_test((void *)((long)xx));
+			thread_ranread_test((int)xx);
 #endif
 		}	
 	   }
@@ -5274,9 +5281,9 @@ next3:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_ranread_test,xx);
+		childids[xx] = mythread_create( thread_ranread_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_ranread_test,(void *)(long)xx);
+		childids[xx] = mythread_create( thread_ranread_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -5481,9 +5488,9 @@ next4:
 		}
 		if(childids[xx]==0){
 #ifdef _64BIT_ARCH_
-			thread_mix_test((void *)xx);
+			thread_mix_test((int)xx);
 #else
-			thread_mix_test((void *)((long)xx));
+			thread_mix_test((int)xx);
 #endif
 		}	
 	   }
@@ -5504,9 +5511,9 @@ next4:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_mix_test,xx);
+		childids[xx] = mythread_create( thread_mix_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_mix_test,(void *)(long)xx);
+		childids[xx] = mythread_create( thread_mix_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -5711,9 +5718,9 @@ next5:
 		}
 		if(childids[xx]==0){
 #ifdef _64BIT_ARCH_
-			thread_ranwrite_test((void *)xx);
+			thread_ranwrite_test((int)xx);
 #else
-			thread_ranwrite_test((void *)((long)xx));
+			thread_ranwrite_test((int)xx);
 #endif
 		}	
 	   }
@@ -5734,9 +5741,9 @@ next5:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_ranwrite_test,xx);
+		childids[xx] = mythread_create( thread_ranwrite_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_ranwrite_test,(void *)(long)xx);
+		childids[xx] = mythread_create( thread_ranwrite_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -5944,9 +5951,9 @@ next6:
 		}
 		if(childids[xx]==0){
 #ifdef _64BIT_ARCH_
-			thread_pwrite_test((void *)xx);
+			thread_pwrite_test((int)xx);
 #else
-			thread_pwrite_test((void *)((long)xx));
+			thread_pwrite_test((int)xx);
 #endif
 		}	
 	   }
@@ -5967,9 +5974,9 @@ next6:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_pwrite_test,xx);
+		childids[xx] = mythread_create( thread_pwrite_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_pwrite_test,(void *)(long)xx);
+		childids[xx] = mythread_create( thread_pwrite_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -6179,9 +6186,9 @@ next7:
 		}
 		if(childids[xx]==0){
 #ifdef _64BIT_ARCH_
-			thread_pread_test((void *)xx);
+			thread_pread_test((int)xx);
 #else
-			thread_pread_test((void *)((long)xx));
+			thread_pread_test((int)xx);
 #endif
 		}	
 	   }
@@ -6202,9 +6209,9 @@ next7:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_pread_test,xx);
+		childids[xx] = mythread_create( thread_pread_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_pread_test,(void *)(long)xx);
+		childids[xx] = mythread_create( thread_pread_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -6405,9 +6412,9 @@ next8:
 		}
 		if(childids[xx]==0){
 #ifdef _64BIT_ARCH_
-			thread_fwrite_test((void *)xx);
+			thread_fwrite_test((int)xx);
 #else
-			thread_fwrite_test((void *)((long)xx));
+			thread_fwrite_test((int)xx);
 #endif
 		}	
 	   }
@@ -6427,9 +6434,9 @@ next8:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_fwrite_test,xx);
+		childids[xx] = mythread_create( thread_fwrite_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_fwrite_test,(void *)(long)xx);
+		childids[xx] = mythread_create( thread_fwrite_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -6635,9 +6642,9 @@ next9:
 		}
 		if(childids[xx]==0){
 #ifdef _64BIT_ARCH_
-			thread_fread_test((void *)xx);
+			thread_fread_test((int)xx);
 #else
-			thread_fread_test((void *)((long)xx));
+			thread_fread_test((int)xx);
 #endif
 		}	
 	   }
@@ -6657,9 +6664,9 @@ next9:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_fread_test,xx);
+		childids[xx] = mythread_create( thread_fread_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_fread_test,(void *)(long)xx);
+		childids[xx] = mythread_create( thread_fread_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -6861,9 +6868,9 @@ next10:
 			}
 			if(childids[xx] == 0){
 #ifdef _64BIT_ARCH_
-				thread_cleanup_test((void *)xx);
+				thread_cleanup_test((int)xx);
 #else
-				thread_cleanup_test((void *)((long)xx));
+				thread_cleanup_test((int)xx);
 #endif
 			}	
 		   }
@@ -6873,9 +6880,9 @@ next10:
 		{
 		   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 #ifdef _64BIT_ARCH_
-			childids[xx] = mythread_create( thread_cleanup_test,xx);
+			childids[xx] = mythread_create( thread_cleanup_test,(int)xx);
 #else
-			childids[xx] = mythread_create( thread_cleanup_test,(void *)(long)xx);
+			childids[xx] = mythread_create( thread_cleanup_test,(int)xx);
 #endif
 			if(childids[xx]==-1){
 				printf("\nThread create failed\n");
@@ -7051,7 +7058,7 @@ long long length;
 	where=(char *)buffer;
 
 	if(cache_line_size == 0) /* This shouldn't be needed */
-		cache_line_size=CACHE_LINE_SIZE;
+		cache_line_size=MY_CACHE_LINE_SIZE;
 
 	for(i=0;i<(length/cache_line_size);i++)
 	{
@@ -12514,7 +12521,7 @@ purge_buffer_cache()
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
-thread_write_test(void *x)
+thread_write_test(int x)
 #else
 void *
 thread_write_test( x)
@@ -13230,7 +13237,7 @@ return(0);
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
-thread_pwrite_test(void *x)
+thread_pwrite_test(int x)
 #else
 void *
 thread_pwrite_test( x)
@@ -13869,7 +13876,7 @@ return(0);
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
-thread_rwrite_test(void *x)
+thread_rwrite_test(int x)
 #else
 void *
 thread_rwrite_test(x)
@@ -14471,7 +14478,7 @@ return(0);
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
-thread_read_test(void *x)
+thread_read_test(int x)
 #else
 void *
 thread_read_test(x)
@@ -15059,7 +15066,7 @@ return(0);
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
-thread_pread_test(void *x)
+thread_pread_test(int x)
 #else
 void *
 thread_pread_test(x)
@@ -15585,7 +15592,7 @@ return(0);
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
-thread_rread_test(void *x)
+thread_rread_test(int x)
 #else
 void *
 thread_rread_test(x)
@@ -16167,7 +16174,7 @@ return(0);
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
-thread_reverse_read_test(void *x)
+thread_reverse_read_test(int x)
 #else
 void *
 thread_reverse_read_test(x)
@@ -16701,7 +16708,7 @@ return(0);
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
-thread_stride_read_test(void *x)
+thread_stride_read_test(int x)
 #else
 void *
 thread_stride_read_test(x)
@@ -17249,7 +17256,7 @@ return(0);
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
-thread_mix_test(void *x)
+thread_mix_test(int x)
 #else
 void *
 thread_mix_test(x)
@@ -17298,16 +17305,16 @@ thread_mix_test(x)
 	if(selector==0)
 	{
 		if(seq_mix)
-			thread_read_test(x);
+			thread_read_test((int)x);
 		else
-			thread_ranread_test(x);
+			thread_ranread_test((int)x);
 	}
 	else
 	{
 		if(seq_mix)
-			thread_write_test(x);
+			thread_write_test((int)x);
 		else
-			thread_ranwrite_test(x);
+			thread_ranwrite_test((int)x);
 	}
 	return(0);
 }
@@ -17316,10 +17323,11 @@ thread_mix_test(x)
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
-thread_ranread_test(void *x)
+thread_ranread_test(int x)
 #else
 void *
 thread_ranread_test(x)
+void *x;
 #endif
 {
 	long long xx,xx2;
@@ -17939,7 +17947,7 @@ return(0);
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
-thread_ranwrite_test(void *x)
+thread_ranwrite_test(int x)
 #else
 void *
 thread_ranwrite_test( x)
@@ -18639,7 +18647,7 @@ return(0);
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 void *
-thread_cleanup_test(void *x)
+thread_cleanup_test(int x)
 #else
 void *
 thread_cleanup_test(x)
@@ -18732,57 +18740,59 @@ return(0);
 #ifndef NO_THREADS
 #ifdef HAVE_ANSIC_C
 long long 
-mythread_create( void *(*func)(void *),void *x)
+mythread_create( void *(*func)(void *),int x)
 #else
 long long 
 mythread_create( func,x)
 void *(*func)(void *);
-void *x;
+int x;
 #endif
 {
 	pthread_t ts;
 	pthread_attr_t attr;
 	int xx;
-	int *yy;
-#ifdef _64BIT_ARCH_
 	long long meme;
-	meme = (long long)x;
-#else
-	long meme;
-	meme = (long)x;
-#endif
-	yy=(int *)x;
+	void *myptr;
+	char foo[10];
 
+	/* DAMN COMPILERS !!! */
+	sprintf(foo,"%x",x);
+	sscanf(foo,"%llx",&meme);
+	sscanf(foo,"%p",&myptr);
 
 #ifdef OSFV3
 	
 	xx=(int )pthread_create(&ts, pthread_attr_default,
-		func, (void *)yy);
+		func, myptr);
 
 #else
 	pthread_attr_init(&attr);
 	xx=(int )pthread_create((pthread_t *)&ts, (pthread_attr_t *) &attr,
-		func, (void *)yy);
+		func, myptr);
 #endif
 	bcopy(&ts,&p_childids[meme],sizeof(pthread_t));
 	if(xx < (int)0)
 		printf("Thread create failed. Returned %d Errno = %d\n",xx,errno);
 	if(debug1 )
 	{
-		printf("\nthread created has an id of %lx\n",ts);
+		printf("\nthread created has an id of %p\n",(void *)ts);
+#ifdef NO_PRINT_LLD
 		printf("meme %ld\n",meme);
+#else
+		printf("meme %lld\n",meme);
+#endif
 	}
 	return((long long)meme);
 }
 #else
 #ifdef HAVE_ANSIC_C
 long long 
-mythread_create( void *(*func)(void *),void *x)
+mythread_create( void *(*func)(void *),int x)
 #else
 long long 
 mythread_create( func,x)
 void *(*func)(void *);
-void *x;
+int x;
 #endif
 {
 	printf("This version does not support threads\n");
@@ -22166,7 +22176,7 @@ become_client()
 			fprintf(newstdout,"Child %d running thread_write_test\n",(int)chid);
 			fflush(newstdout);
 		}
-		thread_write_test((long)0);
+		thread_write_test(0);
 		break;
 #ifdef HAVE_PREAD
 	case THREAD_PWRITE_TEST : 
@@ -22175,7 +22185,7 @@ become_client()
 			fprintf(newstdout,"Child %d running thread_pwrite_test\n",(int)chid);
 			fflush(newstdout);
 		}
-		thread_pwrite_test((long)0);
+		thread_pwrite_test(0);
 		break;
 #endif
 	case THREAD_REWRITE_TEST : 
@@ -22184,7 +22194,7 @@ become_client()
 			fprintf(newstdout,"Child %d running thread_rewrite_test\n",(int)chid);
 			fflush(newstdout);
 		}
-		thread_rwrite_test((long)0);
+		thread_rwrite_test(0);
 		break;
 	case THREAD_READ_TEST : 
 		if(cdebug>=1)
@@ -22192,7 +22202,7 @@ become_client()
 			fprintf(newstdout,"Child %d running thread_read_test\n",(int)chid);
 			fflush(newstdout);
 		}
-		thread_read_test((long)0);
+		thread_read_test(0);
 		break;
 #ifdef HAVE_PREAD
 	case THREAD_PREAD_TEST : 
@@ -22201,7 +22211,7 @@ become_client()
 			fprintf(newstdout,"Child %d running thread_read_test\n",(int)chid);
 			fflush(newstdout);
 		}
-		thread_pread_test((long)0);
+		thread_pread_test(0);
 		break;
 #endif
 	case THREAD_REREAD_TEST : 
@@ -22210,7 +22220,7 @@ become_client()
 			fprintf(newstdout,"Child %d running thread_reread_test\n",(int)chid);
 			fflush(newstdout);
 		}
-		thread_rread_test((long)0);
+		thread_rread_test(0);
 		break;
 	case THREAD_STRIDE_TEST : 
 		if(cdebug>=1)
@@ -22218,7 +22228,7 @@ become_client()
 			fprintf(newstdout,"Child %d running thread_stride_read_test\n",(int)chid);
 			fflush(newstdout);
 		}
-		thread_stride_read_test((long)0);
+		thread_stride_read_test(0);
 		break;
 	case THREAD_RANDOM_READ_TEST : 
 		if(cdebug>=1)
@@ -22226,7 +22236,7 @@ become_client()
 			fprintf(newstdout,"Child %d running random read test\n",(int)chid);
 			fflush(newstdout);
 		}
-		thread_ranread_test((long)0);
+		thread_ranread_test(0);
 		break;
 	case THREAD_RANDOM_WRITE_TEST : 
 		if(cdebug>=1)
@@ -22234,7 +22244,7 @@ become_client()
 			fprintf(newstdout,"Child %d running random write test\n",(int)chid);
 			fflush(newstdout);
 		}
-		thread_ranwrite_test((long)0);
+		thread_ranwrite_test(0);
 		break;
 	case THREAD_REVERSE_READ_TEST : 
 		if(cdebug>=1)
@@ -22242,7 +22252,7 @@ become_client()
 			fprintf(newstdout,"Child %d running reverse read test\n",(int)chid);
 			fflush(newstdout);
 		}
-		thread_reverse_read_test((long)0);
+		thread_reverse_read_test(0);
 		break;
 	case THREAD_RANDOM_MIX_TEST : 
 		if(cdebug>=1)
@@ -22250,7 +22260,7 @@ become_client()
 			fprintf(newstdout,"Child %d running mixed workload test\n",(int)chid);
 			fflush(newstdout);
 		}
-		thread_mix_test((long)0);
+		thread_mix_test(0);
 		break;
 	case THREAD_FWRITE_TEST : 
 		if(cdebug>=1)
@@ -22258,7 +22268,7 @@ become_client()
 			fprintf(newstdout,"Child %d running thread_fwrite_test\n",(int)chid);
 			fflush(newstdout);
 		}
-		thread_fwrite_test((long)0);
+		thread_fwrite_test(0);
 		break;
 	case THREAD_FREAD_TEST : 
 		if(cdebug>=1)
@@ -22266,7 +22276,7 @@ become_client()
 			fprintf(newstdout,"Child %d running thread_fread_test\n",(int)chid);
 			fflush(newstdout);
 		}
-		thread_fread_test((long)0);
+		thread_fread_test(0);
 		break;
 	case THREAD_CLEANUP_TEST : 
 		if(cdebug>=1)
@@ -22274,7 +22284,7 @@ become_client()
 			fprintf(newstdout,"Child %d running cleanup\n",(int)chid);
 			fflush(newstdout);
 		}
-		thread_cleanup_test((long)0);
+		thread_cleanup_test(0);
 		break;
 	};
 	if(cdebug>=1)
@@ -24706,7 +24716,7 @@ dump_hist(char *what,int id)
 }
 
 #ifdef HAVE_ANSIC_C
-void * thread_fwrite_test(void *x)
+void * thread_fwrite_test(int x)
 #else
 void * thread_fwrite_test( x)
 #endif
@@ -25180,7 +25190,7 @@ return(0);
 
 
 #ifdef HAVE_ANSIC_C
-void * thread_fread_test(void *x)
+void * thread_fread_test(int x)
 #else
 void * thread_fread_test( x)
 #endif
