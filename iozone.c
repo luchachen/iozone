@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.137 $"
+#define THISVERSION "        Version $Revision: 3.138 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -285,7 +285,7 @@ typedef long long off64_t;
 #endif
 
 #ifdef unix
-#ifdef __APPLE__
+#if defined (__APPLE__) || defined(__FreeBSD__)
 #include <sys/time.h>
 #endif
 #include <sys/times.h>
@@ -802,7 +802,7 @@ void purgeit();			/* Purge on chip cache		  */
 void throughput_test();		/* Multi process throughput 	  */
 void multi_throughput_test();	/* Multi process throughput 	  */
 void prepage();			/* Pre-fault user buffer	  */
-#if defined(linux) || defined(solaris) || defined(__AIX__) || defined(OSFV5) || defined(UWIN) || defined(Windows) || defined(__APPLE__) || defined(OSFV4) || defined(IRIX) || defined(IRIX64)
+#if defined(linux) || defined(solaris) || defined(__AIX__) || defined(OSFV5) || defined(UWIN) || defined(Windows) || defined(__APPLE__) || defined(OSFV4) || defined(IRIX) || defined(IRIX64) || defined(__FreeBSD__)
 float do_compute(float);	/* compute cycle simulation       */
 #else
 float do_compute();		/* compute cycle simulation       */

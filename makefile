@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.62 $
+# Version $Revision: 1.63 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -304,7 +304,7 @@ bsdi:	iozone_bsdi.o libbif.o
 #
 
 freebsd:	iozone_freebsd.o libbif.o
-	cc -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DSHARED_MEM \
+	cc ${CFLAGS} -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DSHARED_MEM \
 		iozone_freebsd.o libbif.o -o iozone
 
 #
@@ -730,9 +730,9 @@ iozone_freebsd.o:	iozone.c libbif.c
 	@echo ""
 	@echo "Build iozone for FreeBSD"
 	@echo ""
-	cc -c -O -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
+	cc -c ${CFLAGS}  -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
 		-DSHARED_MEM iozone.c -o iozone_freebsd.o
-	cc -c -O -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
+	cc -c ${CFLAGS} -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
 		-DSHARED_MEM libbif.c -o libbif.o
 
 iozone_macosx.o:	iozone.c libbif.c
