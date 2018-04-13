@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.63 $
+# Version $Revision: 1.64 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -64,14 +64,16 @@ clean:
 #
 hpux-11.0:	iozone_hpux-11.0.o libasync.o libbif.o
 	 cc +O3 +Oparallel -D_LARGEFILE64_SOURCE -Dunix -D_HPUX_SOURCE -DASYNC_IO \
-	-DHAVE_ANSIC_C -DVXFS iozone_hpux-11.0.o libasync.o libbif.o -lpthread -lrt -o iozone
+	-DHAVE_ANSIC_C -DVXFS iozone_hpux-11.0.o libasync.o \
+	libbif.o -lpthread -lrt -o iozone
 
 #
 # Turn on wide-mode, the optimizer, largefiles, Posix async I/O and threads.
 #
 hpux-11.0w:	iozone_hpux-11.0w.o libasyncw.o libbif.o
 	 cc +DA2.0w +O3 -D_LARGEFILE64_SOURCE -Dunix -D_HPUX_SOURCE -DASYNC_IO \
-	-DHAVE_ANSIC_C -DVXFS iozone_hpux-11.0w.o libasyncw.o libbif.o -lpthread -lrt -o iozone
+	-DHAVE_ANSIC_C -DVXFS iozone_hpux-11.0w.o libasyncw.o \
+	libbif.o -lpthread -lrt -o iozone
 
 
 #
@@ -79,32 +81,37 @@ hpux-11.0w:	iozone_hpux-11.0w.o libasyncw.o libbif.o
 #
 hpuxs-11.0:	iozone_hpuxs-11.0.o libasync.o libbif.o
 	 cc -O -D_LARGEFILE64_SOURCE -Dunix -D_HPUX_SOURCE -DASYNC_IO \
-	-DHAVE_ANSIC_C -DVXFS iozone_hpuxs-11.0.o libasync.o libbif.o -lpthread -lrt -o iozone
+	-DHAVE_ANSIC_C -DVXFS iozone_hpuxs-11.0.o \
+	libasync.o libbif.o -lpthread -lrt -o iozone
 
 #
 # Simple build with wide-mode, largefiles, Posix threads and Posix async I/O
 #
 hpuxs-11.0w:	iozone_hpuxs-11.0w.o libasyncw.o libbif.o
 	 cc -O +DA2.0w -D_LARGEFILE64_SOURCE -Dunix -D_HPUX_SOURCE -DASYNC_IO \
-	-DHAVE_ANSIC_C -DVXFS iozone_hpuxs-11.0w.o libasyncw.o libbif.o -lpthread -lrt -o iozone
+	-DHAVE_ANSIC_C -DVXFS \
+	iozone_hpuxs-11.0w.o libasyncw.o libbif.o -lpthread -lrt -o iozone
 
 #
 # Simple 10.1 build with no threads, no largefiles, no async I/O 
 #
 hpux-10.1:	iozone_hpux-10.1.o  libbif.o
 	 c89 +e -O -Dunix -D_HPUX_SOURCE \
-	-DNO_THREADS -DHAVE_ANSIC_C iozone_hpux-10.1.o libbif.o -o iozone
+	-DNO_THREADS -DHAVE_ANSIC_C iozone_hpux-10.1.o \
+	libbif.o -o iozone
 
 hpux-10.20:	iozone_hpux-10.20.o  libbif.o
 	 c89 +e -O -Dunix -D_HPUX_SOURCE \
-	-DNO_THREADS -DHAVE_ANSIC_C iozone_hpux-10.20.o libbif.o -o iozone
+	-DNO_THREADS -DHAVE_ANSIC_C iozone_hpux-10.20.o \
+	libbif.o -o iozone
 
 #
 # Simple generic HP build with no threads, no largefiles, no async I/O 
 #
 hpux:	iozone_hpux.o 
 	c89 +e -O -Dunix -D_HPUX_SOURCE \
-	-DNO_THREADS -DHAVE_ANSIC_C iozone_hpux.o libbif.o -o iozone
+	-DNO_THREADS -DHAVE_ANSIC_C iozone_hpux.o \
+	libbif.o -o iozone
 
 #
 # GNU HP build with no threads, no largefiles, no async I/O 
@@ -176,7 +183,8 @@ linux-ia64:	iozone_linux-ia64.o  libbif.o
 # 
 AIX:	iozone_AIX.o  libbif.o  
 	cc  -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C \
-		-DSHARED_MEM iozone_AIX.o libbif.o -lpthreads -o iozone
+		-DSHARED_MEM iozone_AIX.o libbif.o \
+		-lpthreads -o iozone
 
 # 
 # AIX-LF
@@ -187,7 +195,8 @@ AIX:	iozone_AIX.o  libbif.o
 AIX-LF:	iozone_AIX-LF.o  libbif.o  
 	cc  -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C \
 		-DSHARED_MEM  -D_LARGEFILE64_SOURCE -D_LARGE_FILES \
-		iozone_AIX-LF.o libbif.o -lpthreads -o iozone
+		iozone_AIX-LF.o libbif.o \
+		-lpthreads -o iozone
 
 #
 # IRIX 32 bit build with threads, largefiles, async I/O 
@@ -195,8 +204,9 @@ AIX-LF:	iozone_AIX-LF.o  libbif.o
 # This version uses the 64 bit interfaces but is compiled as 32 bit code
 #
 IRIX64:	iozone_IRIX64.o libasyncw.o libbif.o 
-	cc   -32 -O -Dunix -DHAVE_ANSIC_C -D_LARGEFILE64_SOURCE -DSHARED_MEM -DASYNC_IO \
-		-DIRIX64 iozone_IRIX64.o libbif.o -lpthread libasyncw.o -o iozone
+	cc   -32 -O -Dunix -DHAVE_ANSIC_C -D_LARGEFILE64_SOURCE -DSHARED_MEM \
+		-DASYNC_IO -DIRIX64 iozone_IRIX64.o libbif.o \
+		-lpthread libasyncw.o -o iozone
 
 #
 # IRIX 32 bit build with threads, No largefiles, and async I/O 
@@ -204,7 +214,8 @@ IRIX64:	iozone_IRIX64.o libasyncw.o libbif.o
 #
 IRIX:	iozone_IRIX.o libasync.o libbif.o
 	cc  -O  -32  -Dunix -DHAVE_ANSIC_C -DSHARED_MEM -DASYNC_IO \
-		-DIRIX iozone_IRIX.o libbif.o -lpthread libasync.o -o iozone
+		-DIRIX iozone_IRIX.o libbif.o -lpthread \
+		libasync.o -o iozone
 
 #
 # SPP-UX 32 bit build with threads, No largefiles, and No async I/O, pread extensions
@@ -222,7 +233,7 @@ sppux:	iozone_sppux.o  libbif.o
 sppux-10.1:	iozone_sppux-10.1.o libbif.o
 	/opt/ansic/bin/cc -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
 	-DHAVE_ANSIC_C -DHAVE_PREAD iozone_sppux-10.1.o libbif.o \
-	-lcnx_syscall  -Wl,+parallel -lpthread -lail -o iozone
+	 -lcnx_syscall  -Wl,+parallel -lpthread -lail -o iozone
 
 #
 # SPP-UX 32 bit build with threads, No largefiles, and No async I/O, pread extensions
@@ -238,7 +249,8 @@ sppux_no_ansi-10.1:	iozone_sppux_no-10.1.o libbif.o
 # Convex 'C' series 32 bit build with No threads, No largefiles, and No async I/O
 #
 convex:	iozone_convex.o libbif.o
-	cc -O -Dunix -Dbsd4_2 -DNO_THREADS iozone_convex.o libbif.o -o iozone
+	cc -O -Dunix -Dbsd4_2 -DNO_THREADS iozone_convex.o \
+		libbif.o -o iozone
 
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
@@ -247,7 +259,8 @@ Solaris:	iozone_solaris.o libasync.o libbif.o
 	cc  -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-Dsolaris iozone_solaris.o libasync.o libbif.o \
 		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -lthread \
-                 -lpthread -lposix4 -lnsl -laio -lsocket -o iozone
+                -lpthread -lposix4 -lnsl -laio -lsocket \
+		-o iozone
 
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
@@ -256,7 +269,8 @@ Solaris7gcc:	iozone_solaris7gcc.o libasync7.o libbif7.o
 	gcc  -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-Dsolaris iozone_solaris7gcc.o libasync7.o libbif7.o \
 		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -lthread \
-		-lpthread -lposix4 -lnsl -laio -lsocket -o iozone
+		-lpthread -lposix4 -lnsl -laio \
+		-lsocket -o iozone
 
 #
 # Solaris 2.6 (32 bit) build with no threads, no largefiles, and no async I/O
@@ -272,7 +286,8 @@ Solaris8-64: iozone_solaris8-64.o libasync.o libbif.o
 	cc -fast -xtarget=generic64 -v -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-Dsolaris iozone_solaris8-64.o libasync.o libbif.o \
 		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -lthread \
-		-lpthread -lposix4 -lnsl -laio -lsocket -o iozone
+		-lpthread -lposix4 -lnsl -laio \
+		-lsocket -o iozone
 
 #
 # Windows build requires Cygnus development environment. You
@@ -281,7 +296,8 @@ Solaris8-64: iozone_solaris8-64.o libasync.o libbif.o
 #
 Windows:	iozone_windows.o libbif.o
 	gcc  -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
-		-DWindows iozone_windows.o libbif.o -o iozone
+		-DWindows iozone_windows.o \
+		libbif.o -o iozone
 
 #
 # Uwin build requires UWIN development environment. 
@@ -289,7 +305,8 @@ Windows:	iozone_windows.o libbif.o
 #
 UWIN:	iozone_uwin.o libbif.o
 	gcc  -O -DUWIN -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
-		-DSHARED_MEM -DWindows iozone_uwin.o libbif.o -o iozone
+		-DSHARED_MEM -DWindows iozone_uwin.o \
+		libbif.o -o iozone
 
 #
 # GNU C compiler BSD/OS build with threads, largefiles, no async I/O
@@ -329,7 +346,8 @@ openbsd:	iozone_openbsd.o libbif.o
 
 openbsd-threads:	iozone_openbsd-threads.o libbif.o
 	cc -O -pthread -Dunix -Dbsd4_4 -DHAVE_ANSIC_C \
-		iozone_openbsd-threads.o libbif.o -o iozone
+		iozone_openbsd-threads.o \
+		libbif.o -o iozone
 
 #
 # GNU C compiler OSFV3 build 
@@ -413,7 +431,7 @@ iozone_hpux.o:	iozone.c libbif.c
 	@echo "Building iozone for HP-UX (9.05)"
 	@echo ""
 	c89 +e -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS \
-		iozone.c  -o iozone_hpux.o
+		-DNAME='"hpux"' iozone.c  -o iozone_hpux.o
 	c89 +e -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS \
 		-DBIG_ENDIAN libbif.c  -o libbif.o
 
@@ -422,7 +440,7 @@ iozone_hpux-11.0.o:	iozone.c libasync.c libbif.c
 	@echo "Building iozone for HP-UX (11.0)"
 	@echo ""
 	cc -c  +O3 +Oparallel -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
-		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS iozone.c  \
+		-DNAME='"hpux-11.0"' -DHAVE_ANSIC_C -DASYNC_IO -DVXFS iozone.c  \
 		-o iozone_hpux-11.0.o
 	cc -c  +O3 +Oparallel -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
 		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS libasync.c  -o libasync.o
@@ -434,7 +452,8 @@ iozone_hpux-11.0w.o:	iozone.c libasync.c libbif.c
 	@echo "Building iozone for HP-UX (11.0w)"
 	@echo ""
 	cc -c +DA2.0w +O3 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
-	    -DHAVE_ANSIC_C -DASYNC_IO -DVXFS iozone.c  -o iozone_hpux-11.0w.o
+	    -DNAME='hpux-11.0w"' -DHAVE_ANSIC_C -DASYNC_IO -DVXFS iozone.c \
+	     -o iozone_hpux-11.0w.o
 	cc -c +DA2.0w +O3 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
 		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS libasync.c  -o libasyncw.o
 	cc -c +DA2.0w +O3 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
@@ -445,7 +464,7 @@ iozone_hpuxs-11.0.o:	iozone.c libasync.c libbif.c
 	@echo "Building simple iozone for HP-UX (11.0)"
 	@echo ""
 	cc -c  -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE -DHAVE_ANSIC_C \
-		-DASYNC_IO -DVXFS iozone.c  -o iozone_hpuxs-11.0.o
+		-DNAME='"hpuxs-11.0"' -DASYNC_IO -DVXFS iozone.c  -o iozone_hpuxs-11.0.o
 	cc -c  -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE -DHAVE_ANSIC_C \
 		-DASYNC_IO  -DVXFS libasync.c  -o libasync.o 
 	cc -c  -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE -DHAVE_ANSIC_C \
@@ -456,7 +475,7 @@ iozone_hpuxs-11.0w.o:	iozone.c libasync.c libbif.c
 	@echo "Building simple iozone for HP-UX (11.0w)"
 	@echo ""
 	cc -c +DA2.0w -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
-		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS iozone.c  \
+		-DNAME='"hpuxs-11.0w"' -DHAVE_ANSIC_C -DASYNC_IO -DVXFS iozone.c  \
 		-o iozone_hpuxs-11.0w.o
 	cc -c +DA2.0w -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
 		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS libasync.c  -o libasyncw.o 
@@ -468,7 +487,7 @@ iozone_hpux-10.1.o:	iozone.c libbif.c
 	@echo "Building iozone for HP-UX (10.1)"
 	@echo ""
 	c89 +e -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS \
-		iozone.c  -o iozone_hpux-10.1.o
+		-DNAME='"hpux-10.1"' iozone.c  -o iozone_hpux-10.1.o
 	c89 +e -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS \
 		-DBIG_ENDIAN libbif.c  -o libbif.o
 
@@ -477,7 +496,7 @@ iozone_hpux-10.20.o:	iozone.c libbif.c
 	@echo "Building iozone for HP-UX (10.20)"
 	@echo ""
 	c89 +e -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS \
-		iozone.c  -o iozone_hpux-10.20.o
+		-DNAME='"hpux-10.20"' iozone.c  -o iozone_hpux-10.20.o
 	c89 +e -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS \
 		-DBIG_ENDIAN libbif.c  -o libbif.o
 
@@ -486,7 +505,7 @@ iozone_ghpux.o:	iozone.c libbif.c
 	@echo "Building iozone for GCC HP-UX (9.05) "
 	@echo ""
 	gcc -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS iozone.c \
-		-o iozone_ghpux.o
+		-DNAME='"h=ghpux"' -o iozone_ghpux.o
 	gcc -c -O -Dunix -D_HPUX_SOURCE -DHAVE_ANSIC_C -DNO_THREADS -DBIG_ENDIAN \
 		libbif.c -o libbif.o
 
@@ -495,7 +514,7 @@ iozone_generic.o:	iozone.c libbif.c
 	@echo "Building iozone Generic "
 	@echo ""
 	$(CC) -c -O -Dgeneric -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
-		iozone.c -o iozone_generic.o
+		-DNAME='"Generic"' iozone.c -o iozone_generic.o
 	$(CC) -c -O -Dgeneric -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
 		-DBIG_ENDIAN libbif.c -o libbif.o
 
@@ -503,8 +522,8 @@ iozone_hpux_no.o:	iozone.c libbif.c
 	@echo ""
 	@echo "Building iozone for HP-UX (9.05) without ansi compiler"
 	@echo ""
-	/opt/ansic/bin/cc -c -O -Dunix -D_HPUX_SOURCE -DNO_THREADS iozone.c -o \
-		iozone_hpux_no.o
+	/opt/ansic/bin/cc -c -O -Dunix -D_HPUX_SOURCE -DNO_THREADS iozone.c \
+		-DNAME='"hpux_no_ansi"' -o iozone_hpux_no.o
 	/opt/ansic/bin/cc -c -O -Dunix -D_HPUX_SOURCE -DNO_THREADS \
 		-DBIG_ENDIAN libbif.c -o libbif.o
 
@@ -512,8 +531,8 @@ iozone_hpux_no-10.1.o:	iozone.c
 	@echo ""
 	@echo "Building iozone for HP-UX (10.1) without ansi compiler"
 	@echo ""
-	/opt/ansic/bin/cc -c -O -Dunix -D_HPUX_SOURCE -DNO_THREADS iozone.c -o \
-		iozone_hpux_no-10.1.o
+	/opt/ansic/bin/cc -c -O -Dunix -D_HPUX_SOURCE -DNO_THREADS iozone.c \
+		-DNAME='"hpux_no_ansi_10.1"' -o iozone_hpux_no-10.1.o
 	/opt/ansic/bin/cc -c -O -Dunix -D_HPUX_SOURCE -DNO_THREADS \
 		-DBIG_ENDIAN libbif.c -o libbif.o
 
@@ -523,7 +542,7 @@ iozone_linux-powerpc.o:	iozone.c libbif.c libasync.c
 	@echo ""
 	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DDONT_HAVE_O_DIRECT \
 		-DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE iozone.c \
-		-o iozone_linux-powerpc.o
+		-DNAME='"linux-powerpc"' -o iozone_linux-powerpc.o
 	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
 		-DSHARED_MEM -Dlinux libbif.c -o libbif.o
 	cc -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
@@ -535,7 +554,7 @@ iozone_linux-sparc.o:	iozone.c libbif.c libasync.c
 	@echo ""
 	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DDONT_HAVE_O_DIRECT \
 		-DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE iozone.c \
-		-o iozone_linux-sparc.o
+		-DNAME='"linux-sparc"' -o iozone_linux-sparc.o
 	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
 		-DSHARED_MEM -Dlinux libbif.c -o libbif.o
 	cc -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
@@ -547,7 +566,7 @@ iozone_linux.o:	iozone.c libbif.c libasync.c
 	@echo ""
 	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE iozone.c \
-		-o iozone_linux.o
+		-DNAME='"linux"' -o iozone_linux.o
 	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
 		-DSHARED_MEM -Dlinux libbif.c -o libbif.o
 	cc -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
@@ -557,7 +576,7 @@ iozone_linux-ia64.o:	iozone.c libbif.c
 	@echo ""
 	@echo "Building iozone for Linux-ia64"
 	@echo ""
-	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
+	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DNAME='"linux-ia64"' \
 		-DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE iozone.c \
 		-o iozone_linux-ia64.o
 	cc -c -O3 -Dunix -DHAVE_ANSIC_C -D_LARGEFILE64_SOURCE \
@@ -568,7 +587,7 @@ iozone_AIX.o:	iozone.c libbif.c
 	@echo "Building iozone for AIX"
 	@echo ""
 	cc -c -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C  \
-		-DSHARED_MEM  iozone.c -o iozone_AIX.o
+		-DNAME='"AIX"' -DSHARED_MEM  iozone.c -o iozone_AIX.o
 	cc -c -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C  \
 		-DSHARED_MEM libbif.c -o libbif.o
 
@@ -578,7 +597,7 @@ iozone_AIX-LF.o:	iozone.c libbif.c
 	@echo ""
 	cc -c -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C  \
 		-DSHARED_MEM  -D_LARGEFILE64_SOURCE -D_LARGE_FILES \
-		iozone.c -o iozone_AIX-LF.o
+		-DNAME='"AIX-LF"' iozone.c -o iozone_AIX-LF.o
 	cc -c -O -D__AIX__ -D_NO_PROTO -Dunix -DHAVE_ANSIC_C  \
 		-DSHARED_MEM -D_LARGEFILE64_SOURCE -D_LARGE_FILES \
 		libbif.c -o libbif.o
@@ -589,7 +608,7 @@ iozone_solaris.o:	iozone.c libasync.c libbif.c
 	@echo ""
 	cc -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
-		iozone.c -o iozone_solaris.o
+		-DNAME='"Solaris"' iozone.c -o iozone_solaris.o
 	cc -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
 		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
 		libasync.c -o libasync.o
@@ -603,7 +622,7 @@ iozone_solaris7gcc.o:	iozone.c libasync.c libbif.c
 	@echo ""
 	gcc -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
 		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
-		libasync.c -o libasync7.o
+		-DNAME='"Solaris7gcc"' libasync.c -o libasync7.o
 	gcc -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
 		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
 		-DBIG_ENDIAN libbif.c -o libbif7.o
@@ -621,7 +640,7 @@ iozone_solaris-2.6.o:	iozone.c libbif.c
 	@echo "Building iozone for Solaris-2.6"
 	@echo ""
 	cc -c -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
-		-Dsolaris  iozone.c -o iozone_solaris-2.6.o
+		-DNAME='"Solaris-2.6"' -Dsolaris  iozone.c -o iozone_solaris-2.6.o
 	cc -O -c  -Dunix -DHAVE_ANSIC_C \
 		-Dsolaris -DBIG_ENDIAN libbif.c -o libbif.o
 
@@ -631,7 +650,7 @@ iozone_solaris8-64.o: iozone.c libasync.c libbif.c
 	@echo ""
 	cc -fast -xtarget=generic64 -v -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-D__LP64__ -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
-		-Dsolaris iozone.c -o iozone_solaris8-64.o
+		-DNAME='"Solaris8-64"' -Dsolaris iozone.c -o iozone_solaris8-64.o
 	cc -fast -xtarget=generic64 -v -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-D__LP64__ -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
 		-Dsolaris libasync.c -o libasync.o
@@ -644,7 +663,7 @@ iozone_windows.o:	iozone.c libasync.c libbif.c
 	@echo "Building iozone for Windows (No threads, No async I/O)"
 	@echo ""
 	gcc -c -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS  \
-		-DWindows iozone.c -o iozone_windows.o
+		-DNAME='"Windows"' -DWindows iozone.c -o iozone_windows.o
 	gcc -c -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS  \
 		-DWindows libbif.c -o libbif.o
 
@@ -653,7 +672,7 @@ iozone_uwin.o:	iozone.c libbif.c
 	@echo "Building iozone for UWIN (No threads, No async I/O)"
 	@echo ""
 	gcc -c -O -DUWIN -Dunix -DHAVE_ANSIC_C -DNO_THREADS  \
-		-DSHARED_MEM -DWindows iozone.c -o iozone_uwin.o
+		-DNAME='"UWIN"' -DSHARED_MEM -DWindows iozone.c -o iozone_uwin.o
 	gcc -c -O -DUWIN -Dunix -DHAVE_ANSIC_C -DNO_THREADS  \
 		-DSHARED_MEM -DWindows libbif.c -o libbif.o
 
@@ -662,7 +681,7 @@ iozone_IRIX64.o:	iozone.c libasync.c libbif.c
 	@echo "Building iozone for IRIX64"
 	@echo ""
 	cc -32 -O -c  -Dunix -DHAVE_ANSIC_C -D_LARGEFILE64_SOURCE -DASYNC_IO \
-		-DIRIX64 -DSHARED_MEM iozone.c -o iozone_IRIX64.o
+		-DNAME='"IRIX64"' -DIRIX64 -DSHARED_MEM iozone.c -o iozone_IRIX64.o
 	cc -32 -O -c  -Dunix -DHAVE_ANSIC_C -D_LARGEFILE64_SOURCE -DASYNC_IO \
 		-DIRIX64 -DSHARED_MEM libasync.c -o libasyncw.o
 	cc -32 -O -c  -Dunix -DHAVE_ANSIC_C -D_LARGEFILE64_SOURCE -DASYNC_IO \
@@ -673,7 +692,7 @@ iozone_IRIX.o:	iozone.c libasync.c libbif.c
 	@echo "Building iozone for IRIX"
 	@echo ""
 	cc  -O -32 -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
-		-DIRIX -DSHARED_MEM iozone.c -o iozone_IRIX.o
+		-DNAME='"IRIX"' -DIRIX -DSHARED_MEM iozone.c -o iozone_IRIX.o
 	cc  -O -32 -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-DIRIX -DSHARED_MEM libasync.c -o libasync.o
 	cc  -O -32 -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
@@ -684,7 +703,8 @@ iozone_sppux.o:	iozone.c libbif.c
 	@echo "Building iozone for SPP-UX using Convex compiler"
 	@echo ""
 	/opt/ansic/bin/cc -c  -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
-		-Wl,+parallel -DHAVE_ANSIC_C -DHAVE_PREAD iozone.c -o iozone_sppux.o
+		-DNAME='"sppux"' -Wl,+parallel -DHAVE_ANSIC_C -DHAVE_PREAD \
+		iozone.c -o iozone_sppux.o
 	/opt/ansic/bin/cc -c  -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
 		-Wl,+parallel -DHAVE_ANSIC_C -DHAVE_PREAD -DBIG_ENDIAN libbif.c -o libbif.o
 
@@ -694,7 +714,7 @@ iozone_sppux-10.1.o:	iozone.c libbif.c
 	@echo ""
 	/opt/ansic/bin/cc -c -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
 		-DHAVE_ANSIC_C -DHAVE_PREAD iozone.c \
-		 -Wl,+parallel -o iozone_sppux-10.1.o
+		 -DNAME='"sppux-10.1"' -Wl,+parallel -o iozone_sppux-10.1.o
 	/opt/ansic/bin/cc -c -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
 		-DHAVE_ANSIC_C -DHAVE_PREAD -DBIG_ENDIAN libbif.c \
 		 -Wl,+parallel -o libbif.o
@@ -704,7 +724,8 @@ iozone_sppux_no-10.1.o:	iozone.c libbif.c
 	@echo "Building iozone for SPP-UX no ANSI c compiler"
 	@echo ""
 	/usr/ccs/bin/cc -c -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
-		-Wl,+parallel -DHAVE_PREAD iozone.c -o iozone_sppux_no-10.1.o
+		-DNAME='"sppux_no_ansi_10.1"' -Wl,+parallel -DHAVE_PREAD \
+		iozone.c -o iozone_sppux_no-10.1.o
 	/usr/ccs/bin/cc -c -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
 		-Wl,+parallel -DHAVE_PREAD -DBIG_ENDIAN libbif.c -o libbif.o
 
@@ -713,7 +734,7 @@ iozone_convex.o:	iozone.c libbif.c
 	@echo "Building iozone for Convex 'C' series"
 	@echo ""
 		cc -c -O -Dunix -DNO_THREADS -Dbsd4_2 iozone.c \
-			-o iozone_convex.o 
+			-DNAME='"Convex"' -o iozone_convex.o 
 		cc -c -O -Dunix -DNO_THREADS -Dbsd4_2 -DBIG_ENDIAN libbif.c \
 			-o libbif.o 
 
@@ -722,7 +743,7 @@ iozone_bsdi.o:	iozone.c libbif.c
 	@echo "Build iozone for BSD/OS"
 	@echo ""
 	cc -c -O -Dunix -Dbsd4_4 -DHAVE_ANSIC_C \
-		iozone.c -o iozone_bsdi.o
+		-DNAME='"bsdi"' iozone.c -o iozone_bsdi.o
 	cc -c -O -Dunix -Dbsd4_4 -DHAVE_ANSIC_C \
 		libbif.c -o libbif.o
 
@@ -731,7 +752,7 @@ iozone_freebsd.o:	iozone.c libbif.c
 	@echo "Build iozone for FreeBSD"
 	@echo ""
 	cc -c ${CFLAGS}  -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
-		-DSHARED_MEM iozone.c -o iozone_freebsd.o
+		-DNAME='"freebsd"' -DSHARED_MEM iozone.c -o iozone_freebsd.o
 	cc -c ${CFLAGS} -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
 		-DSHARED_MEM libbif.c -o libbif.o
 
@@ -740,7 +761,7 @@ iozone_macosx.o:	iozone.c libbif.c
 	@echo "Build iozone for MacOSX"
 	@echo ""
 	cc -c -O -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
-		-DSHARED_MEM iozone.c -o iozone_macosx.o
+		-DNAME='"macosx"' -DSHARED_MEM iozone.c -o iozone_macosx.o
 	cc -c -O -Dunix -Dbsd4_2 -DHAVE_ANSIC_C -DNO_THREADS \
 		-DSHARED_MEM libbif.c -o libbif.o
 
@@ -749,7 +770,7 @@ iozone_openbsd.o:	iozone.c libbif.c
 	@echo "Build iozone for OpenBSD"
 	@echo ""
 	cc -c -O -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DNO_THREADS \
-		-DSHARED_MEM iozone.c -o iozone_openbsd.o
+		-DNAME='"openbsd"' -DSHARED_MEM iozone.c -o iozone_openbsd.o
 	cc -c -O -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DNO_THREADS \
 		-DSHARED_MEM libbif.c -o libbif.o
 
@@ -758,7 +779,7 @@ iozone_openbsd-threads.o:	iozone.c libbif.c
 	@echo "Build iozone for OpenBSD with threads"
 	@echo ""
 	cc -c -O -pthread -Dunix -Dbsd4_4 -DHAVE_ANSIC_C \
-		iozone.c -o iozone_openbsd-threads.o
+		-DNAME='"openbsd-threads"' iozone.c -o iozone_openbsd-threads.o
 	cc -c -O -pthread -Dunix -Dbsd4_4 -DHAVE_ANSIC_C \
 		libbif.c -o libbif.o
 
@@ -767,7 +788,7 @@ iozone_OSFV3.o:	iozone.c libbif.c
 	@echo "Build iozone for OSFV3"
 	@echo ""
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV3 \
-		-DNO_PRINT_LLD -DOSF_64 iozone.c -o iozone_OSFV3.o
+		-DNAME='"OSFV3"' -DNO_PRINT_LLD -DOSF_64 iozone.c -o iozone_OSFV3.o
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV3 \
 		-DNO_PRINT_LLD  -DOSF_64 libbif.c -o libbif.o
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV3 \
@@ -778,7 +799,7 @@ iozone_OSFV4.o:	iozone.c libbif.c
 	@echo "Build iozone for OSFV4"
 	@echo ""
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV4 \
-		-DNO_PRINT_LLD -DOSF_64 iozone.c -o iozone_OSFV4.o
+		-DNAME='"OSFV4"' -DNO_PRINT_LLD -DOSF_64 iozone.c -o iozone_OSFV4.o
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV4 \
 		-DNO_PRINT_LLD  -DOSF_64 libbif.c -o libbif.o
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV4 \
@@ -789,7 +810,7 @@ iozone_OSFV5.o:	iozone.c libbif.c
 	@echo "Build iozone for OSFV5"
 	@echo ""
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 \
-		-DNO_PRINT_LLD -DOSF_64 iozone.c -o iozone_OSFV5.o
+		-DNAME='"OSFV5"' -DNO_PRINT_LLD -DOSF_64 iozone.c -o iozone_OSFV5.o
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 \
 		-DNO_PRINT_LLD  -DOSF_64 libbif.c -o libbif.o
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 \
@@ -800,7 +821,8 @@ iozone_TRU64.o:	iozone.c libbif.c
 	@echo "Build iozone for TRU64"
 	@echo ""
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 -DTRU64 \
-		-DNO_PRINT_LLD -DOSF_64 -pthread iozone.c -o iozone_TRU64.o
+		-DNAME='"TRU64"' -DNO_PRINT_LLD -DOSF_64 -pthread iozone.c \
+		-o iozone_TRU64.o
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 \
 		-DNO_PRINT_LLD  -DOSF_64 libbif.c -o libbif.o
 	cc -O -c -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DOSFV5 \
@@ -811,7 +833,7 @@ iozone_SCO.o:	iozone.c libbif.c
 	@echo "Building iozone SCO "
 	@echo ""
 	gcc -c -O -DSCO -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
-		iozone.c -o iozone_SCO.o
+		-DNAME='"SCO"' iozone.c -o iozone_SCO.o
 	gcc -c -O -DSCO -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
 		-DBIG_ENDIAN libbif.c -o libbif.o
 
@@ -820,8 +842,8 @@ iozone_SCO_Unixware_gcc.o:	iozone.c libbif.c libasync.c
 	@echo "Building iozone SCO_Unixware_gcc "
 	@echo ""
 	/usr/local/bin/gcc -c -O -DSCO_Unixware_gcc -Dunix -DHAVE_ANSIC_C  \
-		-DASYNC_IO -D_LARGEFILE64_SOURCE iozone.c -o \
-		iozone_SCO_Unixware_gcc.o
+		-DASYNC_IO -D_LARGEFILE64_SOURCE iozone.c  \
+		-DNAME='"SCO_Unixware_gcc"' -o iozone_SCO_Unixware_gcc.o
 	/usr/loca/bin/gcc -c -O -DSCO_Unixware_gcc -Dunix -DHAVE_ANSIC_C  \
 		-DASYNC_IO -D_LARGEFILE64_SOURCE libbif.c -o libbif.o
 	/usr/loca/bin/gcc -c -O -DSCO_Unixware_gcc -Dunix -DHAVE_ANSIC_C  \
@@ -832,6 +854,6 @@ iozone_netbsd.o:	iozone.c libbif.c
 	@echo "Building iozone NetBSD "
 	@echo ""
 	cc -c -O -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DNO_THREADS \
-		-DSHARED_MEM iozone.c -o iozone_netbsd.o
+		-DNAME='"netbsd"' -DSHARED_MEM iozone.c -o iozone_netbsd.o
 	cc -c -O -Dunix -Dbsd4_4 -DHAVE_ANSIC_C -DNO_THREADS \
 		-DSHARED_MEM libbif.c -o libbif.o

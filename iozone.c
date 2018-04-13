@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.139 $"
+#define THISVERSION "        Version $Revision: 3.140 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -940,6 +940,9 @@ void add_file_size();
 void init_record_sizes();
 off64_t get_next_record_size();
 void add_record_size();
+void dump_cputimes();
+static double cpu_util();
+void del_record_sizes();
 #endif
 
 #ifdef _LARGEFILE64_SOURCE
@@ -1043,6 +1046,7 @@ char gflag,nflag;
 char yflag,qflag;
 char trflag; 
 char cpuutilflag;
+char *build_name = NAME;
 long base_time;
 long long mint, maxt; 
 long long w_traj_ops, r_traj_ops, w_traj_fsize,r_traj_fsize;
@@ -1343,7 +1347,8 @@ char **argv;
 	 * mode this output does not get displayed on the clients.
 	 */
 	sprintf(splash[splash_line++],"\tIozone: Performance Test of File I/O\n");
-    	sprintf(splash[splash_line++],"\t%s\n\t%s\n\n", THISVERSION,MODE);
+    	sprintf(splash[splash_line++],"\t%s\n\t%s\n", THISVERSION,MODE);
+    	sprintf(splash[splash_line++],"\t\tBuild: %s \n\n",build_name);
     	sprintf(splash[splash_line++],"\tContributors:William Norcott, Don Capps, Isom Crawford, Kirby Collins\n");
 	sprintf(splash[splash_line++],"\t             Al Slater, Scott Rhine, Mike Wisner, Ken Goss\n");
     	sprintf(splash[splash_line++],"\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR,\n");
@@ -9104,7 +9109,7 @@ long long who;
 #ifdef HAVE_ANSIC_C
 void dump_cputimes(void)
 #else
-void dump_cputimes()
+void dump_cputimes(void)
 #endif
 {
 	bif_row++;
@@ -9239,9 +9244,14 @@ void dump_cputimes()
 /************************************************************************/
 /* Internal memory allocation mechanism. Uses shared memory or mmap 	*/
 /************************************************************************/
+#ifdef HAVE_ANSIC_C
+char *
+alloc_mem(long long size)
+#else
 char *
 alloc_mem(size)
 long long size;
+#endif
 {
 	long long size1;
 	char *addr,*dumb;
@@ -13109,6 +13119,8 @@ mythread_create( void *(*func)(void *),void *x)
 #else
 long long 
 mythread_create( func,x)
+void *(*func)(void *);
+void *x;
 #endif
 {
 	pthread_t ts;
@@ -13146,8 +13158,15 @@ mythread_create( func,x)
 	return((long long)meme);
 }
 #else
+#ifdef HAVE_ANSIC_C
+long long 
+mythread_create( void *(*func)(void *),void *x)
+#else
 long long 
 mythread_create( func,x)
+void *(*func)(void *);
+void *x;
+#endif
 {
 	printf("This version does not support threads\n");
 }
@@ -13169,8 +13188,13 @@ thread_exit()
 return(0);
 }
 #else
+#ifdef HAVE_ANSIC_C
+int
+thread_exit(void)
+#else
 int
 thread_exit()
+#endif
 {
 	printf("This version does not support threads\n");
 }
@@ -13180,16 +13204,26 @@ thread_exit()
 /* mythread_self() Internal function that calls pthread_self()		*/
 /************************************************************************/
 #ifndef NO_THREADS
+#ifdef HAVE_ANSIC_C
+pthread_t
+mythread_self(void)
+#else
 pthread_t
 mythread_self()
+#endif
 {
 	pthread_t xx;
 	xx = pthread_self();
 	return(xx);
 }
 #else
+#ifdef HAVE_ANSIC_C
+int
+mythread_self(void)
+#else
 int
 mythread_self()
+#endif
 {
 	printf("This version does not support threads\n");
 }
@@ -13220,10 +13254,15 @@ void *status;
 	return(0);
 }
 #else
+#ifdef HAVE_ANSIC_C
+void *
+thread_join( long long tid, void *status) 
+#else
 void *
 thread_join( tid, status) 
 long long tid;
 void *status;
+#endif
 {
 	printf("This version does not support threads\n");
 }
@@ -13588,9 +13627,14 @@ async_release()
 /************************************************************************/
 /* Nap in microseconds.							*/
 /************************************************************************/
+#ifdef HAVE_ANSIC_C
+void
+my_nap( int ntime )
+#else
 void
 my_nap( ntime )
 int ntime;
+#endif
 {
 	struct timeval nap_time;
 	int seconds, microsecs;
@@ -13718,8 +13762,13 @@ time_so_far1()
 /* Return the clocks per tick for the times() call.			*/
 /************************************************************************/
 #ifdef unix
+#ifdef HAVE_ANSIC_C
+static double
+clk_tck(void)		/* Get the clocks per tick for times */
+#else
 static double
 clk_tck()		/* Get the clocks per tick for times */
+#endif
 {
 	return((double)sysconf(_SC_CLK_TCK));
 }
@@ -13899,6 +13948,7 @@ float comp_delay;
 void
 disrupt(int fd)
 #else
+void
 disrupt(fd)
 int fd;
 #endif
@@ -14796,7 +14846,6 @@ master_send(int child_socket_val, char *host_name, struct client_command *send_b
 #else
 void
 master_send(child_socket_val, host_name, send_buffer, send_size)
-void
 int child_socket_val;
 char *host_name; 
 struct client_command *send_buffer; 
@@ -15107,8 +15156,14 @@ int size_of_message;
 	}
 	return(s);
 }
+#ifdef HAVE_ANSIC_C
 int
 child_attach(int s, int flag)
+#else
+int
+child_attach(s, flag)
+int s,flag;
+#endif
 {
 	int me,ns;
 	struct sockaddr_in *addr;
@@ -16140,7 +16195,7 @@ void
 tell_master_ready(long long chid)
 #else
 void
-tell_master_ready()
+tell_master_ready(chid)
 long long chid;
 #endif
 {
@@ -16166,7 +16221,8 @@ long long chid;
 void
 wait_for_master_go(long long chid)
 #else
-wait_for_master_go()
+void
+wait_for_master_go(chid)
 long long chid;
 #endif
 {
@@ -16699,6 +16755,11 @@ char *shell;
 #endif
 	return;
 }	
+
+/*
+ * This test is only valid in throughput mode.
+ */
+
 #ifdef HAVE_ANSIC_C
 void 
 mix_perf_test(off64_t kilo64,long long reclen,long long *data1,long long *data2)
