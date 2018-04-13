@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.127 $"
+#define THISVERSION "        Version $Revision: 3.128 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -1019,7 +1019,7 @@ char master_iozone, client_iozone,distributed;
 int bif_fd;
 int bif_row,bif_column;
 char aflag, Eflag, hflag, Rflag, rflag, sflag;
-char diag_v;
+char diag_v,sent_stop;
 char bif_flag;
 char gflag,nflag;
 char yflag,qflag;
@@ -15815,6 +15815,7 @@ start_child_listen_loop()
 				printf("child loop: R_STOP_FLAG for client %d\n",i);
 			child_stat = (struct child_stats *)&shmaddr[i];	
 			*stop_flag = cc.c_stop_flag; /* In shared memory with other copy */
+			sent_stop=1;
 			break;
 		case R_TERMINATE:
 			if(cdebug)
@@ -16033,6 +16034,16 @@ distribute_stop()
 {
 	int i;
 	struct client_command cc;
+
+	/*
+	 * Only send one stop to the clients. Each client will
+	 * send stop to the master, but the master only needs
+	 * to distribute the first stop. Without this, the 
+	 * master may distribute too many stops and overflow
+	 * the socket buffer on the client.
+	 */
+	if(sent_stop)
+		return;
 	bzero(&cc,sizeof(struct client_command));
 	cc.c_command = R_STOP_FLAG;
 	cc.c_stop_flag = 1;
@@ -16043,6 +16054,7 @@ distribute_stop()
 			printf("Master distributing stop flag to child %d\n",i);
 		master_send(master_send_async_sockets[i],child_idents[i].child_name, &cc,sizeof(struct client_command));
 	}
+	sent_stop=1;
 }
 
 /*

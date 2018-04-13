@@ -1476,4 +1476,9 @@ UDP packet.
 Revision 3.127 
 =============================================================================
 Improve debug code for cluster mode.
+=============================================================================
+Revision 3.128 
+=============================================================================
+Reduce the message traffic due to master's distribution of STOP. Only 
+one STOP distribution is needed. More can lead to socket buffer overflows.
 
