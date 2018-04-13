@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.288 $"
+#define THISVERSION "        Version $Revision: 3.291 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -21638,6 +21638,7 @@ gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,int all)
 	register long iseed; 	/* Register for speed 	*/
 	register long isize; 	/* Register for speed 	*/
 	register int x; 	/* Register for speed 	*/
+	register int value; 	/* Register for speed 	*/
 	if(ibuf == NULL)	/* no input buf 	*/
 		return(-1);
 	if(obuf == NULL)	/* no output buf 	*/
@@ -21664,8 +21665,11 @@ gen_new_buf(char *ibuf, char *obuf, long seed, int size, int percent,int all)
 	/* Copy the rest of the unmodified input buf to the output buf */
 	if(percent < 100)
 	{
-		for( ; x<size/sizeof(long);x++)
-			*op++=*ip++; /* just copy input buf */
+		isize=size/sizeof(long);
+		srand(chid+1+seed);
+		value=rand();
+		for( ; x<isize;x++)
+			*op++=(*ip++)^value; /* randomize the remainder */
 	}
 	return(0);
 }

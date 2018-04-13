@@ -2094,5 +2094,14 @@ Bug fix for fread/fwrite with > 2Gig files.
 Revision 3.287
 Add O_DIRECT for Windows
 =============================================================================
-Revision 3.287
+Revision 3.288
 Add -+w dedup testing mode.
+=============================================================================
+Revision 3.289
+Make remaining non-dedup data unique.
+=============================================================================
+Revision 3.290
+Make non-dedupable more unique.
+=============================================================================
+Revision 3.291
+Bug fix for non-dedup.
