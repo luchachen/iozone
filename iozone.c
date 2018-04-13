@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.260 $"
+#define THISVERSION "        Version $Revision: 3.262 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -2700,16 +2700,6 @@ char **argv;
 #endif
                 exit(22);
         }
-        if (reclen > (long long)(kilobytes64*1024)) {
-#ifdef NO_PRINT_LLD
-            printf("Error: record length %ld is greater than filesize %ld KB\n ",
-                                reclen,kilobytes64);
-#else
-            printf("Error: record length %lld is greater than filesize %lld KB\n ",
-                                reclen,kilobytes64);
-#endif
-                exit(23);
-        }
 	/* Only bzero or fill that which you will use. The buffer is very large */
 	if(verify )	
 	{
@@ -3052,6 +3042,17 @@ void auto_test()
 		max_file_size = maximum_file_size;
 	if(nflag)
 		min_file_size = minimum_file_size;
+
+        if (min_rec_size > (long long)(min_file_size*1024)) {
+#ifdef NO_PRINT_LLD
+            printf("Error: record length %ld is greater than filesize %ld KB\n ",
+                                min_rec_size,min_file_size);
+#else
+            printf("Error: record length %lld is greater than filesize %lld KB\n ",
+                                min_rec_size,min_file_size);
+#endif
+                exit(23);
+        }
 
 	if(NOCROSSflag) xover = max_file_size;
 
@@ -11063,7 +11064,7 @@ thread_write_test( x)
 	}
 	if(fetchon)			/* Prefetch into processor cache */
 		fetchit(nbuff,reclen);
-	if(verify)
+	if(verify && !diag_v)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 
 	if(w_traj_flag)
@@ -11161,7 +11162,7 @@ thread_write_test( x)
 			mylockr((int) fd, (int) 1, (int)0,
 			  lock_offset, reclen);
 		}
-		if(verify && diag_v)
+		if(verify && diag_v && !no_copy_flag)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -20817,6 +20818,7 @@ get_pattern(void)
         char cp[100],*ptr;
         int pat;
 	unsigned char inp_pat;
+	unsigned int temp;
 
         y=0;
         ptr=&cp[0];
@@ -20834,7 +20836,7 @@ get_pattern(void)
 		pat=PATTERN1;
 	/* Set global pattern */
 	inp_pat = pat;
-	pattern =((inp_pat << 24) | (inp_pat << 16) | (inp_pat << 8) | inp_pat);
+	temp =((inp_pat << 24) | (inp_pat << 16) | (inp_pat << 8) | inp_pat);
         return(pat);
 }
 

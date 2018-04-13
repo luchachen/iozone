@@ -101,7 +101,7 @@ void *memset();
 void bzero();
 void clear_stats();
 
-#define THISVERSION "        $Revision: 1.35 $"
+#define THISVERSION "        $Revision: 1.36 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;
@@ -122,13 +122,27 @@ int main(int argc, char **argv)
 		switch(cret){
 		case 'f':	/* Force factor */
 			x=atoi(optarg);
+			if(x < 0)
+				x=1;
 			break;
 		case 's':	/* Size of files */
-			sz=atoi(optarg);
+                        sz=atoi(optarg);
+                        if(optarg[strlen(optarg)-1]=='k' ||
+                                optarg[strlen(optarg)-1]=='K'){
+                                sz = (1024 * atoi(optarg));
+                        }
+                        if(optarg[strlen(optarg)-1]=='m' ||
+                                optarg[strlen(optarg)-1]=='M'){
+                                sz = (1024 * 1024 * atoi(optarg));
+                        }
+			if(sz < 0)
+				sz=1;
 			break;
 		case 'l':	/* lower force value */
 			lower=atoi(optarg);
 			range=1;
+			if(lower < 0)
+				lower=1;
 			break;
 		case 'v':	/* version */
 			splash();
@@ -137,6 +151,8 @@ int main(int argc, char **argv)
 		case 'u':	/* upper force value */
 			upper=atoi(optarg);
 			range=1;
+			if(upper < 0)
+				upper=1;
 			break;
 		case 't':	/* verbose */
 			verbose=1;

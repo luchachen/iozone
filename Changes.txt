@@ -2008,4 +2008,12 @@ Bug fix for pbuffer allocation on remote clients.
 Revision 3.260
 =============================================================================
 Check for max_rec_size when using ranges. -r -r -r
+=============================================================================
+Revision 3.261
+=============================================================================
+Fix for Debian user bug. -r 1m -n 1m -g 2m gave bogus error.
+=============================================================================
+Revision 3.262
+=============================================================================
+Bug fix for -k used in conjunction with -t and content validation.
 
