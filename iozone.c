@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.148 $"
+#define THISVERSION "        Version $Revision: 3.149 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -5875,6 +5875,8 @@ long long *data2;
 	char *how;
 	char *stdio_buf;
 
+	if(mmapflag || async_flag)
+		return;
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	stdio_buf=(char *)malloc((size_t)reclen);
@@ -6050,6 +6052,8 @@ long long *data1,*data2;
 	char *stdio_buf;
 	int fd;
 
+	if(mmapflag || async_flag)
+		return;
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	stdio_buf=(char *)malloc((size_t)reclen);
