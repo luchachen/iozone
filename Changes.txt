@@ -2428,3 +2428,11 @@ Reduce CPU consumption in the op_rate control mechanism.
 Revision 3.406
 Increase buffer size for configuration lines. They might be 700 chars long.
 =============================================================================
+Revision 3.407
+Work around for cache_line_size suddenly becoming zero and breaking fetchit()
+=============================================================================
+Revision 3.408
+Bug fix for clobbering of buffer. "tfile" needed to be bigger, as its 
+address was loaded into filearray[] and then that was overwritten 
+by the mfflag causing parsed names to get loaded.
+=============================================================================

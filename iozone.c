@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.406 $"
+#define THISVERSION "        Version $Revision: 3.408 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1368,7 +1368,7 @@ char mountname [MAXNAMESIZE];              /* name of device         */
 char dummyfile [MAXSTREAMS][MAXNAMESIZE];  /* name of dummy file     */
 char dummyfile1 [MAXNAMESIZE];             /* name of dummy file     */
 char *filearray[MAXSTREAMS];		   /* array of file names    */
-char tfile[] = "iozone";
+char tfile[MAXNAMESIZE];
 char *buffer,*buffer1, *mbuffer,*mainbuffer;
 FILE *pi,*r_traj_fd,*w_traj_fd;
 VOLATILE char *pbuffer;
@@ -1630,6 +1630,7 @@ char **argv;
 	char *evalue;
 
 
+	strcpy(tfile,"iozone"); /* Dummy name prefix */
 	anwser=bind_cpu=0;
 	/* Used to make fread/fwrite do something better than their defaults */
 	setvbuf( stdout, NULL, _IONBF, (size_t) NULL );
@@ -6931,6 +6932,10 @@ long long length;
 	volatile long long x[4];
 	long long i;
 	where=(char *)buffer;
+
+	if(cache_line_size == 0) /* This shouldn't be needed */
+		cache_line_size=CACHE_LINE_SIZE;
+
 	for(i=0;i<(length/cache_line_size);i++)
 	{
 		x[(i & 3)]=*(where);
