@@ -2285,3 +2285,24 @@ Remove Ascii dependency for IBM's Z/OS that speaks EBCDIC.
 Revision 3.353
 Add support for SUA
 =============================================================================
+Revision 3.354
+Remove Sanity check so that SMB on Windows, under SUA, works
+=============================================================================
+Revision 3.355
+Cache the getaddrinfo call. 
+=============================================================================
+Revision 3.356
+delete optimization.. bad...Cache the getaddrinfo call. 
+=============================================================================
+Revision 3.358
+Change pit to use unsigned long longs
+=============================================================================
+Revision 3.359
+Add Linux processor affinity
+=============================================================================
+Revision 3.360
+Remove UDP usage
+=============================================================================
+Revision 3.361
+Increment protocol_version to catch incompat versions.
+=============================================================================

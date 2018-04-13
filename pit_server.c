@@ -572,7 +572,7 @@ static void pit( int    tSckt[ ],
 		+ (unsigned long long)tm.tv_usec;
 #endif
 
-      ret = sprintf(timeStr,"%lld",secs);
+      ret = sprintf(timeStr,"%llu",secs);
       timeLen = strlen( timeStr );
       /*
       ** Process sockets with input available.

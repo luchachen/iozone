@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.133 $
+# Version $Revision: 1.134 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -194,13 +194,13 @@ linux-ia64:	iozone_linux-ia64.o  libbif.o libasync.o fileop_linux-ia64.o pit_ser
 #
 # GNU 'C' compiler Linux build for powerpc chip with threads, largefiles, async I/O 
 #
-linux-powerpc64: iozone_linux-powerpc64.o  libbif.o libasync.o fileop_linux-ppc64.o pit_server.o
+linux-powerpc64: iozone_linux-powerpc64.o  libbif.o libasync.o fileop_linux-ppc64.o pit_server-linux-powerpc64.o
 	$(CC) -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE -Dlinux \
 		iozone_linux-powerpc64.o libasync.o libbif.o -lpthread \
 		-lrt $(FLAG64BIT) -o iozone
 	$(CC)  -O3 -Dlinux fileop_linux-ppc64.o $(FLAG64BIT) -o fileop
-	$(CC)  -O3 -Dlinux pit_server.o $(FLAG64BIT) -o pit_server
+	$(CC)  -O3 -Dlinux pit_server-linux-powerpc64.o $(FLAG64BIT) -o pit_server
 		
 #
 # GNU 'C' compiler Linux build with threads, largefiles, async I/O
@@ -629,6 +629,12 @@ pit_server.o:	pit_server.c
 	@echo "Building the pit_server"
 	@echo ""
 	$(CC) -c  $(CFLAGS) pit_server.c  -o pit_server.o 
+
+pit_server-linux-powerpc64.o:	pit_server.c
+	@echo ""
+	@echo "Building the pit_server"
+	@echo ""
+	$(CC) -c  $(CFLAGS) $(FLAG64BIT) pit_server.c -o pit_server-linux-powerpc64.o 
 
 pit_server_win.o:	pit_server.c
 	@echo ""

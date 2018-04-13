@@ -127,7 +127,7 @@ void bzero();
 void clear_stats();
 int validate(char *, int , char );
 
-#define THISVERSION "        $Revision: 1.56 $"
+#define THISVERSION "        $Revision: 1.57 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;
@@ -164,7 +164,7 @@ void purge_buffer_cache()
                ret = system(command);
                if (ret == 0)
                        break;
-               sleep(i); // seconds
+               sleep(i); /* seconds */
         }
 	strcpy(command,"mount ");
 	strcat(command, mountname);

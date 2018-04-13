@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.353 $"
+#define THISVERSION "        Version $Revision: 3.361 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1279,6 +1279,7 @@ char *dedup_temp;
 char bif_flag;
 int rlocking;
 int share_file;
+int ecount;
 char gflag,nflag;
 char yflag,qflag;
 #ifdef Windows
@@ -1369,7 +1370,7 @@ char remote_shell[256];
 int client_error;
 
 char pit_hostname[40];
-char pit_service[7];
+char pit_service[8];
 int junk;
 
 /* 
@@ -1378,6 +1379,7 @@ int junk;
 #define HOST_LIST_PORT 20000
 #define HOST_ESEND_PORT (HOST_LIST_PORT+MAXSTREAMS)
 #define HOST_ASEND_PORT (HOST_ESEND_PORT+MAXSTREAMS)
+int controlling_host_port = HOST_LIST_PORT;
 
 /* 
  * Childs ports used to listen, and handle errors.
@@ -1424,7 +1426,7 @@ int child_port; /* Virtualized due to fork */
 int child_async_port; /* Virtualized due to fork */
 int client_listen_pid; /* Virtualized due to fork */
 int master_join_count; /* How many children have joined */
-int l_sock,s_sock,l_async_sock; /* Sockets for listening */
+int l_sock,l_async_sock; /* Sockets for listening */
 char master_rcv_buf[4096]; /* Master's receive buffer */
 int master_listen_pid; /* Pid of the master's async listener proc */
 char master_send_buf[4096]; /* Master's send buffer */
@@ -1451,7 +1453,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 23;
+int proto_version = 24;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1520,7 +1522,6 @@ long long rest_val;
  * a bit sloppy, so the compromise is this.
  */
 void child_send();
-int start_child_send();
 int start_child_listen();
 int start_child_listen_async();
 void start_child_listen_loop();
@@ -1555,7 +1556,6 @@ void stop_master_send();
 void stop_master_listen();
 void stop_child_send();
 void stop_child_listen();
-int start_child_send();
 void master_send();
 void child_send();
 void master_listen();
@@ -1945,8 +1945,12 @@ char **argv;
 
 		case 'P':	/* Set beginning processor for binding. */
 #ifndef NO_THREADS
-#ifdef _HPUX_SOURCE
+#if defined(_HPUX_SOURCE) || defined(linux)
+#if defined(_HPUX_SOURCE)
 			num_processors= pthread_num_processors_np();
+#else
+      num_processors = sysconf(_SC_NPROCESSORS_ONLN);
+#endif      
 			begin_proc = atoi(optarg);
 			if(begin_proc < 0)
 				begin_proc=0;
@@ -2405,6 +2409,15 @@ char **argv;
 					multiplier = atoi(subarg);
 					if(multiplier <=1)
 						multiplier = 2;
+					break;
+				case 'i':  /* Argument is the host port */
+					subarg=argv[optind++];
+					if(subarg==(char *)0)
+					{
+					     printf("-+i takes an operand !!\n");
+					     exit(200);
+					}
+					controlling_host_port = atoi(subarg);
 					break;
 				case 'p':  /* Argument is the percentage read */
 					subarg=argv[optind++];
@@ -2993,12 +3006,20 @@ char **argv;
 	}
 
 #ifndef NO_THREADS
-#ifdef _HPUX_SOURCE
+#if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
 	{
 		 bind_cpu=begin_proc;
+#if defined( _HPUX_SOURCE )
 		 pthread_processor_bind_np(PTHREAD_BIND_FORCED_NP,
                          (pthread_spu_t *)&anwser, (pthread_spu_t)bind_cpu, pthread_self());
+#else
+     cpu_set_t cpuset;
+     CPU_ZERO(&cpuset);
+     CPU_SET(bind_cpu, &cpuset);
+
+     pthread_setaffinity_np(pthread_self(), sizeof(cpuset),&cpuset);
+#endif
 		my_nap(40);	/* Switch to new cpu */
 	}
 #endif
@@ -6819,6 +6840,9 @@ long long *data2;
  * NFS server that is not correctly permitting
  * the sequence to function.
  */
+/* _SUA_ Services for Unix Applications, under Windows
+    does not have a truncate, so this must be skipped */
+#if !defined(_SUA_)
         if((fd = I_OPEN(filename, (int)O_CREAT|O_WRONLY,0))<0)
         {
                 printf("\nCan not open temp file: %s\n",
@@ -6844,6 +6868,7 @@ long long *data2;
 		}
 /* Sanity check */
 
+#endif
 	if(noretest)
 		ltest=1;
 	else
@@ -11710,7 +11735,7 @@ purge_buffer_cache()
            umount might fail if the device is still busy, so
            retry unmounting several times with increasing delays
         */
-        for (i = 1; i < 10; ++i) {
+        for (i = 1; i < 200; ++i) {
                ret = system(command);
                if (ret == 0)
                        break;
@@ -11814,12 +11839,21 @@ thread_write_test( x)
 	}
 #endif
 #ifndef NO_THREADS
-#ifdef _HPUX_SOURCE
+#if defined(_HPUX_SOURCE) || defined(linux)
 	if(ioz_processor_bind)
 	{
 		 bind_cpu=(begin_proc+(int)xx)%num_processors;
+#if defined(_HPUX_SOURCE)
 		 pthread_processor_bind_np(PTHREAD_BIND_FORCED_NP,
                          (pthread_spu_t *)&anwser, (pthread_spu_t)bind_cpu, pthread_self());
+#else
+     cpu_set_t cpuset;
+
+     CPU_ZERO(&cpuset);
+     CPU_SET(bind_cpu, &cpuset);
+
+     pthread_setaffinity_np(pthread_self(), sizeof(cpuset),&cpuset);
+#endif
 		my_nap(40);	/* Switch to new cpu */
 	}
 #endif
@@ -12482,12 +12516,20 @@ thread_pwrite_test( x)
 	}
 #endif
 #ifndef NO_THREADS
-#ifdef _HPUX_SOURCE
+#if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
 	{
 		 bind_cpu=(begin_proc+(int)xx)%num_processors;
+#if defined( _HPUX_SOURCE )
 		 pthread_processor_bind_np(PTHREAD_BIND_FORCED_NP,
                          (pthread_spu_t *)&anwser, (pthread_spu_t)bind_cpu, pthread_self());
+#else
+     cpu_set_t cpuset;
+     CPU_ZERO(&cpuset);
+     CPU_SET(bind_cpu, &cpuset);
+
+     pthread_setaffinity_np(pthread_self(), sizeof(cpuset),&cpuset);
+#endif
 		my_nap(40);	/* Switch to new cpu */
 	}
 #endif
@@ -13076,12 +13118,20 @@ thread_rwrite_test(x)
 	}
 #endif
 #ifndef NO_THREADS
-#ifdef _HPUX_SOURCE
+#if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
 	{
 		 bind_cpu=(begin_proc+(int)xx)%num_processors;
+#if defined( _HPUX_SOURCE )
 		 pthread_processor_bind_np(PTHREAD_BIND_FORCED_NP,
                          (pthread_spu_t *)&anwser, (pthread_spu_t)bind_cpu, pthread_self());
+#else
+     cpu_set_t cpuset;
+     CPU_ZERO(&cpuset);
+     CPU_SET(bind_cpu, &cpuset);
+
+     pthread_setaffinity_np(pthread_self(), sizeof(cpuset),&cpuset);
+#endif
 		my_nap(40);	/* Switch to new cpu */
 	}
 #endif
@@ -13619,12 +13669,21 @@ thread_read_test(x)
 	}
 #endif
 #ifndef NO_THREADS
-#ifdef _HPUX_SOURCE
+#if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
 	{
 		 bind_cpu=(begin_proc+(int)xx)%num_processors;
+#if defined(_HPUX_SOURCE)
 		 pthread_processor_bind_np(PTHREAD_BIND_FORCED_NP,
                          (pthread_spu_t *)&anwser, (pthread_spu_t)bind_cpu, pthread_self());
+#else
+     cpu_set_t cpuset;
+
+     CPU_ZERO(&cpuset);
+     CPU_SET(bind_cpu, &cpuset);
+
+     pthread_setaffinity_np(pthread_self(), sizeof(cpuset),&cpuset);
+#endif
 		my_nap(40);	/* Switch to new cpu */
 	}
 #endif
@@ -14668,12 +14727,21 @@ thread_rread_test(x)
 	}
 #endif
 #ifndef NO_THREADS
-#ifdef _HPUX_SOURCE
+#if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
 	{
 		 bind_cpu=(begin_proc+(int)xx)%num_processors;
+#if defined(_HPUX_SOURCE)
 		 pthread_processor_bind_np(PTHREAD_BIND_FORCED_NP,
                          (pthread_spu_t *)&anwser, (pthread_spu_t)bind_cpu, pthread_self());
+#else
+     cpu_set_t cpuset;
+
+     CPU_ZERO(&cpuset);
+     CPU_SET(bind_cpu, &cpuset);
+
+     pthread_setaffinity_np(pthread_self(), sizeof(cpuset),&cpuset);
+#endif
 		my_nap(40);	/* Switch to new cpu */
 	}
 #endif
@@ -15201,12 +15269,21 @@ thread_reverse_read_test(x)
 	}
 #endif
 #ifndef NO_THREADS
-#ifdef _HPUX_SOURCE
+#if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
 	{
 		 bind_cpu=(begin_proc+(int)xx)%num_processors;
+#if defined(_HPUX_SOURCE)
 		 pthread_processor_bind_np(PTHREAD_BIND_FORCED_NP,
                          (pthread_spu_t *)&anwser, (pthread_spu_t)bind_cpu, pthread_self());
+#else
+     cpu_set_t cpuset;
+
+     CPU_ZERO(&cpuset);
+     CPU_SET(bind_cpu, &cpuset);
+
+     pthread_setaffinity_np(pthread_self(), sizeof(cpuset),&cpuset);
+#endif
 		my_nap(40);	/* Switch to new cpu */
 	}
 #endif
@@ -15702,12 +15779,21 @@ thread_stride_read_test(x)
 	}
 #endif
 #ifndef NO_THREADS
-#ifdef _HPUX_SOURCE
+#if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
 	{
 		 bind_cpu=(begin_proc+(int)xx)%num_processors;
+#if defined(_HPUX_SOURCE)
 		 pthread_processor_bind_np(PTHREAD_BIND_FORCED_NP,
                          (pthread_spu_t *)&anwser, (pthread_spu_t)bind_cpu, pthread_self());
+#else
+     cpu_set_t cpuset;
+
+     CPU_ZERO(&cpuset);
+     CPU_SET(bind_cpu, &cpuset);
+
+     pthread_setaffinity_np(pthread_self(), sizeof(cpuset),&cpuset);
+#endif
 		my_nap(40);	/* Switch to new cpu */
 	}
 #endif
@@ -16339,12 +16425,21 @@ thread_ranread_test(x)
 	}
 #endif
 #ifndef NO_THREADS
-#ifdef _HPUX_SOURCE
+#if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
 	{
 		 bind_cpu=(begin_proc+(int)xx)%num_processors;
+#if defined(_HPUX_SOURCE)
 		 pthread_processor_bind_np(PTHREAD_BIND_FORCED_NP,
                          (pthread_spu_t *)&anwser, (pthread_spu_t)bind_cpu, pthread_self());
+#else
+     cpu_set_t cpuset;
+
+     CPU_ZERO(&cpuset);
+     CPU_SET(bind_cpu, &cpuset);
+
+     pthread_setaffinity_np(pthread_self(), sizeof(cpuset),&cpuset);
+#endif
 		my_nap(40);	/* Switch to new cpu */
 	}
 #endif
@@ -16933,12 +17028,21 @@ thread_ranwrite_test( x)
 	}
 #endif
 #ifndef NO_THREADS
-#ifdef _HPUX_SOURCE
+#if defined( _HPUX_SOURCE ) || defined ( linux )
 	if(ioz_processor_bind)
 	{
 		 bind_cpu=(begin_proc+(int)xx)%num_processors;
+#if defined(_HPUX_SOURCE)
 		 pthread_processor_bind_np(PTHREAD_BIND_FORCED_NP,
                          (pthread_spu_t *)&anwser, (pthread_spu_t)bind_cpu, pthread_self());
+#else
+     cpu_set_t cpuset;
+
+     CPU_ZERO(&cpuset);
+     CPU_SET(bind_cpu, &cpuset);
+
+     pthread_setaffinity_np(pthread_self(), sizeof(cpuset),&cpuset);
+#endif
 		my_nap(40);	/* Switch to new cpu */
 	}
 #endif
@@ -19307,9 +19411,6 @@ off64_t size;
 		Call when client wants to block and read
 		a message from the master.
 
-	  int start_child_send(char *controlling_host_name)
-		Call to start a send channel to the master.
-
 	  void child_send(int child_socket_val, char *controlling_host_name, 
 		   char *send_buffer, int send_size)
 		Call to send message to the master.
@@ -19347,7 +19448,7 @@ start_master_listen()
 	struct sockaddr_in addr;
 	int recv_buf_size=65536*4;
 
-        s = socket(AF_INET, SOCK_DGRAM, 0);
+        s = socket(AF_INET, SOCK_STREAM, 0);
         if (s < 0)
         {
                 perror("socket failed:");
@@ -19381,6 +19482,9 @@ start_master_listen()
 		perror("bind failed\n");
 		exit(20);
 	}
+
+	if(mdebug)
+	   printf("Master listening on socket %d Port %d\n",s,tmp_port);
 	return(s);
 }
 
@@ -19388,6 +19492,8 @@ start_master_listen()
  * Master listens for messages and blocks until
  * something arrives.
  */
+struct sockaddr_in listener_sync_sock;
+
 #ifdef HAVE_ANSIC_C
 void
 master_listen(int sock, int size_of_message)
@@ -19397,39 +19503,47 @@ master_listen(sock, size_of_message)
 int sock, size_of_message;
 #endif
 {
-	int tsize;
-	int rcvd;
-	int s;
-	int rc=0;
+        int tsize;
+        int s;
+        struct sockaddr_in *addr;
+        unsigned int me;
+        int ns,ret;
+	struct master_neutral_command *mnc;
 
-	tsize = size_of_message;
-	s = sock;
-	rcvd = 0;
-	while(rcvd < tsize)
+	mnc=(struct master_neutral_command *)&master_rcv_buf[0];
+        tsize = size_of_message;
+	addr=&listener_sync_sock;
+        s = sock;
+	me=sizeof(struct sockaddr_in);
+
+        if(mdebug)
+          printf("Master in listening mode on socket %d\n",s);
+again:
+        ret=listen(s,100);
+        if(ret != 0)
+        {
+                perror("Master: listen returned error\n");
+        }
+        if(mdebug)
+          printf("Master in accepting connection\n");
+        ns=accept(s,(void *)addr,&me);
+        if(ns < 0)
+        {
+                printf("Master socket %d\n",s);
+                perror("Master: ***** accept returned error *****\n");
+		sleep(1);
+		goto again;
+        }
+        if(mdebug)
+          printf("Master in reading from connection\n");
+
+        ret=read(ns,mnc,tsize);
+	if(ret < tsize)
 	{
-		if(mdebug ==1)
-		{
-			printf("Master: In recieve \n");
-			fflush(stdout);
-		}
-		rc=recv(s,master_rcv_buf,size_of_message,0);
-		if(rc < 0)
-		{
-			perror("Read failed\n");
-			exit(21);
-		}
-		if(mdebug >=1)
-		{
-			printf("Master got %d bytes\n",rc);
-			fflush(stdout);
-		}
-		rcvd+=rc;
+            printf("Master read failed. Ret %d Errno %d\n",ret,errno);
 	}
-	if(mdebug >=1)
-	{
-		printf("Master returning from got %d bytes\n",rc);
-		fflush(stdout);
-	}
+
+        close(ns);
 }
 
 /*
@@ -19438,19 +19552,92 @@ int sock, size_of_message;
 
 #ifdef HAVE_ANSIC_C
 void
-child_send(int child_socket_val, char *controlling_host_name, struct master_command *send_buffer, int send_size)
+child_send(char *controlling_host_name, struct master_command *send_buffer, int send_size)
 #else
 void
-child_send(child_socket_val, controlling_host_name, send_buffer, send_size)
-int child_socket_val; 
+child_send(controlling_host_name, send_buffer, send_size)
 char *controlling_host_name; 
 struct master_command *send_buffer; 
 int send_size;
 #endif
 {
-	int rc;
+
+        int rc,child_socket_val;
+        struct hostent *he;
+        int tmp_port;
+        struct in_addr *ip;
+        struct sockaddr_in cs_addr,cs_raddr;
 	struct master_neutral_command outbuf;
-	
+
+        if(cdebug)
+           fprintf(newstdout,"Start_child_send: %s  Size %d\n",controlling_host_name,send_size);
+        he = gethostbyname(controlling_host_name);
+        if (he == NULL)
+        {
+                exit(22);
+        }
+        ip = (struct in_addr *)he->h_addr_list[0];
+
+over:
+        cs_raddr.sin_family = AF_INET;
+        cs_raddr.sin_port = htons(controlling_host_port);
+        cs_raddr.sin_addr.s_addr = ip->s_addr;
+        child_socket_val = socket(AF_INET, SOCK_STREAM, 0);
+        if (child_socket_val < 0)
+        {
+                perror("Child: socket failed:");
+                exit(23);
+        }
+        bzero(&cs_addr, sizeof(struct sockaddr_in));
+        tmp_port= CHILD_ESEND_PORT;
+        cs_addr.sin_port = htons(tmp_port);
+        cs_addr.sin_family = AF_INET;
+        cs_addr.sin_addr.s_addr = INADDR_ANY;
+        rc = -1;
+        while (rc < 0)
+        {
+                rc = bind(child_socket_val, (struct sockaddr *)&cs_addr,
+                                                sizeof(struct sockaddr_in));
+                if(rc < 0)
+                {
+                        tmp_port++;
+                        cs_addr.sin_port=htons(tmp_port);
+                        continue;
+                }
+        }
+        if (rc < 0)
+        {
+                perror("Child: bind failed\n");
+                exit(24);
+        }
+        if(cdebug)
+          fprintf(newstdout,"Child sender bound to port %d Master port %d \n",tmp_port,HOST_LIST_PORT);
+again:
+        rc = connect(child_socket_val, (struct sockaddr *)&cs_raddr,
+                        sizeof(struct sockaddr_in));
+        if (rc < 0)
+        {
+                if((ecount++ < 200) && (errno != EISCONN))
+                {
+                        sleep(1);
+                        goto again;
+                }
+                if(cdebug)
+                {
+                   perror("Child: connect failed...\n");
+                   printf("Error %d\n",errno);
+                }
+                close(child_socket_val);
+                sleep(1);
+                ecount=0;
+                goto over;
+        }
+        ecount=0;
+        if(cdebug)
+          fprintf(newstdout,"Child connected\n");
+
+	/* NOW send */
+
 	bzero(&outbuf, sizeof(struct master_neutral_command));
 	if(cdebug>=1)
 	{
@@ -19479,18 +19666,14 @@ int send_size;
 #else
 	sprintf(outbuf.m_child_flag,"%lld",send_buffer->m_child_flag);
 #endif
-	if(cdebug>=1)
-	{
-		printf("Child %d sending message to %s\n",(int)chid, controlling_host_name);
-		fflush(stdout);
-	}
-        rc = send(child_socket_val, (char *)&outbuf, sizeof(struct master_neutral_command), 0);
-        if (rc < 0)
-        {
+	rc=write(child_socket_val,&outbuf,sizeof(struct master_neutral_command));
+        if (rc < 0) {
                 perror("write failed\n");
                 exit(26);
         }
+	close(child_socket_val);
 }
+
 
 /*
  * Master sending message to a child
@@ -19629,116 +19812,6 @@ int send_size;
 }
 
 /*
- * Client setting up the channel for sending messages to the master.
- */
-#ifdef HAVE_ANSIC_C
-int
-start_child_send(char *controlling_host_name)
-#else
-int
-start_child_send(controlling_host_name)
-char *controlling_host_name;
-#endif
-{
-	int rc,child_socket_val;
-	int ecount = 0;
-	struct sockaddr_in addr,raddr;
-	struct hostent *he;
-	int tmp_port;
-	struct in_addr *ip;
-        int host_port = HOST_LIST_PORT;
-        char *port_ptr;
-
-        /* detect host:port combination, strip off the port */
-       if ((port_ptr = strchr(controlling_host_name, ':')) != NULL) {
-               host_port = atoi(port_ptr+1);
-               port_ptr[0] = '\0';
-       }
-
-        he = gethostbyname(controlling_host_name);
-        if (he == NULL)
-        {
-		if(cdebug)
-		{
-                   printf("Child %d: Bad server host %s\n",(int)chid, controlling_host_name);
-		   fflush(stdout);
-		}
-                exit(22);
-        }
-	if(cdebug ==1)
-	{
-	        printf("Child %d: start child send to hostname: %s\n",(int)chid, he->h_name);
-		fflush(stdout);
-	}
-        ip = (struct in_addr *)he->h_addr_list[0];
-#ifndef UWIN
-	if(cdebug ==1)
-	{
-        	printf("Child %d: server host: %s\n",(int)chid, (char *)inet_ntoa(*ip));
-		fflush(stdout);
-	}
-#endif
-
-        raddr.sin_family = AF_INET;
-	/*raddr.sin_port = htons(HOST_LIST_PORT);*/
-        raddr.sin_port = htons(host_port);
-        raddr.sin_addr.s_addr = ip->s_addr;
-        child_socket_val = socket(AF_INET, SOCK_DGRAM, 0);
-        if (child_socket_val < 0)
-        {
-                perror("Child: socket failed:");
-                exit(23);
-        }
-        bzero(&addr, sizeof(struct sockaddr_in));
-	tmp_port=CHILD_ESEND_PORT;
-        addr.sin_port = htons(tmp_port);
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = INADDR_ANY;
-        rc = -1;
-        while (rc < 0)
-        {
-                rc = bind(child_socket_val, (struct sockaddr *)&addr,
-                                                sizeof(struct sockaddr_in));
-		if(rc < 0)
-		{
-			tmp_port++;
-                	addr.sin_port=htons(tmp_port);
-			continue;
-		}
-        }
-	if(cdebug ==1)
-	{
-		printf("Child %d: Bound to host port %d\n",(int)chid, tmp_port);
-		fflush(stdout);
-	}
-        if (rc < 0)
-        {
-                perror("Child: bind failed\n");
-                exit(24);
-        }
-again:
-        rc = 
-		connect(child_socket_val, (struct sockaddr *)&raddr, 
-			sizeof(struct sockaddr_in));
-	        if (rc < 0)
-        {
-		if(ecount++<300)
-		{
-			sleep(1);
-			goto again;
-		}
-                perror("Child: connect failed\n");
-                exit(25);
-        }
-	if(cdebug ==1)
-	{
-		printf("Child %d Connected\n",(int)chid);
-		fflush(stdout);
-	}
-	return (child_socket_val);
-}
-
-/*
  * Close the childs listening port for messages from the master.
  */
 #ifdef HAVE_ANSIC_C
@@ -19758,10 +19831,10 @@ int child_socket_val;
  */
 #ifdef HAVE_ANSIC_C
 void
-stop_child_send(int child_socket_val)
+O_stop_child_send(int child_socket_val)
 #else
 void
-stop_child_send(child_socket_val)
+O_stop_child_send(child_socket_val)
 int child_socket_val;
 #endif
 {
@@ -19780,7 +19853,13 @@ stop_master_listen(master_socket_val)
 int master_socket_val;
 #endif
 {
+	if(mdebug)
+	   printf("Stop master listen\n");
+/*
+	shutdown(master_socket_val,SHUT_RDWR);
+*/
 	close(master_socket_val);
+	master_socket_val = 0;
 }
 
 /*
@@ -19943,7 +20022,6 @@ int sock, size_of_message;
 			printf("Child %d In recieve \n",(int)chid);
 			fflush(stdout);
 		}
-		/*rc=recv(s,child_rcv_buf,size_of_message,0);*/
 		rc=read(s,cnc,size_of_message);
 		if(rc < 0)
 		{
@@ -20056,7 +20134,6 @@ int sock, size_of_message;
 			printf("Child %d In async recieve \n",(int)chid);
 			fflush(stdout);
 		}
-		/*rc=recv(s,child_async_rcv_buf,size_of_message,0);*/
 		rc=read(s,cnc,size_of_message);
 		if(rc < 0)
 		{
@@ -20344,7 +20421,7 @@ long long numrecs64, reclen;
 	strcat(command,controlling_host_name);
         if (master_listen_port != HOST_LIST_PORT)
         {
-          sprintf(my_port_num,":%01u",master_listen_port);
+          sprintf(my_port_num," -+i %d",master_listen_port);
           strcat(command,my_port_num);
         }
 	strcat(command," '");
@@ -20379,8 +20456,7 @@ long long numrecs64, reclen;
 	sscanf(mnc->m_version,"%d",&mc.m_version);	
 	if(mc.m_version != proto_version)
 	{
-		printf("Client > %s < is not running the same version of Iozone !!\n",
-			child_idents[x-1].child_name);
+		printf("Client > %s < is not running the same version of Iozone !! C%d M%d\n", child_idents[x-1].child_name, mc.m_version, proto_version);
 	}
 
 	c_port = mc.m_child_port; 
@@ -20586,11 +20662,7 @@ become_client()
 	l_sock = start_child_listen(sizeof(struct client_neutral_command));
 	l_async_sock = start_child_listen_async(sizeof(struct client_neutral_command));
 
-	/* 2. Start client send channel 				*/
-
-	s_sock = start_child_send(controlling_host_name);
-
-	/* 3. Send message to controller saying I'm joining. 		*/
+	/* 2. Send message to controller saying I'm joining. 		*/
 
 	strcpy(mc.m_host_name,controlling_host_name);
 	strcpy(mc.m_client_name,client_name);
@@ -20598,13 +20670,14 @@ become_client()
 	mc.m_child_async_port = child_async_port;
 	mc.m_command = R_CHILD_JOIN;
 	mc.m_version = proto_version;
+	
 	if(cdebug)
 	{
-		printf("Child %s sends JOIN to master %s My port %d\n",
-			client_name,controlling_host_name,child_port);
+		printf("Child %s sends JOIN to master %s Host Port %d\n",
+			client_name,controlling_host_name,controlling_host_port);
 		fflush(stdout);
 	}
-	child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
+	child_send(controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
 
 	l_sock=child_attach(l_sock,0);
 	l_async_sock=child_attach(l_async_sock,1);
@@ -20955,7 +21028,6 @@ become_client()
 	
 	/* 8. Release the listen and send sockets to the master */
 	stop_child_listen(l_sock);
-	stop_child_send(s_sock);
 
 	exit(0);
 }
@@ -21010,7 +21082,7 @@ long long child_flag;
 		printf("Child %d: Tell master stats and terminate\n",(int)chid);
 		fflush(stdout);
 	}
-	child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
+	child_send(controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
 }
 	
 /*
@@ -21057,7 +21129,7 @@ long long chid;
 	mc.m_child_flag = CHILD_STATE_READY; 
 	mc.m_client_number = (int)chid; 
 	mc.m_client_error = client_error;
-	child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
+	child_send(controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
 }
 
 /*
@@ -21535,7 +21607,7 @@ send_stop()
 		printf("Child %d sending stop flag to master\n",(int)chid);
 		fflush(stdout);
 	}
-        child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
+        child_send(controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
 	client_error=0;  /* clear error, it has been delivered */
 }
 
@@ -23048,7 +23120,7 @@ static void pit( int sckt, struct timeval *tp)
    /* 
     * Convert result to timeval structure format 
     */
-   sscanf(bfr,"%lld\n",&value);
+   sscanf(bfr,"%llu\n",&value);
    tp->tv_sec = (long)(value / 1000000);
    tp->tv_usec = (long)(value % 1000000);
 }  
