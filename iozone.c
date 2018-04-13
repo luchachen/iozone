@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.67 $"
+#define THISVERSION "        Version $Revision: 3.68 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -117,7 +117,7 @@ char *help[] = {
 "           -E  Run extension tests",
 "           -f filename  to use",
 "           -F filenames  for each process/thread in throughput test",
-"           -g #  Set maximum file size (in Kbytes) for auto mode",
+"           -g #  Set maximum file size (in Kbytes) for auto mode (or #m or #g)",
 "           -G  Use msync(MS_SYNC) on mmap files",
 "           -h  help",
 "           -H #  Use POSIX async I/O with # async operations",
@@ -134,7 +134,7 @@ char *help[] = {
 "           -L #  Set processor cache line size to value (in bytes)",
 "           -m  Use multiple buffers",
 "           -M  Report uname -a output",
-"           -n #  Set minimum file size (in Kbytes) for auto mode",
+"           -n #  Set minimum file size (in Kbytes) for auto mode (or #m or #g)",
 "           -N  Report results in microseconds per operation",
 "           -o  Writes are synch (O_SYNC)",
 "           -O  Give results in ops/sec.",
@@ -421,6 +421,45 @@ struct child_stats {
 #define RECLEN_START  4096
 #define RECLEN_END    (MAXBUFFERSIZE)
 #define MULTIPLIER    2
+
+#define WRITER_TEST		0
+#define READER_TEST		1
+#define RANDOM_RW_TEST		2
+#define REVERSE_TEST		3
+#define REWRITE_REC_TEST	4
+#define STRIDE_READ_TEST	5
+#define FWRITER_TEST		6
+#define FREADER_TEST		7
+#ifdef HAVE_PREAD
+#define PWRITER_TEST		8
+#define PREADER_TEST		9
+#define PWRITEV_TEST		10
+#define PREADV_TEST		11
+#endif /* HAVE_PREAD */
+
+#define WRITER_MASK		(1 << WRITER_TEST)
+#define READER_MASK		(1 << READER_TEST)
+#define RANDOM_RW_MASK		(1 << RANDOM_RW_TEST)
+#define REVERSE_MASK		(1 << REVERSE_TEST)
+#define REWRITE_REC_MASK	(1 << REWRITE_REC_TEST)
+#define STRIDE_READ_MASK	(1 << STRIDE_READ_TEST)
+#define FWRITER_MASK		(1 << FWRITER_TEST)
+#define FREADER_MASK		(1 << FREADER_TEST)
+#ifdef HAVE_PREAD
+#define PWRITER_MASK		(1 << PWRITER_TEST)
+#define PREADER_MASK		(1 << PREADER_TEST)
+#define PWRITEV_MASK		(1 << PWRITEV_TEST)
+#define PREADV_MASK		(1 << PREADV_TEST)
+#endif /* HAVE_PREAD */
+
+/*
+ * child_stat->flag values and transitions
+ */
+#define CHILD_STATE_HOLD	0	/* parent initializes children to HOLD */
+#define CHILD_STATE_READY	1	/* child says when it's READY */
+#define CHILD_STATE_BEGIN	2	/* parent tells child to BEGIN */
+#define CHILD_STATE_DONE	3	/* child tells parent that it's DONE */
+			/* children sometimes use HOLD instead of DONE when finished */
 
 
 /******************************************************************/
@@ -875,6 +914,9 @@ char **argv;
 	    		printf("\tAuto Mode 2. This option is obsolete. Use -az -i0 -i1 \n");
 			RWONLYflag++;
 			NOCROSSflag++;
+			include_tflag++;	/* automatically set WRITER_TEST and READER_TEST */
+			include_test[WRITER_TEST]++;
+			include_test[READER_TEST]++;
 			break;
 		case 's': 	/* set file size */
 #ifdef NO_PRINT_LLD
@@ -1246,6 +1288,18 @@ char **argv;
 		case 'n':	/* Set min file size for auto mode */
 			nflag=1;
 			minimum_file_size = (off64_t)atoi(optarg);
+			if(optarg[strlen(optarg)-1]=='k' ||
+				optarg[strlen(optarg)-1]=='K'){
+				;
+			}
+			if(optarg[strlen(optarg)-1]=='m' ||
+				optarg[strlen(optarg)-1]=='M'){
+				minimum_file_size = (long long)(1024 * atoi(optarg));
+			}
+			if(optarg[strlen(optarg)-1]=='g' ||
+				optarg[strlen(optarg)-1]=='G'){
+				minimum_file_size = (long long)(1024 * 1024 * (long long)atoi(optarg));
+			}
 			if(minimum_file_size <= KILOBYTES_START)
 				minimum_file_size=(off64_t)KILOBYTES_START;
 #ifdef NO_PRINT_LLD
@@ -1257,6 +1311,18 @@ char **argv;
 		case 'g':	/* Set maximum file size for auto mode */
 			gflag=1;
 			maximum_file_size = (off64_t)atoi(optarg);
+			if(optarg[strlen(optarg)-1]=='k' ||
+				optarg[strlen(optarg)-1]=='K'){
+				;
+			}
+			if(optarg[strlen(optarg)-1]=='m' ||
+				optarg[strlen(optarg)-1]=='M'){
+				maximum_file_size = (long long)(1024 * atoi(optarg));
+			}
+			if(optarg[strlen(optarg)-1]=='g' ||
+				optarg[strlen(optarg)-1]=='G'){
+				maximum_file_size = (long long)(1024 * 1024 * (long long)atoi(optarg));
+			}
 			if(maximum_file_size <= KILOBYTES_START)
 				maximum_file_size=(off64_t)KILOBYTES_END;
 #ifdef NO_PRINT_LLD
@@ -1413,18 +1479,18 @@ char **argv;
 	}
 	if(r_traj_flag)
 	{
-		if(include_test[1] == 0) 
+		if(include_test[READER_TEST] == 0) 
 		{
-			include_test[0]=1;
-			include_test[1]=1;
+			include_test[WRITER_TEST]=1;
+			include_test[READER_TEST]=1;
 			include_tflag=1;
 		}
 	}
 	if(w_traj_flag)
 	{
-		if(include_test[0] == 0) 
+		if(include_test[WRITER_TEST] == 0) 
 		{
-			include_test[0]=1;
+			include_test[WRITER_TEST]=1;
 			include_tflag=1;
 		}
 	}
@@ -2038,9 +2104,9 @@ void throughput_test()
 		temp = (char *)&shmaddr[0];
 		stop_flag = (char *)&temp[(long long)SHMSIZE]-4;
 	}
-	for(xyz=0;xyz<num_child;xyz++){ /* all children to state 0 */
+	for(xyz=0;xyz<num_child;xyz++){ /* all children to state 0 (HOLD) */
 		child_stat = (struct child_stats *)&shmaddr[xyz];
-		child_stat->flag=0;
+		child_stat->flag=CHILD_STATE_HOLD;
 		child_stat->actual=0;
 		child_stat->throughput=0;
 		child_stat->start_time=0;
@@ -2085,7 +2151,7 @@ void throughput_test()
 
 	/* rags: skip writer test */
 	if(include_tflag)
-		if(!(include_mask & 1))
+		if(!(include_mask & WRITER_MASK))
 			goto next0;
 
 	if(!use_thread)
@@ -2163,7 +2229,7 @@ void throughput_test()
 				/* wait for children to start */
 		for(i=0;i<num_child; i++){
 			child_stat = (struct child_stats *)&shmaddr[i];	
-			while(child_stat->flag==0)
+			while(child_stat->flag==CHILD_STATE_HOLD)
 				Poll((long long)1);
 		}
 		for(i=0;i<num_child; i++)	/* Start all children going */
@@ -2172,7 +2238,7 @@ void throughput_test()
 				Poll((long long)delay_start);
 						/* State "go" */
 			child_stat = (struct child_stats *)&shmaddr[i];	
-			child_stat->flag=2;
+			child_stat->flag=CHILD_STATE_BEGIN;
 		}
 		starttime1 = time_so_far();	/* Start parents timer */
 		goto waitout;
@@ -2236,7 +2302,7 @@ waitout:
 
 	for(xyz=0;xyz<num_child;xyz++){
 		child_stat = (struct child_stats *) &shmaddr[xyz];
-		child_stat->flag = 0; /* Start children at state 0 */
+		child_stat->flag = CHILD_STATE_HOLD; /* Start children at state 0 (HOLD) */
 	}
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
@@ -2313,13 +2379,13 @@ waitout:
 		for(i=0;i<num_child; i++){
 			child_stat = (struct child_stats *)&shmaddr[i];
 					/* wait for children to start */
-			while(child_stat->flag==0) 
+			while(child_stat->flag==CHILD_STATE_HOLD) 
 				Poll((long long)1);
 		}
 		for(i=0;i<num_child; i++)
 		{
 			child_stat = (struct child_stats *)&shmaddr[i];
-			child_stat->flag = 2;	/* tell children to go */
+			child_stat->flag = CHILD_STATE_BEGIN;	/* tell children to go */
 			if(delay_start!=0)
 				Poll((long long)delay_start);
 		}
@@ -2385,9 +2451,9 @@ jump3:
 	}
 	avg_throughput=total_kilos/num_child;
 
-	for(xyz=0;xyz<num_child;xyz++){	/* Reset state to 0 */
+	for(xyz=0;xyz<num_child;xyz++){	/* Reset state to 0 (HOLD) */
 		child_stat=(struct child_stats *)&shmaddr[xyz];
-		child_stat->flag = 0;
+		child_stat->flag = CHILD_STATE_HOLD;
 	}
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
@@ -2414,7 +2480,7 @@ jump3:
 	sleep(2);
 next0:
 	if(include_tflag)
-		if(!(include_mask & 2))
+		if(!(include_mask & READER_MASK))
 			goto next1;
 	/**************************************************************/
 	/*** Reader throughput tests **********************************/
@@ -2464,13 +2530,13 @@ next0:
 	if(myid == (long long)getpid()){
 		for(i=0;i<num_child; i++){ /* wait for children to start */
 			child_stat=(struct child_stats *)&shmaddr[i];
-			while(child_stat->flag==0)
+			while(child_stat->flag==CHILD_STATE_HOLD)
 				Poll((long long)1);
 		}
 		for(i=0;i<num_child; i++)
 		{
 			child_stat=(struct child_stats *)&shmaddr[i];
-			child_stat->flag = 2; /* tell children to go */
+			child_stat->flag = CHILD_STATE_BEGIN; /* tell children to go */
 			if(delay_start!=0)
 				Poll((long long)delay_start);
 		}
@@ -2608,12 +2674,12 @@ jumpend:
 	if(myid == (long long)getpid()){
 		for(i=0;i<num_child; i++){ /* wait for children to start */
 			child_stat = (struct child_stats *)&shmaddr[i];
-			while(child_stat->flag==0)
+			while(child_stat->flag==CHILD_STATE_HOLD)
 				Poll((long long)1);
 		}
 		for(i=0;i<num_child; i++){
 			child_stat = (struct child_stats *)&shmaddr[i];
-			child_stat->flag = 2;	/* tell children to go */
+			child_stat->flag = CHILD_STATE_BEGIN;	/* tell children to go */
 			if(delay_start!=0)
 				Poll((long long)delay_start);
 		}
@@ -2698,7 +2764,7 @@ jumpend2:
 
 next1:
 	if(include_tflag)
-		if(!(include_mask & 8))
+		if(!(include_mask & REVERSE_MASK))
 			goto next2;
 	sync();
 	sleep(2);
@@ -2753,12 +2819,12 @@ next1:
 	if(myid == (long long)getpid()){
 		for(i=0;i<num_child; i++){ /* wait for children to start */
 			child_stat = (struct child_stats *)&shmaddr[i];
-			while(child_stat->flag==0)
+			while(child_stat->flag==CHILD_STATE_HOLD)
 				Poll((long long)1);
 		}
 		for(i=0;i<num_child; i++){
 			child_stat = (struct child_stats *)&shmaddr[i];
-			child_stat->flag = 2;	/* tell children to go */
+			child_stat->flag = CHILD_STATE_BEGIN;	/* tell children to go */
 			if(delay_start!=0)
 				Poll((long long)delay_start);
 		}
@@ -2838,7 +2904,7 @@ next1:
 
 next2:
 	if(include_tflag)
-		if(!(include_mask & 32))
+		if(!(include_mask & STRIDE_READ_MASK))
 			goto next3;
 	/**************************************************************/
 	/*** stride reader throughput tests **************************/
@@ -2892,12 +2958,12 @@ next2:
 	if(myid == (long long)getpid()){
 		for(i=0;i<num_child; i++){ /* wait for children to start */
 			child_stat = (struct child_stats *)&shmaddr[i];
-			while(child_stat->flag==0)
+			while(child_stat->flag==CHILD_STATE_HOLD)
 				Poll((long long)1);
 		}
 		for(i=0;i<num_child; i++){
 			child_stat = (struct child_stats *)&shmaddr[i];
-			child_stat->flag = 2;	/* tell children to go */
+			child_stat->flag = CHILD_STATE_BEGIN;	/* tell children to go */
 			if(delay_start!=0)
 				Poll((long long)delay_start);
 		}
@@ -2980,7 +3046,7 @@ next2:
 	/**************************************************************/
 next3:
 	if(include_tflag)
-		if(!(include_mask & 4))
+		if(!(include_mask & RANDOM_RW_MASK))
 			goto next4;
 	
 	jstarttime=0;
@@ -3032,12 +3098,12 @@ next3:
 	if(myid == (long long)getpid()){
 		for(i=0;i<num_child; i++){ /* wait for children to start */
 			child_stat = (struct child_stats *)&shmaddr[i];
-			while(child_stat->flag==0)
+			while(child_stat->flag==CHILD_STATE_HOLD)
 				Poll((long long)1);
 		}
 		for(i=0;i<num_child; i++){
 			child_stat = (struct child_stats *)&shmaddr[i];
-			child_stat->flag = 2;	/* tell children to go */
+			child_stat->flag = CHILD_STATE_BEGIN;	/* tell children to go */
 			if(delay_start!=0)
 				Poll((long long)delay_start);
 		}
@@ -3120,7 +3186,7 @@ next4:
 	/*** random writer throughput tests  **************************/
 	/**************************************************************/
 	if(include_tflag)
-		if(!(include_mask & 4))
+		if(!(include_mask & RANDOM_RW_MASK))
 			goto next5;
 	
 	jstarttime=0;
@@ -3172,12 +3238,12 @@ next4:
 	if(myid == (long long)getpid()){
 		for(i=0;i<num_child; i++){ /* wait for children to start */
 			child_stat = (struct child_stats *)&shmaddr[i];
-			while(child_stat->flag==0)
+			while(child_stat->flag==CHILD_STATE_HOLD)
 				Poll((long long)1);
 		}
 		for(i=0;i<num_child; i++){
 			child_stat = (struct child_stats *)&shmaddr[i];
-			child_stat->flag = 2;	/* tell children to go */
+			child_stat->flag = CHILD_STATE_BEGIN;	/* tell children to go */
 			if(delay_start!=0)
 				Poll((long long)delay_start);
 		}
@@ -3576,7 +3642,6 @@ long long *data2;
 	int fd,returnval,foo,wval;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
-
 #else
 	long long *gc=0;
 #endif
@@ -3903,12 +3968,10 @@ out:
 	store_value((off64_t)writerate[1]);
 #ifdef NO_PRINT_LLD
 	printf("%8ld",writerate[0]);
-	fflush(stdout);
 	printf("%8ld",writerate[1]);
 	fflush(stdout);
 #else
 	printf("%8lld",writerate[0]);
-	fflush(stdout);
 	printf("%8lld",writerate[1]);
 	fflush(stdout);
 #endif
@@ -4073,12 +4136,10 @@ long long *data2;
 	data1[0]=writerate[0];
 #ifdef NO_PRINT_LLD
 	printf("%9ld",writerate[0]);
-	fflush(stdout);
 	printf("%9ld",writerate[1]);
 	fflush(stdout);
 #else
 	printf("%9lld",writerate[0]);
-	fflush(stdout);
 	printf("%9lld",writerate[1]);
 	fflush(stdout);
 #endif
@@ -4239,18 +4300,16 @@ long long *data1,*data2;
 	data2[0]=1;
 #ifdef NO_PRINT_LLD
 	printf("%8ld",readrate[0]);
-	fflush(stdout);
 	printf("%9ld",readrate[1]);
+	fflush(stdout);
 	store_value((off64_t)readrate[0]);
 	store_value((off64_t)readrate[1]);
-	fflush(stdout);
 #else
 	printf("%8lld",readrate[0]);
-	fflush(stdout);
 	printf("%9lld",readrate[1]);
+	fflush(stdout);
 	store_value((off64_t)readrate[0]);
 	store_value((off64_t)readrate[1]);
-	fflush(stdout);
 #endif
 }
 
@@ -4622,12 +4681,10 @@ long long *data1,*data2;
 	store_value((off64_t)readrate[1]);
 #ifdef NO_PRINT_LLD
 	printf("%9ld",readrate[0]);
-	fflush(stdout);
 	printf("%9ld",readrate[1]);
 	fflush(stdout);
 #else
 	printf("%9lld",readrate[0]);
-	fflush(stdout);
 	printf("%9lld",readrate[1]);
 	fflush(stdout);
 #endif
@@ -4975,12 +5032,10 @@ long long *data1, *data2;
 	store_value((off64_t)randreadrate[1]);
 #ifdef NO_PRINT_LLD
 	printf("%8ld",randreadrate[0]);
-	fflush(stdout);
 	printf("%8ld",randreadrate[1]);
 	fflush(stdout);
 #else
 	printf("%8lld",randreadrate[0]);
-	fflush(stdout);
 	printf("%8lld",randreadrate[1]);
 	fflush(stdout);
 #endif
@@ -5929,12 +5984,10 @@ long long *data1,*data2;
 	store_value((off64_t)pwriterate[1]);
 #ifdef NO_PRINT_LLD
 	printf("%8ld",pwriterate[0]);
-	fflush(stdout);
 	printf("%9ld",pwriterate[1]);
 	fflush(stdout);
 #else
 	printf("%8lld",pwriterate[0]);
-	fflush(stdout);
 	printf("%9lld",pwriterate[1]);
 	fflush(stdout);
 #endif
@@ -6071,12 +6124,10 @@ long long *data1, *data2;
 	store_value((off64_t)preadrate[1]);
 #ifdef NO_PRINT_LLD
 	printf("%8ld",preadrate[0]);
-	fflush(stdout);
 	printf("%9ld",preadrate[1]);
 	fflush(stdout);
 #else
 	printf("%8lld",preadrate[0]);
-	fflush(stdout);
 	printf("%9lld",preadrate[1]);
 	fflush(stdout);
 #endif
@@ -6280,12 +6331,10 @@ long long *data1,*data2;
 	store_value((off64_t)pwritevrate[1]);
 #ifdef NO_PRINT_LLD
 	printf("%9ld",pwritevrate[0]);
-	fflush(stdout);
 	printf("%10ld",pwritevrate[1]);
 	fflush(stdout);
 #else
 	printf("%9lld",pwritevrate[0]);
-	fflush(stdout);
 	printf("%10lld",pwritevrate[1]);
 	fflush(stdout);
 #endif
@@ -6702,7 +6751,7 @@ long long who;
 
 	if(bif_flag)
 		bif_column++;
-	printf("        ");
+	printf("      ");
 
 	/* 
 	 * Need to reconstruct the record size list
@@ -6711,45 +6760,39 @@ long long who;
 	del_record_sizes();
 	init_record_sizes(orig_min_rec_size, orig_max_rec_size);
 
-	for(rec_size=get_next_record_size(0);rec_size < max_rec_size;
+	for(rec_size=get_next_record_size(0); rec_size <= orig_max_rec_size;
 		rec_size=get_next_record_size(rec_size))
 	{
+		if (rec_size == 0) break;
 		if(bif_flag)
 			do_float(bif_fd,(double)(rec_size/1024),bif_row,bif_column++);
 #ifdef NO_PRINT_LLD
-		printf("%c%ld%c ",042,rec_size/1024,042);
+		printf("  %c%ld%c",042,rec_size/1024,042);
 #else
-		printf("%c%lld%c ",042,rec_size/1024,042);
+		printf("  %c%lld%c",042,rec_size/1024,042);
 #endif
 	}
+	printf("\n");
 	if(bif_flag)
 	{
-		do_float(bif_fd,(double)(max_rec_size/1024),bif_row,bif_column);
-	
 		bif_column=0;
 		bif_row++;
 	}
-#ifdef NO_PRINT_LLD
-	printf("%c%ld%c\n",042,(long long)max_rec_size/1024,042);
-#else
-	printf("%c%lld%c\n",042,(long long)max_rec_size/1024,042);
-#endif
 
 	current_file_size = report_array[0][0];
 	if(bif_flag)
 	{
 		do_float(bif_fd,(double)(current_file_size),bif_row,bif_column++);
-		
 	}
 #ifdef NO_PRINT_LLD
-	printf("%c%ld%c\t",042,current_file_size,042);
+	printf("%c%ld%c  ",042,current_file_size,042);
 #else
-	printf("%c%lld%c\t",042,current_file_size,042);
+	printf("%c%lld%c  ",042,current_file_size,042);
 #endif
-	for(i=-1;i<max_y;i++){
-		if(report_array[0][i+1] != current_file_size){
+	for(i=0;i<=max_y;i++){
+		if(report_array[0][i] != current_file_size){
 			printf("\n");
-			current_file_size = report_array[0][i+1];
+			current_file_size = report_array[0][i];
 			if(bif_flag)
 			{
 				bif_row++;
@@ -6757,17 +6800,17 @@ long long who;
 				do_float(bif_fd,(double)(current_file_size),bif_row,bif_column++);
 			}
 #ifdef NO_PRINT_LLD
-			printf("%c%ld %c ",042,current_file_size,042);
+			printf("%c%ld%c  ",042,current_file_size,042);
 #else
-			printf("%c%lld %c ",042,current_file_size,042);
+			printf("%c%lld%c  ",042,current_file_size,042);
 #endif
 		}
 		if(bif_flag)
-			do_float(bif_fd,(double)(report_array[who][i+1]),bif_row,bif_column++);
+			do_float(bif_fd,(double)(report_array[who][i]),bif_row,bif_column++);
 #ifdef NO_PRINT_LLD
-		printf(" %ld ",report_array[who][i+1]);
+		printf(" %ld ",report_array[who][i]);
 #else
-		printf(" %lld ",report_array[who][i+1]);
+		printf(" %lld ",report_array[who][i]);
 #endif
 	}
 	if(bif_flag)
@@ -6791,15 +6834,21 @@ void dump_excel()
 	{
 		bif_fd=create_xls(bif_filename);
 		do_label(bif_fd,command_line,bif_row++,bif_column);
-		do_label(bif_fd,"Writer Report",bif_row++,bif_column);
 	}
 	printf("Excel output is below:\n");
+
+    if ((!include_tflag) || (include_mask & WRITER_MASK)) {
+	if(bif_flag)
+		do_label(bif_fd,"Writer Report",bif_row++,bif_column);
 	printf("\n%cWriter report%c\n",042,042);
 	dump_report(2); 
 	if(bif_flag)
 		do_label(bif_fd,"Re-writer Report",bif_row++,bif_column);
 	printf("\n%cRe-writer report%c\n",042,042);
 	dump_report(3); 
+    }
+
+    if ((!include_tflag) || (include_mask & READER_MASK)) {
 	if(bif_flag)
 		do_label(bif_fd,"Reader Report",bif_row++,bif_column);
 	printf("\n%cReader report%c\n",042,042);
@@ -6808,7 +6857,9 @@ void dump_excel()
 		do_label(bif_fd,"Re-reader Report",bif_row++,bif_column);
 	printf("\n%cRe-Reader report%c\n",042,042);
 	dump_report(5); 
-	if(!RWONLYflag) {				/*kcollins 8-21-96*/
+    }
+
+	if ((!include_tflag) || (include_mask & RANDOM_RW_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Random Read Report",bif_row++,bif_column);
 		printf("\n%cRandom read report%c\n",042,042);
@@ -6817,18 +6868,30 @@ void dump_excel()
 			do_label(bif_fd,"Random Write Report",bif_row++,bif_column);
 		printf("\n%cRandom write report%c\n",042,042);
 		dump_report(7); 
+	}
+
+	if ((!include_tflag) || (include_mask & REVERSE_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Backward Read Report",bif_row++,bif_column);
 		printf("\n%cBackward read report%c\n",042,042);
 		dump_report(8); 
+	}
+
+	if ((!include_tflag) || (include_mask & REWRITE_REC_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Record Rewrite Report",bif_row++,bif_column);
 		printf("\n%cRecord rewrite report%c\n",042,042);
 		dump_report(9); 
+	}
+
+	if ((!include_tflag) || (include_mask & STRIDE_READ_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Stride Read Report",bif_row++,bif_column);
 		printf("\n%cStride read report%c\n",042,042);
 		dump_report(10); 
+	}
+
+	if ((!include_tflag) || (include_mask & FWRITER_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Fwrite Report",bif_row++,bif_column);
 		printf("\n%cFwrite report%c\n",042,042);
@@ -6837,6 +6900,9 @@ void dump_excel()
 			do_label(bif_fd,"Re-fwrite Report",bif_row++,bif_column);
 		printf("\n%cRe-Fwrite report%c\n",042,042);
 		dump_report(12); 
+	}
+
+	if ((!include_tflag) || (include_mask & FREADER_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Fread Report",bif_row++,bif_column);
 		printf("\n%cFread report%c\n",042,042);
@@ -6845,9 +6911,12 @@ void dump_excel()
 			do_label(bif_fd,"Re-fread Report",bif_row++,bif_column);
 		printf("\n%cRe-Fread report%c\n",042,042);
 		dump_report(14); 
+	}
+
 #ifdef HAVE_PREAD
-		if(Eflag)
-		{
+	if(Eflag)
+	{
+		if ((!include_tflag) || (include_mask & PWRITER_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd,"Pwrite Report",bif_row++,bif_column);
 			printf("\n%cPwrite report%c\n",042,042);
@@ -6856,6 +6925,9 @@ void dump_excel()
 				do_label(bif_fd,"Re-pwrite Report",bif_row++,bif_column);
 		 	printf("\n%cRe-Pwrite report%c\n",042,042);
 		 	dump_report(16); 
+		}
+
+		if ((!include_tflag) || (include_mask & PREADER_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd,"Pread Report",bif_row++,bif_column);
 		 	printf("\n%cPread report%c\n",042,042);
@@ -6864,6 +6936,9 @@ void dump_excel()
 				do_label(bif_fd,"Re-pread Report",bif_row++,bif_column);
 		 	printf("\n%cRe-Pread report%c\n",042,042);
 		 	dump_report(18); 
+		}
+
+		if ((!include_tflag) || (include_mask & PWRITEV_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd,"Pwritev Report",bif_row++,bif_column);
  			printf("\n%cPwritev report%c\n",042,042);
@@ -6872,6 +6947,9 @@ void dump_excel()
 				do_label(bif_fd,"Re-pwritev Report",bif_row++,bif_column);
  			printf("\n%cRe-Pwritev report%c\n",042,042);
  			dump_report(20); 
+		}
+
+		if ((!include_tflag) || (include_mask & PREADV_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd,"Preadv Report",bif_row++,bif_column);
  			printf("\n%cPreadv report%c\n",042,042);
@@ -6881,8 +6959,8 @@ void dump_excel()
  			printf("\n%cRe-Preadv report%c\n",042,042);
  			dump_report(22); 
 		}
+	}
 #endif
-	}					/*kcollins 8-21-96*/
 	if(bif_flag)
 		close_xls(bif_fd);
 }
@@ -7288,8 +7366,8 @@ thread_write_test( x)
 	child_stat = (struct child_stats *)&shmaddr[xx];	
 	child_stat->throughput = 0;
 	child_stat->actual = 0;
-	child_stat->flag=1; /* Tell parent child is ready to go */
-	while(child_stat->flag!=2)   /* Wait for signal from parent */
+	child_stat->flag=CHILD_STATE_READY; /* Tell parent child is ready to go */
+	while(child_stat->flag!=CHILD_STATE_BEGIN)   /* Wait for signal from parent */
 		Poll((long long)1);
 
 	written_so_far=0;
@@ -7457,7 +7535,7 @@ again:
 				perror("write");
 			if (!no_unlink)
 				unlink(dummyfile[xx]);
-			child_stat->flag = 0;
+			child_stat->flag = CHILD_STATE_HOLD;
 		    	exit(127);
 		      }
 		    }
@@ -7531,7 +7609,7 @@ again:
 		child_stat->actual = (double)written_so_far;
 		child_stat->stop_time = temp_time;
 	}
-	child_stat->flag = 3; /* Tell parent I'm done */
+	child_stat->flag = CHILD_STATE_DONE; /* Tell parent I'm done */
 	stopped=0;
 	/*******************************************************************/
 	/* End write performance test. *************************************/
@@ -7687,7 +7765,7 @@ thread_rwrite_test(x)
 #else
 		printf("\nChild %lld\n",xx);
 #endif
-		child_stat->flag = 0;
+		child_stat->flag = CHILD_STATE_HOLD;
 		perror(dummyfile[xx]);
 		exit(128);
 	}
@@ -7699,7 +7777,7 @@ thread_rwrite_test(x)
 #else
 		printf("\nChild %lld\n",xx);
 #endif
-		child_stat->flag = 0;
+		child_stat->flag = CHILD_STATE_HOLD;
 		perror(dummyfile[xx]);
 		exit(129);
 	}
@@ -7736,8 +7814,8 @@ thread_rwrite_test(x)
 		}
 		fprintf(thread_rwqfd,"Offset in Kbytes   Latency in microseconds\n");
 	}
-	child_stat->flag = 1;
-	while(child_stat->flag==1)	/* Wait for parent to say go */
+	child_stat->flag = CHILD_STATE_READY;
+	while(child_stat->flag==CHILD_STATE_READY)	/* Wait for parent to say go */
 		Poll((long long)1);
 	starttime1 = time_so_far();
 	if(file_lock)
@@ -7829,7 +7907,7 @@ thread_rwrite_test(x)
 					perror("write");
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 				signal_handler();
 			   }
 			}
@@ -7900,7 +7978,7 @@ thread_rwrite_test(x)
 	child_stat->actual = (double)re_written_so_far;
 	if(!xflag)
 		*stop_flag=1;
-	child_stat->flag = 0;	/* Tell parent I'm done */
+	child_stat->flag = CHILD_STATE_HOLD;	/* Tell parent I'm done */
 	if(!include_close)
 	{
 		if(mmapflag)
@@ -8108,8 +8186,8 @@ thread_read_test(x)
 	if(fetchon)
 		fetchit(nbuff,reclen);
 	child_stat=(struct child_stats *)&shmaddr[xx];
-	child_stat->flag = 1;
-	while(child_stat->flag==1)	/* wait for parent to say go */
+	child_stat->flag = CHILD_STATE_READY;
+	while(child_stat->flag==CHILD_STATE_READY)	/* wait for parent to say go */
 		Poll((long long)1);
 	if(file_lock)
 		if(mylockf((int) fd, (int) 1, (int)1) != 0)
@@ -8192,7 +8270,7 @@ thread_read_test(x)
 				perror("read");
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 		    		exit(132);
 			      }
 			  }
@@ -8203,7 +8281,7 @@ thread_read_test(x)
 			   if(verify_buffer(buffer1,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 				exit(133);
 			   }
 		   }
@@ -8212,7 +8290,7 @@ thread_read_test(x)
 			   if(verify_buffer(nbuff,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 				exit(134);
 			   }
 		   }
@@ -8285,7 +8363,7 @@ thread_read_test(x)
 	child_stat->actual = read_so_far;
 	if(!xflag)
 		*stop_flag=1;
-	child_stat->flag = 0; 	/* Tell parent I'm done */
+	child_stat->flag = CHILD_STATE_HOLD; 	/* Tell parent I'm done */
 	/*fsync(fd);*/
 	if(!include_close)
 	{
@@ -8488,8 +8566,8 @@ thread_rread_test(x)
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = 0;
 	child_stat->actual = 0;
-	child_stat->flag = 1;
-	while(child_stat->flag==1)	/* wait for parent to say go */
+	child_stat->flag = CHILD_STATE_READY;
+	while(child_stat->flag==CHILD_STATE_READY)	/* wait for parent to say go */
 		Poll((long long)1);
 	if(file_lock)
 		if(mylockf((int) fd, (int) 1, (int)1) != 0)
@@ -8572,7 +8650,7 @@ thread_rread_test(x)
 				perror("read");
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 		    		exit(137);
 			      }
 			   }
@@ -8583,7 +8661,7 @@ thread_rread_test(x)
 			if(verify_buffer(buffer1,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 				exit(138);
 			}
 		   }
@@ -8592,7 +8670,7 @@ thread_rread_test(x)
 			if(verify_buffer(nbuff,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 				exit(139);
 			}
 		   }
@@ -8665,7 +8743,7 @@ thread_rread_test(x)
 	child_stat->actual = re_read_so_far;
 	if(!xflag)
 		*stop_flag=1;
-	child_stat->flag = 0;	/* Tell parent I'm done */
+	child_stat->flag = CHILD_STATE_HOLD;	/* Tell parent I'm done */
 	if(!include_close)
 	{
 		if(mmapflag)
@@ -8856,8 +8934,8 @@ thread_reverse_read_test(x)
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = 0;
 	child_stat->actual = 0;
-	child_stat->flag = 1;
-        while(child_stat->flag==1)      /* wait for parent to say go */
+	child_stat->flag = CHILD_STATE_READY;
+        while(child_stat->flag==CHILD_STATE_READY)      /* wait for parent to say go */
                 Poll((long long)1);
 	starttime2 = time_so_far();
 	child_stat->start_time = starttime2;
@@ -8948,7 +9026,7 @@ thread_reverse_read_test(x)
 				perror("read");
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 				exit(144);
 			      }
 			  }
@@ -8960,7 +9038,7 @@ thread_reverse_read_test(x)
 			if(verify_buffer(buffer1,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 				exit(145);
 			}
 		   }
@@ -8969,7 +9047,7 @@ thread_reverse_read_test(x)
 			if(verify_buffer(nbuff,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 				exit(146);
 			}
 		   }
@@ -9048,7 +9126,7 @@ thread_reverse_read_test(x)
 	child_stat->actual = reverse_read;
 	if(!xflag)
 		*stop_flag=1;
-	child_stat->flag = 0;	/* Tell parent I'm done */
+	child_stat->flag = CHILD_STATE_HOLD;	/* Tell parent I'm done */
 	if(!include_close)
 	{
 		if(mmapflag)
@@ -9239,8 +9317,8 @@ thread_stride_read_test(x)
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = 0;
 	child_stat->actual = 0;
-	child_stat->flag = 1;
-        while(child_stat->flag==1)      /* wait for parent to say go */
+	child_stat->flag = CHILD_STATE_READY;
+        while(child_stat->flag==CHILD_STATE_READY)      /* wait for parent to say go */
                 Poll((long long)1);
 	if(file_lock)
 		if(mylockf((int) fd, (int) 1,  (int)1)!=0)
@@ -9310,7 +9388,7 @@ thread_stride_read_test(x)
 				perror("read");
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 		    		exit(149);
 			  }
 			}
@@ -9322,7 +9400,7 @@ thread_stride_read_test(x)
 			if(verify_buffer(buffer1,reclen,(off64_t)savepos64,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 				exit(150);
 			}
 		   }
@@ -9331,7 +9409,7 @@ thread_stride_read_test(x)
 			if(verify_buffer(nbuff,reclen,(off64_t)savepos64,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 				exit(151);
 			}
 		   }
@@ -9452,7 +9530,7 @@ thread_stride_read_test(x)
 	child_stat->actual = stride_read;
 	if(!xflag)
 		*stop_flag=1;
-	child_stat->flag = 0;	/* Tell parent I'm done */
+	child_stat->flag = CHILD_STATE_HOLD;	/* Tell parent I'm done */
 	if(!include_close)
 	{
 		if(mmapflag)
@@ -9642,8 +9720,8 @@ thread_ranread_test(x)
 		fprintf(thread_randrfd,"Offset in Kbytes   Latency in microseconds\n");
         }
 	child_stat=(struct child_stats *)&shmaddr[xx];
-	child_stat->flag = 1;
-	while(child_stat->flag==1)	/* wait for parent to say go */
+	child_stat->flag = CHILD_STATE_READY;
+	while(child_stat->flag==CHILD_STATE_READY)	/* wait for parent to say go */
 		Poll((long long)1);
 	starttime1 = time_so_far();
 	child_stat->start_time = starttime1;
@@ -9742,7 +9820,7 @@ thread_ranread_test(x)
 				perror("ranread");
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 				exit(160);
 	 		  }
 			}
@@ -9754,7 +9832,7 @@ thread_ranread_test(x)
 			if(verify_buffer(buffer1,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 				exit(161);
 			}
 		   }
@@ -9763,7 +9841,7 @@ thread_ranread_test(x)
 			if(verify_buffer(nbuff,reclen,(off64_t)i,reclen,(long long)pattern,sverify)){
 				if (!no_unlink)
 					unlink(dummyfile[xx]);
-				child_stat->flag = 0;
+				child_stat->flag = CHILD_STATE_HOLD;
 				exit(162);
 			}
 		   }
@@ -9830,7 +9908,7 @@ thread_ranread_test(x)
 	child_stat->actual = ranread_so_far;
 	if(!xflag)
 		*stop_flag=1;
-	child_stat->flag = 0; 	/* Tell parent I'm done */
+	child_stat->flag = CHILD_STATE_HOLD; 	/* Tell parent I'm done */
 	if(!include_close)
 	{
 		if(mmapflag)
@@ -10031,8 +10109,8 @@ thread_ranwrite_test( x)
 	child_stat = (struct child_stats *)&shmaddr[xx];	
 	child_stat->throughput = 0;
 	child_stat->actual = 0;
-	child_stat->flag=1; /* Tell parent child is ready to go */
-	while(child_stat->flag!=2)   /* Wait for signal from parent */
+	child_stat->flag=CHILD_STATE_READY; /* Tell parent child is ready to go */
+	while(child_stat->flag!=CHILD_STATE_BEGIN)   /* Wait for signal from parent */
 		Poll((long long)1);
 
 	written_so_far=0;
@@ -10215,7 +10293,7 @@ again:
 				perror("write");
 			if (!no_unlink)
 				unlink(dummyfile[xx]);
-			child_stat->flag = 0;
+			child_stat->flag = CHILD_STATE_HOLD;
 		    	exit(127);
 		      }
 		    }
@@ -10289,7 +10367,7 @@ again:
 		child_stat->actual = (double)written_so_far;
 		child_stat->stop_time = temp_time;
 	}
-	child_stat->flag = 3; /* Tell parent I'm done */
+	child_stat->flag = CHILD_STATE_DONE; /* Tell parent I'm done */
 	stopped=0;
 	/*******************************************************************/
 	/* End random write performance test. ******************************/
