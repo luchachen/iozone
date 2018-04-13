@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.68 $
+# Version $Revision: 1.69 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -58,6 +58,11 @@ all:
 
 clean:
 	rm -f *.o iozone
+
+rpm:
+	cp ../../iozone*.tar /usr/src/red*/SO*
+	rpmbuild -ba spec.in
+
 
 #
 # Turn on the optimizer, largefiles, Posix async I/O and threads.

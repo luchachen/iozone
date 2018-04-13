@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.164 $"
+#define THISVERSION "        Version $Revision: 3.165 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -1518,7 +1518,7 @@ char **argv;
 			break;
 #endif
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 			direct_flag++;
 			sprintf(splash[splash_line++],"\tO_DIRECT feature enabled\n");
 			break;
@@ -6071,7 +6071,7 @@ long long *data2;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		file_flags |=O_DIRECT;
 #endif
@@ -6791,7 +6791,7 @@ long long *data1,*data2;
 		open_flags |=O_RSYNC|O_SYNC;
 #endif
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -7168,7 +7168,7 @@ long long *data1, *data2;
 	numrecs64 = (kilo64*1024)/reclen;
 	flags = O_RDWR;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -7536,7 +7536,7 @@ long long *data1,*data2;
 	maddr=wmaddr=0;
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -7785,7 +7785,7 @@ long long *data1,*data2;
 	filebytes64 = numrecs64*reclen;
 	flags = O_RDWR|O_CREAT|O_TRUNC;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -8036,7 +8036,7 @@ long long *data1, *data2;
 	nbuff=maddr=wmaddr=0;
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -8329,7 +8329,7 @@ long long *data1,*data2;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		flags_here |=O_DIRECT;
 #endif
@@ -8534,7 +8534,7 @@ long long *data1, *data2;
 	nbuff=mainbuffer;
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -8723,7 +8723,7 @@ long long *data1,*data2;
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		flags_here |=O_DIRECT;
 #endif
@@ -9003,7 +9003,7 @@ long long *data1,*data2;
 	test_foo=0;
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
 #endif
@@ -10197,7 +10197,7 @@ thread_write_test( x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -10715,7 +10715,7 @@ thread_pwrite_test( x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -11223,7 +11223,7 @@ thread_rwrite_test(x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -11628,7 +11628,7 @@ thread_read_test(x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -12044,7 +12044,7 @@ thread_pread_test(x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -12478,7 +12478,7 @@ thread_rread_test(x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -12878,7 +12878,7 @@ thread_reverse_read_test(x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -13270,7 +13270,7 @@ thread_stride_read_test(x)
 		flags |=O_RSYNC|O_SYNC;
 #endif
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -13731,7 +13731,7 @@ thread_ranread_test(x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -14184,7 +14184,7 @@ thread_ranwrite_test( x)
 #endif
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 	if(direct_flag)
 		flags |=O_DIRECT;
 #endif
@@ -15032,7 +15032,7 @@ int flag, prot;
 	 	file_flags=fcntl(fd,F_GETFL);
 
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
 		dflag = O_DIRECT;
 #endif
 #if defined(TRU64)
