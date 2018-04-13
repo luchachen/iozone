@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.116 $"
+#define THISVERSION "        Version $Revision: 3.117 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -14091,7 +14091,9 @@ start_master_listen()
 	int s;
 	int rc;
 	int tmp_port;
+	int sockerr;
 	struct sockaddr_in addr;
+	int recv_buf_size=65536;
 
         s = socket(AF_INET, SOCK_DGRAM, 0);
         if (s < 0)
@@ -14099,6 +14101,11 @@ start_master_listen()
                 perror("socket failed:");
                 exit(19);
         }
+	sockerr = setsockopt (s, SOL_SOCKET, SO_RCVBUF, (char *)
+		&recv_buf_size, sizeof(int));
+	if ( sockerr == -1 ) {
+		perror("Error in setsockopt\n");
+	}
 	tmp_port=HOST_LIST_PORT;
         bzero(&addr, sizeof(struct sockaddr_in));
         addr.sin_port = htons(tmp_port);

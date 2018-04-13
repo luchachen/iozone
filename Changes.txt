@@ -1433,4 +1433,8 @@ Fix for Solaris returning short reads() from socket to child_listen.
 Revision 3.116 
 =============================================================================
 Add support for Mac OS X
+=============================================================================
+Revision 3.117 
+=============================================================================
+Add code to set the socket buffer window size. Solaris needs this.
 
