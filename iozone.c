@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.126 $"
+#define THISVERSION "        Version $Revision: 3.127 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -9572,7 +9572,7 @@ again:
 	}
 	if(cdebug)
 	{
-		printf("Child: throughput %f actual %f \n",child_stat->throughput,
+		printf("Child %d: throughput %f actual %f \n",(int)chid, child_stat->throughput,
 			child_stat->actual);
 		fflush(stdout);
 	}
@@ -10003,7 +10003,7 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 			send_stop();
 	}
 	if(cdebug)
-		printf("Child: throughput %f actual %f \n",child_stat->throughput,
+		printf("Child %d: throughput %f actual %f \n",(int)chid, child_stat->throughput,
 			child_stat->actual);
 	if(distributed && client_iozone)
 		tell_master_stats(THREAD_REWRITE_TEST, chid, child_stat->throughput, 
@@ -10415,7 +10415,7 @@ thread_read_test(x)
 			send_stop();
 	}
         if(cdebug)
-                printf("Child: throughput %f actual %f \n",child_stat->throughput,
+                printf("Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
                         child_stat->actual);
         if(distributed && client_iozone)
                 tell_master_stats(THREAD_READ_TEST, chid, child_stat->throughput,
@@ -12025,7 +12025,7 @@ thread_ranread_test(x)
 			send_stop();
 	}
         if(cdebug)
-                printf("Child: throughput %f actual %f \n",child_stat->throughput,
+                printf("Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
                         child_stat->actual);
         if(distributed && client_iozone)
                 tell_master_stats(THREAD_RANDOM_READ_TEST, chid, child_stat->throughput,
@@ -12511,7 +12511,7 @@ again:
 	}
 	child_stat->flag = CHILD_STATE_HOLD; /* Tell parent I'm done */
         if(cdebug)
-                printf("Child: throughput %f actual %f \n",child_stat->throughput,
+                printf("Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
                         child_stat->actual);
         if(distributed && client_iozone)
                 tell_master_stats(THREAD_RANDOM_WRITE_TEST, chid, child_stat->throughput,
@@ -14261,7 +14261,7 @@ int send_size;
 	bzero(&outbuf, sizeof(struct master_neutral_command));
 	if(cdebug>=1)
 	{
-		printf("Child sending message to %s 0\n",controlling_host_name);
+		printf("Child %d sending message to %s \n",(int)chid, controlling_host_name);
 		fflush(stdout);
 	}
 	/* 
@@ -14288,7 +14288,7 @@ int send_size;
 #endif
 	if(cdebug>=1)
 	{
-		printf("Child sending message to %s\n",controlling_host_name);
+		printf("Child %d sending message to %s\n",(int)chid, controlling_host_name);
 		fflush(stdout);
 	}
         rc = send(child_socket_val, (char *)&outbuf, sizeof(struct master_neutral_command), 0);
@@ -14431,21 +14431,21 @@ char *controlling_host_name;
         {
 		if(cdebug)
 		{
-                   printf("Child: Bad server host %s\n",controlling_host_name);
+                   printf("Child %d: Bad server host %s\n",(int)chid, controlling_host_name);
 		   fflush(stdout);
 		}
                 exit(22);
         }
 	if(cdebug ==1)
 	{
-	        printf("Child: start child send to hostname: %s\n", he->h_name);
+	        printf("Child %d: start child send to hostname: %s\n",(int)chid, he->h_name);
 		fflush(stdout);
 	}
         ip = (struct in_addr *)he->h_addr_list[0];
 #ifndef UWIN
 	if(cdebug ==1)
 	{
-        	printf("Child: server host: %s\n", (char *)inet_ntoa(*ip));
+        	printf("Child %d: server host: %s\n",(int)chid, (char *)inet_ntoa(*ip));
 		fflush(stdout);
 	}
 #endif
@@ -14479,7 +14479,7 @@ char *controlling_host_name;
         }
 	if(cdebug ==1)
 	{
-		printf("Child: Bound to host port %d\n",tmp_port);
+		printf("Child %d: Bound to host port %d\n",(int)chid, tmp_port);
 		fflush(stdout);
 	}
         if (rc < 0)
@@ -14497,7 +14497,7 @@ char *controlling_host_name;
         }
 	if(cdebug ==1)
 	{
-		printf("Child Connected\n");
+		printf("Child %d Connected\n",(int)chid);
 		fflush(stdout);
 	}
 	return (child_socket_val);
@@ -14608,7 +14608,7 @@ int size_of_message;
 	child_port = ntohs(child_sync_sock.sin_port);
 	if(cdebug ==1)
 	{
-		printf("Child: Listen: Bound at port %d\n",tmp_port);
+		printf("Child %d: Listen: Bound at port %d\n",(int)chid, tmp_port);
 		fflush(stdout);
 	}
 	if(rc < 0)
@@ -14628,7 +14628,7 @@ child_attach(int s, int flag)
 		addr=&child_async_sock;
 		if(cdebug)
 		{
-			printf("Child attach async\n");
+			printf("Child %d attach async\n",(int)chid);
 			fflush(stdout);
 		}
 	}
@@ -14637,26 +14637,26 @@ child_attach(int s, int flag)
 		addr=&child_sync_sock;
 		if(cdebug)
 		{
-			printf("Child attach sync\n");
+			printf("Child %d attach sync\n",(int)chid);
 			fflush(stdout);
 		}
 	}
 	me=sizeof(struct sockaddr_in);
 	if(cdebug)
 	{
-		printf("Child enters listen\n");
+		printf("Child %d enters listen\n",(int)chid);
 		fflush(stdout);
 	}
 	listen(s,10);
 	if(cdebug)
 	{
-		printf("Child enters accept\n");
+		printf("Child %d enters accept\n",(int)chid);
 		fflush(stdout);
 	}
 	ns=accept(s,(void *)addr,&me);
 	if(cdebug)
 	{
-		printf("Child attached for receive. Sock %d  %d\n",ns,errno);
+		printf("Child %d attached for receive. Sock %d  %d\n",(int)chid, ns,errno);
 		fflush(stdout);
 	}
 	return(ns);
@@ -14690,7 +14690,7 @@ int sock, size_of_message;
 	{
 		if(cdebug ==1)
 		{
-			printf("Child In recieve \n");
+			printf("Child %d In recieve \n",(int)chid);
 			fflush(stdout);
 		}
 		/*rc=recv(s,child_rcv_buf,size_of_message,0);*/
@@ -14702,7 +14702,7 @@ int sock, size_of_message;
 		}
 		if(cdebug >= 1)
 		{
-			printf("Child: Got %d bytes\n",rc);
+			printf("Child %d: Got %d bytes\n",(int)chid, rc);
 			fflush(stdout);
 		}
 		rcvd+=rc;
@@ -14710,7 +14710,7 @@ int sock, size_of_message;
 	}
 	if(cdebug >= 1)
 	{
-		printf("Child: return from listen\n");
+		printf("Child %d: return from listen\n",(int)chid);
 		fflush(stdout);
 	}
 }
@@ -14759,7 +14759,7 @@ int size_of_message;
 	child_async_port = ntohs(child_async_sock.sin_port);
 	if(cdebug ==1)
 	{
-		printf("Child: Async Listen: Bound at port %d\n",tmp_port);
+		printf("Child %d: Async Listen: Bound at port %d\n",(int)chid,tmp_port);
 		fflush(stdout);
 	}
 	if(rc < 0)
@@ -14796,7 +14796,7 @@ int sock, size_of_message;
 	{
 		if(cdebug ==1)
 		{
-			printf("Child In async recieve \n");
+			printf("Child %d In async recieve \n",(int)chid);
 			fflush(stdout);
 		}
 		/*rc=recv(s,child_async_rcv_buf,size_of_message,0);*/
@@ -14808,7 +14808,7 @@ int sock, size_of_message;
 		}
 		if(cdebug >= 1)
 		{
-			printf("Child: Got %d bytes (async) \n",rc);
+			printf("Child %d: Got %d bytes (async) \n",(int)chid,rc);
 			fflush(stdout);
 		}
 		rcvd+=rc;
@@ -14816,7 +14816,7 @@ int sock, size_of_message;
 	}
 	if(cdebug >= 1)
 	{
-		printf("Child: return from async listen\n");
+		printf("Child %d: return from async listen\n",(int)chid);
 		fflush(stdout);
 	}
 }
@@ -15292,8 +15292,8 @@ become_client()
 	mc.m_version = proto_version;
 	if(cdebug)
 	{
-		printf("Child sends JOIN to master %s My port %d\n",
-			controlling_host_name,child_port);
+		printf("Child %s sends JOIN to master %s My port %d\n",
+			client_name,controlling_host_name,child_port);
 		fflush(stdout);
 	}
 	child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
@@ -15306,7 +15306,7 @@ become_client()
 
 	if(cdebug>=1)
 	{
-		printf("Child waiting for who am I\n");
+		printf("Child %s waiting for who am I\n",client_name);
 		fflush(stdout);
 	}
 	child_listen(l_sock,sizeof(struct client_neutral_command));
@@ -15322,7 +15322,7 @@ become_client()
 	{
 		if(cdebug)
 		{
-			printf("Child received terminate on sync channel !!\n");
+			printf("Child %d received terminate on sync channel !!\n",(int)chid);
 			fflush(stdout);
 		}
 		exit(1);
@@ -15455,7 +15455,7 @@ become_client()
 	compute_time = cc.c_compute_time;
 	if(cdebug)
 	{
-		printf("Child change directory to %s\n",workdir);
+		printf("Child %d change directory to %s\n",(int)chid,workdir);
 		fflush(stdout);
 	}
 
@@ -15472,7 +15472,7 @@ become_client()
 	case THREAD_WRITE_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child running thread_write_test\n");
+			printf("Child %d running thread_write_test\n",(int)chid);
 			fflush(stdout);
 		}
 		thread_write_test((long)0);
@@ -15480,7 +15480,7 @@ become_client()
 	case THREAD_REWRITE_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child running thread_rewrite_test\n");
+			printf("Child %d running thread_rewrite_test\n",(int)chid);
 			fflush(stdout);
 		}
 		thread_rwrite_test((long)0);
@@ -15488,7 +15488,7 @@ become_client()
 	case THREAD_READ_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child running thread_read_test\n");
+			printf("Child %d running thread_read_test\n",(int)chid);
 			fflush(stdout);
 		}
 		thread_read_test((long)0);
@@ -15496,7 +15496,7 @@ become_client()
 	case THREAD_REREAD_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child running thread_reread_test\n");
+			printf("Child %d running thread_reread_test\n",(int)chid);
 			fflush(stdout);
 		}
 		thread_rread_test((long)0);
@@ -15504,7 +15504,7 @@ become_client()
 	case THREAD_STRIDE_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child running thread_stride_read_test\n");
+			printf("Child %d running thread_stride_read_test\n",(int)chid);
 			fflush(stdout);
 		}
 		thread_stride_read_test((long)0);
@@ -15512,7 +15512,7 @@ become_client()
 	case THREAD_RANDOM_READ_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child running random read test\n");
+			printf("Child %d running random read test\n",(int)chid);
 			fflush(stdout);
 		}
 		thread_ranread_test((long)0);
@@ -15520,7 +15520,7 @@ become_client()
 	case THREAD_RANDOM_WRITE_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child running random write test\n");
+			printf("Child %d running random write test\n",(int)chid);
 			fflush(stdout);
 		}
 		thread_ranwrite_test((long)0);
@@ -15528,7 +15528,7 @@ become_client()
 	case THREAD_REVERSE_READ_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child running reverse read test\n");
+			printf("Child %d running reverse read test\n",(int)chid);
 			fflush(stdout);
 		}
 		thread_reverse_read_test((long)0);
@@ -15536,7 +15536,7 @@ become_client()
 	case THREAD_CLEANUP_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child running cleanup\n");
+			printf("Child %d running cleanup\n",(int)chid);
 			fflush(stdout);
 		}
 		thread_cleanup_test((long)0);
@@ -15544,7 +15544,7 @@ become_client()
 	};
 	if(cdebug>=1)
 	{
-		printf("Child finished running test.\n");
+		printf("Child %d finished running test.\n",(int)chid);
 		fflush(stdout);
 	}
 	
@@ -15599,7 +15599,7 @@ long long child_flag;
 	mc.m_version = proto_version;
 	if(cdebug>=1)
 	{
-		printf("Child: Tell master stats and terminate\n");
+		printf("Child %d: Tell master stats and terminate\n",(int)chid);
 		fflush(stdout);
 	}
 	child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
@@ -15640,7 +15640,7 @@ long long chid;
 	struct master_command mc;
 	if(cdebug>=1)
 	{
-		printf("Child: Tell master to go\n");
+		printf("Child %d: Tell master to go\n",(int)chid);
 		fflush(stdout);
 	}
 	mc.m_command = R_FLAG_DATA;
@@ -15664,6 +15664,7 @@ long long chid;
 {
 	struct client_neutral_command *cnc;
 	struct client_command cc;
+	bzero(&cc,sizeof(struct client_command));
 	child_listen(l_sock,sizeof(struct client_neutral_command));
 	cnc = (struct client_neutral_command *)child_rcv_buf;
 	sscanf(cnc->c_command,"%d",&cc.c_command);
@@ -15671,13 +15672,13 @@ long long chid;
 	{
 		if(cdebug)
 		{
-			printf("Child received terminate on sync channel at barrier !!\n");
+			printf("Child %d received terminate on sync channel at barrier !!\n",(int)chid);
 			fflush(stdout);
 		}
 		exit(1);
 	}
 	if(cdebug>=1)
-		printf("Return from wait_for_master_go\n");
+		printf("Child %d return from wait_for_master_go\n",(int)chid);
 }
 
 /*
@@ -15793,10 +15794,11 @@ start_child_listen_loop()
 	if(client_listen_pid!=0)
 		return;
 	if(cdebug>=1)
-		printf("Starting client listen loop\n");
+		printf("Child %d starting client listen loop\n",(int)chid);
 
 	while(1)
 	{
+		bzero(&cc,sizeof(struct client_command));
 		child_listen_async(l_async_sock,sizeof(struct client_neutral_command));
 		cnc=(struct client_neutral_command *)&child_async_rcv_buf;
 		/*
@@ -15855,6 +15857,7 @@ long long childnum;
 {
 	struct client_command cc;
 	int x;
+	bzero(&cc,sizeof(struct client_command));
 	x = (int) childnum;
 	if(mdebug>=1)
 		printf("Master: Tell child %d to begin\n",x);
@@ -15984,7 +15987,7 @@ int i;
 	sprintf(dummyfile[i],"%s.DUMMY.%d",filearray[i],i);
 	if(cdebug)
 	{
-		printf("Child remove: %s \n",dummyfile[i]);
+		printf("Child %d remove: %s \n",(int)chid, dummyfile[i]);
 	}
 	unlink(dummyfile[i]);
 }
@@ -16004,6 +16007,7 @@ terminate_child_async()
 {
 	int i;
 	struct client_command cc;
+	bzero(&cc,sizeof(struct client_command));
 	cc.c_command = R_TERMINATE;
 	for(i=0;i<num_child;i++)
 	{
@@ -16029,6 +16033,7 @@ distribute_stop()
 {
 	int i;
 	struct client_command cc;
+	bzero(&cc,sizeof(struct client_command));
 	cc.c_command = R_STOP_FLAG;
 	cc.c_stop_flag = 1;
 	for(i=0;i<num_child;i++)
@@ -16058,7 +16063,7 @@ send_stop()
 	mc.m_client_number = chid;
 	if(cdebug)
 	{
-		printf("Child sending stop flag to master\n");
+		printf("Child %d sending stop flag to master\n",(int)chid);
 		fflush(stdout);
 	}
         child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
@@ -16089,6 +16094,7 @@ cleanup_children()
 {
 	int i;
 	struct client_command cc;
+	bzero(&cc,sizeof(struct client_command));
 	cc.c_command = R_DEATH;
 	for(i=0;i<num_child;i++)
 	{
