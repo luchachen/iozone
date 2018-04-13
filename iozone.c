@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.120 $"
+#define THISVERSION "        Version $Revision: 3.121 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -213,6 +213,7 @@ THISVERSION,
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
+
 #if defined(linux)
   #define __USE_GNU
 #endif
@@ -788,7 +789,7 @@ void purgeit();			/* Purge on chip cache		  */
 void throughput_test();		/* Multi process throughput 	  */
 void multi_throughput_test();	/* Multi process throughput 	  */
 void prepage();			/* Pre-fault user buffer	  */
-#if defined(linux) || defined(solaris) || defined(__AIX__) || defined(OSFV5) || defined(UWIN) || defined(Windows) || defined(__APPLE__) || defined(OSFV4) 
+#if defined(linux) || defined(solaris) || defined(__AIX__) || defined(OSFV5) || defined(UWIN) || defined(Windows) || defined(__APPLE__) || defined(OSFV4) || defined(IRIX) || defined(IRIX64)
 float do_compute(float);	/* compute cycle simulation       */
 #else
 float do_compute();		/* compute cycle simulation       */
@@ -1413,18 +1414,22 @@ char **argv;
 			async_flag++;
 			break;
 		case 'I':	/* Use VXFS direct advisory or O_DIRECT from Linux or AIX , or O_DIRECTIO for TRU64 */
-			direct_flag++;
 #ifdef VXFS
+			direct_flag++;
 			sprintf(splash[splash_line++],"\tVxFS advanced feature SET_CACHE, VX_DIRECT enabled\n");
 			break;
 #endif
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
+			direct_flag++;
 			sprintf(splash[splash_line++],"\tO_DIRECT feature enabled\n");
 			break;
 #endif
 #if defined(TRU64)
+			direct_flag++;
 			sprintf(splash[splash_line++],"\tO_DIRECTIO feature enabled\n");
 			break;
+#endif
 #endif
 		case 'B':	/* Use mmap file for test file */
 			sprintf(splash[splash_line++],"\tUsing mmap files\n");
@@ -5214,6 +5219,7 @@ long long *data2;
 		file_flags = O_RDWR|O_SYNC;
 	else
 		file_flags = O_RDWR;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		file_flags |=O_DIRECT;
@@ -5221,6 +5227,7 @@ long long *data2;
 #if defined(TRU64)
 	if(direct_flag)
 		file_flags |=O_DIRECTIO;
+#endif
 #endif
 
 	for( j=0; j<2; j++)
@@ -5924,6 +5931,7 @@ long long *data1,*data2;
 	numrecs64 = (kilo64*1024)/reclen;
 
 	open_flags = O_RDONLY;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
@@ -5931,6 +5939,7 @@ long long *data1,*data2;
 #if defined(TRU64)
 	if(direct_flag)
 		open_flags |=O_DIRECTIO;
+#endif
 #endif
 	if(r_traj_flag)
 	{
@@ -6297,6 +6306,7 @@ long long *data1, *data2;
 	maddr=free_addr=0;
 	numrecs64 = (kilo64*1024)/reclen;
 	flags = O_RDWR;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		flags |=O_DIRECT;
@@ -6304,6 +6314,7 @@ long long *data1, *data2;
 #if defined(TRU64)
 	if(direct_flag)
 		flags |=O_DIRECTIO;
+#endif
 #endif
 	fd=0;
 	if(oflag)
@@ -6647,6 +6658,7 @@ long long *data1,*data2;
 
 	maddr=wmaddr=0;
 	open_flags=O_RDONLY;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
@@ -6654,6 +6666,7 @@ long long *data1,*data2;
 #if defined(TRU64)
 	if(direct_flag)
 		open_flags |=O_DIRECTIO;
+#endif
 #endif
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
@@ -6889,6 +6902,7 @@ long long *data1,*data2;
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	flags = O_RDWR|O_CREAT|O_TRUNC;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		flags |=O_DIRECT;
@@ -6896,6 +6910,7 @@ long long *data1,*data2;
 #if defined(TRU64)
 	if(direct_flag)
 		flags |=O_DIRECTIO;
+#endif
 #endif
 	if(oflag)
 		flags |= O_SYNC;
@@ -7134,6 +7149,7 @@ long long *data1, *data2;
 	walltime=cputime=0;
 	nbuff=maddr=wmaddr=0;
 	open_flags=O_RDONLY;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
@@ -7141,6 +7157,7 @@ long long *data1, *data2;
 #if defined(TRU64)
 	if(direct_flag)
 		open_flags |=O_DIRECTIO;
+#endif
 #endif
 	next64 = (off64_t)0;
 	numrecs64 = (kilos64*1024)/reclen;
@@ -7416,6 +7433,7 @@ long long *data1,*data2;
 	{
 		flags_here = O_RDWR;
 	}
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		flags_here |=O_DIRECT;
@@ -7423,6 +7441,7 @@ long long *data1,*data2;
 #if defined(TRU64)
 	if(direct_flag)
 		flags_here |=O_DIRECTIO;
+#endif
 #endif
 	for( j=0; j<2; j++)
 	{
@@ -7616,6 +7635,7 @@ long long *data1, *data2;
 	test_foo=0;
 	nbuff=mainbuffer;
 	open_flags=O_RDONLY;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
@@ -7623,6 +7643,7 @@ long long *data1, *data2;
 #if defined(TRU64)
 	if(direct_flag)
 		open_flags |=O_DIRECTIO;
+#endif
 #endif
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
@@ -7791,6 +7812,7 @@ long long *data1,*data2;
 		flags_here = O_SYNC|O_RDWR;
 	else
 		flags_here = O_RDWR;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		flags_here |=O_DIRECT;
@@ -7798,6 +7820,7 @@ long long *data1,*data2;
 #if defined(TRU64)
 	if(direct_flag)
 		flags_here |=O_DIRECTIO;
+#endif
 #endif
 	 
 	for( j=0; j<2; j++)
@@ -8055,6 +8078,7 @@ long long *data1,*data2;
 
 	test_foo=0;
 	open_flags=O_RDONLY;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		open_flags |=O_DIRECT;
@@ -8062,6 +8086,7 @@ long long *data1,*data2;
 #if defined(TRU64)
 	if(direct_flag)
 		open_flags |=O_DIRECTIO;
+#endif
 #endif
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
@@ -9223,6 +9248,7 @@ thread_write_test( x)
 		flags=O_RDWR|O_SYNC;
 	else
 		flags=O_RDWR;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		flags |=O_DIRECT;
@@ -9230,6 +9256,7 @@ thread_write_test( x)
 #if defined(TRU64)
 	if(direct_flag)
 		flags |=O_DIRECTIO;
+#endif
 #endif
 	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
 	{
@@ -9723,6 +9750,7 @@ thread_rwrite_test(x)
 	flags = O_RDWR;
 	if(oflag)
 		flags|= O_SYNC;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		flags |=O_DIRECT;
@@ -9730,6 +9758,7 @@ thread_rwrite_test(x)
 #if defined(TRU64)
 	if(direct_flag)
 		flags |=O_DIRECTIO;
+#endif
 #endif
 
 	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
@@ -10120,6 +10149,7 @@ thread_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		flags |=O_DIRECT;
@@ -10127,6 +10157,7 @@ thread_read_test(x)
 #if defined(TRU64)
 	if(direct_flag)
 		flags |=O_DIRECTIO;
+#endif
 #endif
 	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
 	{
@@ -10546,6 +10577,7 @@ thread_rread_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		flags |=O_DIRECT;
@@ -10553,6 +10585,7 @@ thread_rread_test(x)
 #if defined(TRU64)
 	if(direct_flag)
 		flags |=O_DIRECTIO;
+#endif
 #endif
 
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
@@ -10939,6 +10972,7 @@ thread_reverse_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		flags |=O_DIRECT;
@@ -10946,6 +10980,7 @@ thread_reverse_read_test(x)
 #if defined(TRU64)
 	if(direct_flag)
 		flags |=O_DIRECTIO;
+#endif
 #endif
 
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
@@ -11325,6 +11360,7 @@ thread_stride_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		flags |=O_DIRECT;
@@ -11332,6 +11368,7 @@ thread_stride_read_test(x)
 #if defined(TRU64)
 	if(direct_flag)
 		flags |=O_DIRECTIO;
+#endif
 #endif
 
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
@@ -11715,6 +11752,7 @@ thread_ranread_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		flags |=O_DIRECT;
@@ -11722,6 +11760,7 @@ thread_ranread_test(x)
 #if defined(TRU64)
 	if(direct_flag)
 		flags |=O_DIRECTIO;
+#endif
 #endif
 
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
@@ -12153,6 +12192,7 @@ thread_ranwrite_test( x)
 		flags=O_RDWR|O_SYNC;
 	else
 		flags=O_RDWR;
+#if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
 		flags |=O_DIRECT;
@@ -12160,6 +12200,7 @@ thread_ranwrite_test( x)
 #if defined(TRU64)
 	if(direct_flag)
 		flags |=O_DIRECTIO;
+#endif
 #endif
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
