@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.403 $"
+#define THISVERSION "        Version $Revision: 3.405 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -225,11 +225,10 @@ char *help[] = {
 #endif
 "           -+N Do not truncate existing files on sequential writes.",
 "           -+S # Dedup-able data is limited to sharing within each numerically",
-"                 identified file set",
-"           -+W # Add this value to the child thread ID, so that additional files\n",
-"                 can be added while maintaining the proper dedupability with previously\n",
+"                 identified file set.",
+"           -+W # Add this value to the child thread ID, so that additional files",
+"                 can be added while maintaining the proper dedupability with previously",
 "                 existing files that are within the same seed group (-+S).",
-"                 identified file set",
 "           -+V Enable shared file. No locking.",
 #if defined(Windows)
 "           -+U Windows Unbufferd I/O API (Very Experimental)",
@@ -19111,28 +19110,21 @@ my_unap( microsecs )
 unsigned long long microsecs;
 #endif
 {
-	struct timeval nap_time;
-	int seconds;
 	double timein, timeout;
+	unsigned long usecs;
 
-	seconds = (int)(microsecs/1000000.0); /* Now in seconds */
-	nap_time.tv_sec=seconds;
-        nap_time.tv_usec=(int)microsecs;
+	usecs = (unsigned long) microsecs;
+	usecs = (usecs/1000)*1000;
 
 	timein=time_so_far1();
-	while(1)
+	usleep(usecs); /* sleep for big chunk of time */
+
+	while(1) /* now handle the remainder, to get finer control */
 	{
 		timeout=time_so_far1();
-		/*printf("Sleep for %lld Curtime %g\n",microsecs,timeout-timein);*/
 		if(timeout-timein > microsecs)
 		   break;
 	}
-
-/*
-        select(0,0,0,0,&nap_time);
-*/
-
-
 }
 
 /************************************************************************/

@@ -2419,3 +2419,9 @@ the proper sharing/dedup within each quadrant, within same seed group
 and with previously existing files that were created with a different
 number of threads.
 =============================================================================
+Revision 3.404
+Fix type-oh in usage message.
+=============================================================================
+Revision 3.405
+Reduce CPU consumption in the op_rate control mechanism.
+=============================================================================
