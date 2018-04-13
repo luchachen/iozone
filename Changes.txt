@@ -1510,4 +1510,10 @@ Add -+p percentage read option.
 Revision 3.135 
 =============================================================================
 Improve the mixed mode distribution algorithm.
+=============================================================================
+Revision 3.136 
+=============================================================================
+Fix auto bug introduced by mixed mode testing.
+Introduce -+r for O_RSYNC.
+
 

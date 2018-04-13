@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.135 $"
+#define THISVERSION "        Version $Revision: 3.136 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -108,6 +108,7 @@ char *help[] = {
 "                  [-J milliseconds] [-X write_telemetry_filename] [-w] [-W]",
 "                  [-Y read_telemetry_filename] [-y minrecsize_Kb] [-q maxrecsize_Kb]",
 "                  [-+u] [-+m cluster_filename] [-+d] [-+x multiplier] [-+p # ]",
+"                  [-+r]",
 " ",
 "           -a  Auto mode",
 "           -A  Auto2 mode",
@@ -175,6 +176,7 @@ char *help[] = {
 "           -+u  Enable CPU utilization output (Experimental)",
 "           -+x # Multiplier to use for incrementing file and record sizes",
 "           -+p # Percentage of mix to be reads",
+"           -+r Enable O_RSYNC|O_SYNC for all testing.",
 "" };
 
 char *head1[] = {
@@ -396,6 +398,7 @@ struct client_command {
 	char c_write_traj_filename[256];
 	char c_read_traj_filename[256];
 	int c_oflag;
+	int c_read_sync;
 	int c_jflag;
 	int c_async_flag;
 	int c_k_flag;
@@ -467,6 +470,7 @@ struct client_neutral_command {
 	char c_write_traj_filename[100];
 	char c_read_traj_filename[100];
 	char c_oflag[2];
+	char c_read_sync[2];
 	char c_jflag[2];
 	char c_async_flag[2];
 	char c_k_flag[2];
@@ -1025,7 +1029,7 @@ long long onetime, auto_mode, sfd, multi_buffer;
 int fd;
 int begin_proc,num_processors,ioz_processor_bind;
 long long res_prob,rec_prob;
-char silent;
+char silent,read_sync;
 char master_iozone, client_iozone,distributed;
 int bif_fd,s_count;
 int bif_row,bif_column;
@@ -1180,7 +1184,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 6;
+int proto_version = 7;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -2057,6 +2061,12 @@ char **argv;
 						pct_read = 100;
     					sprintf(splash[splash_line++],"\tPercent read in mix test is %d\n",pct_read);
 					break;
+#if defined(_HPUX_SOURCE) || defined(linux)
+				case 'r':  /* Read sync too */
+					read_sync=1;
+    					sprintf(splash[splash_line++],"\tRead & Write sync mode active.\n");
+					break;
+#endif
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
 					exit(0);
@@ -5467,6 +5477,12 @@ long long *data2;
 		file_flags = O_RDWR|O_SYNC;
 	else
 		file_flags = O_RDWR;
+
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		file_flags |=O_RSYNC|O_SYNC;
+#endif
+
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
@@ -6179,6 +6195,10 @@ long long *data1,*data2;
 	numrecs64 = (kilo64*1024)/reclen;
 
 	open_flags = O_RDONLY;
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		open_flags |=O_RSYNC|O_SYNC;
+#endif
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
@@ -6569,6 +6589,10 @@ long long *data1, *data2;
 	fd=0;
 	if(oflag)
 		flags |= O_SYNC;
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		flags |=O_RSYNC|O_SYNC;
+#endif
 	filebytes64 = numrecs64*reclen;
 	for( j=0; j<2; j++ )
 	{
@@ -6930,6 +6954,10 @@ long long *data1,*data2;
 		open_flags |=O_DIRECTIO;
 #endif
 #endif
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		open_flags |=O_RSYNC|O_SYNC;
+#endif
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	fd = 0;
@@ -7176,6 +7204,10 @@ long long *data1,*data2;
 #endif
 	if(oflag)
 		flags |= O_SYNC;
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		flags |=O_RSYNC|O_SYNC;
+#endif
 	if (!no_unlink)
 		unlink(dummyfile[0]);
 	if(Uflag) /* Unmount and re-mount the mountpoint */
@@ -7420,6 +7452,10 @@ long long *data1, *data2;
 	if(direct_flag)
 		open_flags |=O_DIRECTIO;
 #endif
+#endif
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		open_flags |=O_RSYNC|O_SYNC;
 #endif
 	next64 = (off64_t)0;
 	numrecs64 = (kilos64*1024)/reclen;
@@ -7695,6 +7731,11 @@ long long *data1,*data2;
 	{
 		flags_here = O_RDWR;
 	}
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		flags_here |=O_RSYNC|O_SYNC;
+#endif
+
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
@@ -7907,6 +7948,10 @@ long long *data1, *data2;
 		open_flags |=O_DIRECTIO;
 #endif
 #endif
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		open_flags |=O_RSYNC|O_SYNC;
+#endif
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	fd = 0;
@@ -8074,6 +8119,11 @@ long long *data1,*data2;
 		flags_here = O_SYNC|O_RDWR;
 	else
 		flags_here = O_RDWR;
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		flags_here |=O_RSYNC|O_SYNC;
+#endif
+
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
@@ -8357,6 +8407,10 @@ long long *data1,*data2;
 	if(direct_flag)
 		open_flags |=O_DIRECTIO;
 #endif
+#endif
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		open_flags |=O_RSYNC|O_SYNC;
 #endif
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
@@ -9518,6 +9572,11 @@ thread_write_test( x)
 		flags=O_RDWR|O_SYNC;
 	else
 		flags=O_RDWR;
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		flags |=O_RSYNC|O_SYNC;
+#endif
+
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
@@ -10020,6 +10079,11 @@ thread_rwrite_test(x)
 	flags = O_RDWR;
 	if(oflag)
 		flags|= O_SYNC;
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		flags |=O_RSYNC|O_SYNC;
+#endif
+
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
@@ -10419,6 +10483,11 @@ thread_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		flags |=O_RSYNC|O_SYNC;
+#endif
+
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
@@ -10847,6 +10916,11 @@ thread_rread_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		flags |=O_RSYNC|O_SYNC;
+#endif
+
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
@@ -11242,6 +11316,11 @@ thread_reverse_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		flags |=O_RSYNC|O_SYNC;
+#endif
+
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
@@ -11630,6 +11709,10 @@ thread_stride_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		flags |=O_RSYNC|O_SYNC;
+#endif
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
@@ -12080,9 +12163,16 @@ thread_ranread_test(x)
 	sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
 #endif
 	if(oflag)
+	{
 		flags=O_RDONLY|O_SYNC;
+	}
 	else
 		flags=O_RDONLY;
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		flags |=O_RSYNC|O_SYNC;
+#endif
+
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
@@ -12531,6 +12621,11 @@ thread_ranwrite_test( x)
 		flags=O_RDWR|O_SYNC;
 	else
 		flags=O_RDWR;
+#if defined(_HPUX_SOURCE) || defined(linux)
+	if(read_sync)
+		flags |=O_RSYNC|O_SYNC;
+#endif
+
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__)
 	if(direct_flag)
@@ -14684,6 +14779,7 @@ int send_size;
 	strcpy(outbuf.c_write_traj_filename,send_buffer->c_write_traj_filename);
 	strcpy(outbuf.c_read_traj_filename,send_buffer->c_read_traj_filename);
 	sprintf(outbuf.c_oflag,"%d",send_buffer->c_oflag);
+	sprintf(outbuf.c_read_sync,"%d",send_buffer->c_read_sync);
 	sprintf(outbuf.c_jflag,"%d",send_buffer->c_jflag);
 	sprintf(outbuf.c_async_flag,"%d",send_buffer->c_async_flag);
 	sprintf(outbuf.c_mmapflag,"%d",send_buffer->c_mmapflag);
@@ -15490,6 +15586,7 @@ long long numrecs64, reclen;
 	cc.c_numrecs64 = numrecs64;
 	cc.c_reclen = reclen;
 	cc.c_oflag = oflag;
+	cc.c_read_sync = read_sync;
 	cc.c_jflag = jflag;
 	cc.c_direct_flag = direct_flag;
 	cc.c_async_flag = async_flag;
@@ -15718,6 +15815,7 @@ become_client()
 	sscanf(cnc->c_write_traj_filename,"%s",cc.c_write_traj_filename);
 	sscanf(cnc->c_read_traj_filename,"%s",cc.c_read_traj_filename);
 	sscanf(cnc->c_oflag,"%d",&cc.c_oflag);
+	sscanf(cnc->c_read_sync,"%d",&cc.c_read_sync);
 	sscanf(cnc->c_jflag,"%d",&cc.c_jflag);
 	sscanf(cnc->c_direct_flag,"%d",&cc.c_direct_flag);
 	sscanf(cnc->c_async_flag,"%d",&cc.c_async_flag);
@@ -15763,6 +15861,7 @@ become_client()
 	chid = cc.c_client_number;
 	workdir=cc.c_working_dir;
 	oflag = cc.c_oflag;
+	read_sync = cc.c_read_sync;
 	jflag = cc.c_jflag;
 	direct_flag = cc.c_direct_flag;
 	async_flag = cc.c_async_flag;
@@ -16567,7 +16666,10 @@ long long reclen;
 long long *data1,*data2;
 #endif
 {
+	return;
+/*
 	printf("\nMix mode test only valid in throughput mode.\n");
 	signal_handler();
 	exit(180);
+*/
 }
