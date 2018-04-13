@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.78 $
+# Version $Revision: 1.79 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -305,8 +305,8 @@ Solaris8-64: iozone_solaris8-64.o libasync.o libbif.o
 		-lsocket -o iozone
 
 #
-# Windows build requires Cygnus development environment. You
-# can get this from www.cygnus.com
+# Windows build requires Cygwin development environment. You
+# can get this from www.cygwin.com
 # No largefiles, No async I/O
 #
 Windows:	iozone_windows.o libbif.o

@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.174 $"
+#define THISVERSION "        Version $Revision: 3.177 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -5786,19 +5786,27 @@ char sverify;
 	off64_t file_position=0;
 	off64_t i;
 	char *where2;
+	char *pattern_ptr;
 	long long mpattern;
 	unsigned int seed;
 	unsigned long x;
+	unsigned long long value;
+	unsigned long long a= 0x01020304;
+	unsigned long long b = 0x05060708;
+	unsigned long long pattern_buf;
+
+	value = (a<<32) | b;
 
 	/* printf("Verify Sverify %d verify %d diag_v %d\n",sverify,verify,diag_v); */
 	x=0;
 	mpattern=patt;
+	pattern_buf=patt;
 	if(diag_v)
 	{
+		if(no_unlink)
+			base_time=0;
 		seed= (unsigned int)(base_time+chid+recnum);
 	        srand(seed);
-		mpattern=(long long)rand();
-		mpattern=(mpattern<<48) | (mpattern<<32) | (mpattern<<16) | mpattern;
 	}
 	/* printf("verify patt %llx CHid %d\n",mpattern,chid);*/
 
@@ -5820,17 +5828,17 @@ char sverify;
 	{
 	  for(i=0;i<(length);i+=page_size)
 	  {
-	      if((unsigned long long)(*where) != (unsigned long long)((patt<<32) | patt))
+	      if((unsigned long long)(*where) != (unsigned long long)((pattern_buf<<32) | pattern_buf))
 	      {
 		   file_position = (off64_t)( (recnum * recsize)+ i);
 	printf("\n\n");
 #ifdef NO_PRINT_LLD
-	printf("Error in file: Found ?%lx? Expecting ?%lx? addr %lx\n",*where, (long long)((patt<<32)|patt),where);
+	printf("Error in file: Found ?%lx? Expecting ?%lx? addr %lx\n",*where, (long long)((pattern_buf<<32)|pattern_buf),where);
 	printf("Error in file: Position %ld \n",file_position);
 	printf("Record # %ld Record size %ld kb \n",recnum,recsize/1024);
 	printf("where %8.8llx loop %ld\n",where,i);
 #else
-	printf("Error in file: Found ?%llx? Expecting ?%llx? addr %lx\n",*where, (long long)((patt<<32)|patt),((long)where));
+	printf("Error in file: Found ?%llx? Expecting ?%llx? addr %lx\n",*where, (long long)((pattern_buf<<32)|pattern_buf),((long)where));
 	printf("Error in file: Position %lld \n",file_position);
 	printf("Record # %lld Record size %lld kb \n",recnum,recsize/1024);
 	printf("where %8.8lx loop %lld\n",(long)where,(long long)i);
@@ -5846,24 +5854,29 @@ char sverify;
 	  {
 	   for(j=0;j<(cache_line_size/sizeof(long long));j++)
 	   {
-	      x=x+1;
               if(diag_v)
 	      {
-		patt=mpattern+x;
+	         mpattern=(long long)rand();
+	         mpattern=(mpattern<<48) | (mpattern<<32) | (mpattern<<16) | mpattern;
+		 pattern_buf=mpattern+value;
 	      }
 	      else
               {
-		patt= mpattern<<32 | mpattern;
+		pattern_buf= mpattern<<32 | mpattern;
 	      }
-	      if(*where != (unsigned long long)patt)
+
+	      pattern_ptr =(char *)&pattern_buf;
+
+	      if(*where != (unsigned long long)pattern_buf)
 	      {
 		   file_position = (off64_t)( (recnum * recsize))+
 			((i*cache_line_size)+j);
 		   where2=(char *)where;
 		   for(k=0;k<sizeof(long long);k++){
-		   	if(*where2 != (char)(patt&0xff))
+		   	if(*where2 != *pattern_ptr)
 				break;
 		   	where2++;
+		   	pattern_ptr++;
 		   }
 		   file_position+=k;
 	printf("\n\n");
@@ -5906,6 +5919,11 @@ char sverify;
 	long long mpattern;
 	unsigned int seed;
 	unsigned long x;
+	unsigned long long value;
+	unsigned long long a = 0x01020304;
+	unsigned long long b = 0x05060708;
+
+	value = (a << 32) | b;
 
 	x=0;
 	mpattern=pattern;
@@ -5915,10 +5933,10 @@ char sverify;
 		/*if(client_iozone)
 			base_time=0;
 		*/
+		if(no_unlink)
+			base_time=0;
 		seed= (unsigned int)(base_time+chid+recnum);
 	        srand(seed);
-		mpattern=(long long)rand();
-		mpattern=(mpattern<<48) | (mpattern<<32) | (mpattern<<16) | mpattern;
 	}
 	where=(unsigned long long *)buffer;
 	if(sverify == 1)
@@ -5936,10 +5954,11 @@ char sverify;
 		{
 			for(j=0;j<(cache_line_size/sizeof(long long));j++)
 			{
-				x=x+1;
+				mpattern=(long long)rand();
+				mpattern=(mpattern<<48) | (mpattern<<32) | (mpattern<<16) | mpattern;
 				if(diag_v)
 				{
-					*where = (long long)(mpattern+x);
+					*where = (long long)(mpattern+value);
 				}
 				else
 					*where = (long long)((pattern<<32) | pattern);

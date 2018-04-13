@@ -1671,4 +1671,9 @@ Add -DHAVE_PREAD for Solaris8-64 target.
 Revision 3.174 
 =============================================================================
 Code cleanup for Linux
+=============================================================================
+Revision 3.177 
+=============================================================================
+Improve -+d so that each byte is more unique.
+Improve byte level validation.
 
