@@ -2261,4 +2261,7 @@ Add new contributor name.
 Revision 3.342
 Add support for the programmable interdimensional timer.
 =============================================================================
+Revision 3.343
+Bug fix for PIT on remote clients.
+=============================================================================
 

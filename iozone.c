@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.342 $"
+#define THISVERSION "        Version $Revision: 3.343 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -473,7 +473,8 @@ struct runtime {
  */
 struct client_command {
 	char c_host_name[100];
-	char c_pit_host_name[40];
+	char c_pit_hostname[40];
+	char c_pit_service[8];
 	char c_client_name[100];
 	char c_working_dir[200];
 	char c_file_name[200];
@@ -568,7 +569,8 @@ struct client_command {
  */
 struct client_neutral_command {
 	char c_host_name[40];
-	char c_pit_host_name[40];
+	char c_pit_hostname[40];
+	char c_pit_service[8];
 	char c_client_name[100];
 	char c_working_dir[100];
 	char c_file_name[100];
@@ -19502,7 +19504,8 @@ int send_size;
 	 * Convert internal commands to string format for neutral format/portability
 	 */
 	strcpy(outbuf.c_host_name,send_buffer->c_host_name);
-	strcpy(outbuf.c_pit_host_name,send_buffer->c_pit_host_name);
+	strcpy(outbuf.c_pit_hostname,send_buffer->c_pit_hostname);
+	strcpy(outbuf.c_pit_service,send_buffer->c_pit_service);
 	strcpy(outbuf.c_client_name,send_buffer->c_client_name);
 	strcpy(outbuf.c_working_dir,send_buffer->c_working_dir);
 	strcpy(outbuf.c_file_name,send_buffer->c_file_name);
@@ -20391,7 +20394,8 @@ long long numrecs64, reclen;
 	/* Step 4. Send message to client telling him his name, number, */
 	/*             rsize, fsize, and test to run.			*/
 	strcpy(cc.c_host_name ,controlling_host_name);
-	strcpy(cc.c_pit_host_name ,pit_hostname);
+	strcpy(cc.c_pit_hostname ,pit_hostname);
+	strcpy(cc.c_pit_service ,pit_service);
 	strcpy(cc.c_client_name ,child_idents[x-1].child_name);
 	strcpy(cc.c_working_dir ,child_idents[x-1].workdir);
 	strcpy(cc.c_file_name ,child_idents[x-1].file_name);
@@ -20604,7 +20608,7 @@ become_client()
 	sscanf(cnc->c_client_name,"%s",cc.c_client_name);
 	sscanf(cnc->c_client_number,"%d",&cc.c_client_number);
 	sscanf(cnc->c_host_name,"%s",cc.c_host_name);
-	sscanf(cnc->c_pit_host_name,"%s",cc.c_pit_host_name);
+	sscanf(cnc->c_pit_hostname,"%s",cc.c_pit_hostname);
 
 	if(cc.c_command == R_TERMINATE || cc.c_command==R_DEATH)
 	{
@@ -20651,6 +20655,8 @@ become_client()
 	sscanf(cnc->c_delay_start,"%lld",&cc.c_delay_start);
 	sscanf(cnc->c_depth,"%lld",&cc.c_depth);
 #endif
+	sscanf(cnc->c_pit_hostname,"%s",cc.c_pit_hostname);
+	sscanf(cnc->c_pit_service,"%s",cc.c_pit_service);
 	sscanf(cnc->c_testnum,"%d",&cc.c_testnum);
 	sscanf(cnc->c_client_number,"%d",&cc.c_client_number);
 	sscanf(cnc->c_working_dir,"%s",cc.c_working_dir);
@@ -20719,6 +20725,8 @@ become_client()
 	strcpy(write_traj_filename,cc.c_write_traj_filename);
 	strcpy(read_traj_filename,cc.c_read_traj_filename);
 	numrecs64 = cc.c_numrecs64;
+	strcpy(pit_hostname,cc.c_pit_hostname);
+	strcpy(pit_service,cc.c_pit_service);
 	reclen = cc.c_reclen;
 	testnum = cc.c_testnum;
 	chid = cc.c_client_number;
