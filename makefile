@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.75 $
+# Version $Revision: 1.78 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -148,7 +148,7 @@ hpux_no_ansi:	iozone_hpux_no.o  libbif.o
 		-DNO_THREADS libbif.o -o iozone
 
 #
-# GNU 'C' compiler Linux build with threads, no largefiles, no async I/O 
+# GNU 'C' compiler Linux build with threads, largefiles, async I/O 
 #
 linux:	iozone_linux.o  libbif.o libasync.o
 	cc  -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM -DASYNC_IO \
@@ -157,7 +157,7 @@ linux:	iozone_linux.o  libbif.o libasync.o
 		-lrt -o iozone
 
 #
-# GNU 'C' compiler Linux build for powerpc chip with threads, no largefiles, no async I/O 
+# GNU 'C' compiler Linux build for powerpc chip with threads, largefiles, async I/O 
 #
 linux-powerpc: iozone_linux-powerpc.o  libbif.o libasync.o
 	cc  -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM -DASYNC_IO \
@@ -165,7 +165,7 @@ linux-powerpc: iozone_linux-powerpc.o  libbif.o libasync.o
 		iozone_linux-powerpc.o libasync.o libbif.o -lpthread \
 		-lrt -o iozone
 #
-# GNU 'C' compiler Linux build for sparc chip with threads, no largefiles, no async I/O 
+# GNU 'C' compiler Linux build for sparc chip with threads, largefiles, async I/O 
 #
 linux-sparc: iozone_linux-sparc.o  libbif.o libasync.o
 	cc  -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM -DASYNC_IO \
@@ -174,7 +174,7 @@ linux-sparc: iozone_linux-sparc.o  libbif.o libasync.o
 		-lrt -o iozone
 
 #
-# GNU 'C' compiler Linux build with no threads, no largefiles, no async I/O 
+# GNU 'C' compiler Linux build with no threads, largefiles, no async I/O 
 #
 linux-ia64:	iozone_linux-ia64.o  libbif.o
 	cc  -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM \
@@ -307,10 +307,10 @@ Solaris8-64: iozone_solaris8-64.o libasync.o libbif.o
 #
 # Windows build requires Cygnus development environment. You
 # can get this from www.cygnus.com
-# No threads, No largefiles, No async I/O
+# No largefiles, No async I/O
 #
 Windows:	iozone_windows.o libbif.o
-	gcc  -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DNO_MADVISE \
+	gcc  -O -Dunix -DHAVE_ANSIC_C -DNO_MADVISE \
 		-DWindows iozone_windows.o \
 		libbif.o -o iozone
 
@@ -581,12 +581,12 @@ iozone_linux.o:	iozone.c libbif.c libasync.c
 	@echo ""
 	@echo "Building iozone for Linux"
 	@echo ""
-	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DHAVE_PREAD \
+	cc -Wall -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DHAVE_PREAD \
 		-DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE iozone.c \
 		-DNAME='"linux"' -o iozone_linux.o
-	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
+	cc -Wall -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
 		-DSHARED_MEM -Dlinux libbif.c -o libbif.o
-	cc -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
+	cc -Wall -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE libasync.c  -o libasync.o 
 
 iozone_linux-ia64.o:	iozone.c libbif.c
@@ -678,11 +678,11 @@ iozone_solaris8-64.o: iozone.c libasync.c libbif.c
 
 iozone_windows.o:	iozone.c libasync.c libbif.c
 	@echo ""
-	@echo "Building iozone for Windows (No threads, No async I/O)"
+	@echo "Building iozone for Windows (No async I/O)"
 	@echo ""
-	gcc -c -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DNO_MADVISE  \
+	gcc -c -O -Dunix -DHAVE_ANSIC_C -DNO_MADVISE  \
 		-DWindows iozone.c -o iozone_windows.o
-	gcc -c -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS  -DNO_MADVISE \
+	gcc -c -O -Dunix -DHAVE_ANSIC_C -DNO_MADVISE \
 		-DWindows libbif.c -o libbif.o
 
 iozone_uwin.o:	iozone.c libbif.c

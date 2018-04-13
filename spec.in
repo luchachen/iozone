@@ -1,7 +1,7 @@
 Summary: IOzone Filesystem Benchmark
 Name: iozone
 Version: 3
-Release: 172
+Release: 174
 Copyright: Freeware
 Group: Applications/Engineering
 Source: %{name}%{version}_%{release}.tar
@@ -40,12 +40,16 @@ make linux
 %install
 mkdir -p $RPM_BUILD_ROOT/opt/iozone/bin
 cp $RPM_BUILD_DIR/src/current/iozone $RPM_BUILD_ROOT/opt/iozone/bin/
+cp $RPM_BUILD_DIR/src/current/Generate_Graphs $RPM_BUILD_ROOT/opt/iozone/bin/
+cp $RPM_BUILD_DIR/src/current/gengnuplot.sh $RPM_BUILD_ROOT/opt/iozone/bin/
+cp $RPM_BUILD_DIR/src/current/gnu3d.dem $RPM_BUILD_ROOT/opt/iozone/bin/
 
 mkdir -p $RPM_BUILD_ROOT/opt/iozone/docs
 cp $RPM_BUILD_DIR/docs/IOzone_msword_98.pdf $RPM_BUILD_ROOT/opt/iozone/docs/
 cp $RPM_BUILD_DIR/docs/Run_rules.doc $RPM_BUILD_ROOT/opt/iozone/docs/
 cp $RPM_BUILD_DIR/docs/IOzone_msword_98.doc $RPM_BUILD_ROOT/opt/iozone/docs/
 cp $RPM_BUILD_DIR/docs/Iozone_ps.gz $RPM_BUILD_ROOT/opt/iozone/docs/
+cp $RPM_BUILD_DIR/src/current/Gnuplot.txt $RPM_BUILD_ROOT/opt/iozone/docs/
 
 mkdir -p $RPM_BUILD_ROOT/opt/iozone/man/man1
 cp $RPM_BUILD_DIR/docs/iozone.1 $RPM_BUILD_ROOT/opt/iozone/man/man1/

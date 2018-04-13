@@ -51,15 +51,22 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.172 $"
+#define THISVERSION "        Version $Revision: 3.174 $"
 
+#if defined(linux)
+  #define _GNU_SOURCE
+#endif
 /* Include for Cygnus development environment for Windows */
-#ifdef Windows
+#if defined (Windows)
 #include <Windows.h>
 int errno;
 #else
+#if defined(linux)
+#include <errno.h>
+#else
 extern  int errno;   /* imported for errors */
 extern  int h_errno; /* imported for errors */
+#endif
 #endif
 
 
@@ -75,6 +82,11 @@ extern  int h_errno; /* imported for errors */
 #include <pthread.h>
 #endif
 
+#if defined(HAVE_ANSIC_C) && defined(linux)
+#include <stdlib.h>
+#include <sys/wait.h>
+#endif
+
 #ifdef HAVE_PROTO
 #include "proto.h"
 #else
@@ -83,7 +95,9 @@ int close();
 int unlink();
 int main();
 void record_command_line();
+#if !defined(linux)
 int wait();
+#endif
 int fsync();
 void srand48();
 long lrand48();
@@ -222,9 +236,6 @@ THISVERSION,
 #include <signal.h>
 #include <unistd.h>
 
-#if defined(linux)
-  #define __USE_GNU
-#endif
 #include <fcntl.h>
 #if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__APPLE__)
 #include <malloc.h>
@@ -255,6 +266,12 @@ THISVERSION,
 
 #if defined(OSFV5) || defined(linux)
 #include <string.h>
+#endif
+
+#if defined(linux)
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #endif
 
 #ifndef MAP_FAILED
@@ -352,9 +369,6 @@ struct piovec piov[PVECMAX];
 #endif
 #endif
 
-#if defined(linux)
-#include <errno.h>
-#endif
 
 /*
  * In multi thread/process throughput mode each child keeps track of
@@ -859,11 +873,17 @@ void dump_throughput();
 int sp_start_child_send();
 int sp_start_master_listen();
 #ifdef HAVE_ANSIC_C
+#if defined (HAVE_PREAD) && defined(_LARGEFILE64_SOURCE)
+ssize_t pwrite64(); 
+ssize_t pread64(); 
+#endif
+#if !defined(linux)
 char *getenv();
 char *inet_ntoa();
+int system();
+#endif
 void my_nap();
 int thread_exit();
-int system();
 #ifdef ASYNC_IO
 size_t async_write();
 void async_release();
@@ -929,11 +949,13 @@ void del_record_sizes( void );
 void do_speed_check(int);
 #else
 void do_speed_check();
+#if !defined(linux)
 char *getenv();
 char *inet_ntoa();
+int system();
+#endif
 void my_nap();
 int thread_exit();
-int system();
 void close_xls();
 void do_label();
 int create_xls();
@@ -989,16 +1011,20 @@ void del_record_sizes();
 #define I_OPEN(x,y,z) 	open64(x,(int)(y),(int)(z))
 #define I_CREAT(x,y) 	creat64(x,(int)(y))
 #define I_FOPEN(x,y) 	fopen64(x,y)
+#ifdef HAVE_PREAD
 #define I_PREAD(a,b,c,d)	pread64(a,b,(size_t)(c),(off64_t)(d))
 #define I_PWRITE(a,b,c,d)	pwrite64(a,b,(size_t)(c),(off64_t)(d))
+#endif
 #define I_MMAP(a,b,c,d,e,f) 	mmap64((void *)(a),(size_t)(b),(int)(c),(int)(d),(int)(e),(off64_t)(f))
 #else
 #define I_LSEEK(x,y,z) 	lseek(x,(off_t)(y),z)
 #define I_OPEN(x,y,z) 	open(x,(int)(y),(int)(z))
 #define I_CREAT(x,y) 	creat(x,(int)(y))
 #define I_FOPEN(x,y) 	fopen(x,y)
+#ifdef HAVE_PREAD
 #define I_PREAD(a,b,c,d)	pread(a,b,(size_t)(c),(off_t)(d))
 #define I_PWRITE(a,b,c,d)	pwrite(a,b,(size_t)(c),(off_t)(d))
+#endif
 #define I_MMAP(a,b,c,d,e,f) 	mmap((void *)(a),(size_t)(b),(int)(c),(int)(d),(int)(e),(off_t)(f))
 #endif
 
@@ -7151,8 +7177,10 @@ long long *data1, *data2;
 	double starttime2;
 	double walltime[2], cputime[2];
 	double compute_val = (double)0;
-	unsigned int rand1,rand2;
+#if defined (bsd4_2) || defined(Windows)
 	long big_rand;
+	unsigned int rand1,rand2;
+#endif
 	long long j;
 	off64_t i,numrecs64;
 	long long Index=0;
@@ -7163,7 +7191,9 @@ long long *data1, *data2;
 	char *wmaddr,*nbuff;
 	char *maddr,*free_addr;
 	int fd,wval;
+#ifdef VXFS
 	int test_foo=0;
+#endif
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -7532,7 +7562,9 @@ long long *data1,*data2;
 	char *maddr,*wmaddr;
 	volatile char *buffer1;
 	char *nbuff;
+#ifdef VXFS
 	int test_foo=0;
+#endif
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -7778,7 +7810,9 @@ long long *data1,*data2;
 	int fd,wval;
 	char *maddr;
 	char *wmaddr,*free_addr,*nbuff;
+#ifdef VXFS
 	int test_foo=0;
+#endif
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -8031,7 +8065,9 @@ long long *data1, *data2;
 	char *nbuff;
 	char *maddr;
 	char *wmaddr;
+#ifdef VXFS
 	int test_foo=0;
+#endif
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -8315,7 +8351,9 @@ long long *data1,*data2;
 	off64_t filebytes64;
 	long long flags_here = 0;
 	int fd;
+#ifdef VXFS
 	int test_foo=0;
+#endif
 	char *nbuff;
 
 	nbuff=mainbuffer;
@@ -8515,6 +8553,7 @@ long long *data1,*data2;
 /* pread_perf_test				        		*/
 /* pread and re-pread test						*/
 /************************************************************************/
+#ifdef HAVE_PREAD
 #ifdef HAVE_ANSIC_C
 void pread_perf_test(off64_t kilos64,long long reclen,long long *data1,long long *data2)
 #else
@@ -8533,10 +8572,12 @@ long long *data1, *data2;
 	long long Index = 0;
 	unsigned long long preadrate[2];
 	off64_t filebytes64;
-	int fd,open_flags,test_foo;
+	int fd,open_flags;
+#ifdef VXFS
+	int test_foo = 0;
+#endif
 	char *nbuff;
 
-	test_foo=0;
 	nbuff=mainbuffer;
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
@@ -8607,13 +8648,13 @@ long long *data1, *data2;
 
 			if(purge)
 				purgeit(nbuff,reclen);
-			if(I_PREAD((int)fd, (void*)nbuff, (size_t) reclen,(i * reclen) ) 
+			if(I_PREAD(((int)fd), ((void*)nbuff), ((size_t) reclen),(i * reclen) ) 
 					!= reclen)
 			{
 #ifdef NO_PRINT_LLD
-				printf("\nError reading block %ld %x\n", i,nbuff);
+				printf("\nError reading block %ld %lx\n", i,(unsigned long)nbuff);
 #else
-				printf("\nError reading block %lld %x\n", i,nbuff);
+				printf("\nError reading block %lld %lx\n", i,(unsigned long)nbuff);
 #endif
 				perror("pread");
 				exit(103);
@@ -8686,6 +8727,7 @@ long long *data1, *data2;
 	if(!silent) fflush(stdout);
 #endif
 }
+#endif
 
 #ifdef HAVE_PREADV
 /************************************************************************/
@@ -8710,11 +8752,13 @@ long long *data1,*data2;
 	unsigned long long pwritevrate[2];
 	off64_t filebytes64,i;
 	off64_t numrecs64;
-	int fd,test_foo;
+	int fd;
+#ifdef VXFS
+	int test_foo = 0;
+#endif
 	long long flags_here;
 	char *nbuff;
 
-	test_foo=0;
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	nbuff = mainbuffer;
@@ -8934,8 +8978,10 @@ off64_t numrecs64;
 	off64_t offset;
 	long long found,i,j;
 	long long numvecs;
+#if defined (bsd4_2) || defined(Windows)
 	unsigned int rand1,rand2;
 	long big_rand;
+#endif
 
 	numvecs = PVECMAX;
 	if(numrecs64< numvecs)
@@ -9003,10 +9049,12 @@ long long *data1,*data2;
 	off64_t numrecs64;
 	unsigned long long preadvrate[2];
 	off64_t filebytes64;
-	int fd,open_flags,test_foo;
+	int fd,open_flags;
+#ifdef VXFS
+	int test_foo = 0;
+#endif
 	char *nbuff;
 
-	test_foo=0;
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
 #if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64)
@@ -9200,12 +9248,11 @@ void print_header()
 		," ",
 		" ",
 		" ",
-		" ",
 		" "
 #ifdef HAVE_PREADV
 		," ",
 		" ",
-		" "
+		" ",
 		" "
 #endif
 #endif
@@ -9854,6 +9901,7 @@ long long size;
 	int shmid;
 	int tfd;
 
+	dumb = (char *)0;
 	tfd=0;
 	size1=l_max(size,page_size);
 	if(!distributed)
@@ -10104,7 +10152,10 @@ thread_write_test( x)
 	char *nbuff;
 	char *maddr;
 	char *wmaddr,*free_addr;
-	int anwser,bind_cpu,wval,test_foo;
+	int anwser,bind_cpu,wval;
+#ifdef VXFS
+	int test_foo = 0;
+#endif
 	off64_t filebytes64;
 	char tmpname[256];
 	FILE *thread_wqfd;
@@ -10120,7 +10171,7 @@ thread_write_test( x)
 	thread_qtime_stop=thread_qtime_start=0;
 	thread_wqfd=w_traj_fd=(FILE *)0;
 	traj_offset=walltime=cputime=0;
-	anwser=bind_cpu=test_foo=0;
+	anwser=bind_cpu=0;
 	if(w_traj_flag)
 	{
 		filebytes64 = w_traj_fsize;
@@ -10622,7 +10673,10 @@ thread_pwrite_test( x)
 	char *nbuff;
 	char *maddr;
 	char *wmaddr,*free_addr;
-	int anwser,bind_cpu,wval,test_foo;
+	int anwser,bind_cpu,wval;
+#ifdef VXFS
+	int test_foo = 0;
+#endif
 	off64_t filebytes64;
 	char tmpname[256];
 	FILE *thread_wqfd;
@@ -10638,7 +10692,7 @@ thread_pwrite_test( x)
 	thread_qtime_stop=thread_qtime_start=0;
 	thread_wqfd=w_traj_fd=(FILE *)0;
 	traj_offset=walltime=cputime=0;
-	anwser=bind_cpu=test_foo=0;
+	anwser=bind_cpu=0;
 	if(w_traj_flag)
 	{
 		filebytes64 = w_traj_fsize;
@@ -11145,7 +11199,9 @@ thread_rwrite_test(x)
 	int anwser,bind_cpu,wval;
 	FILE *thread_rwqfd;
 	char tmpname[256];
-	int test_foo;
+#ifdef VXFS
+	int test_foo = 0;
+#endif
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 
@@ -11157,7 +11213,7 @@ thread_rwrite_test(x)
 	thread_rwqfd=w_traj_fd=(FILE *)0;
 	traj_offset=thread_qtime_stop=thread_qtime_start=0;
 	walltime=cputime=0;
-	anwser=bind_cpu=test_foo=0;
+	anwser=bind_cpu=0;
 	w_traj_bytes_completed=w_traj_ops_completed=0;
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
@@ -11569,7 +11625,9 @@ thread_read_test(x)
 	char tmpname[256];
 	volatile char *buffer1;
 	int anwser,bind_cpu;
-	int test_foo;
+#ifdef VXFS
+	int test_foo = 0;
+#endif
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -11579,7 +11637,7 @@ thread_read_test(x)
 	thread_rqfd=r_traj_fd=(FILE *)0;
 	traj_offset=thread_qtime_stop=thread_qtime_start=0;
 	walltime=cputime=0;
-	anwser=bind_cpu=test_foo=0;
+	anwser=bind_cpu=0;
 	r_traj_bytes_completed=r_traj_ops_completed=0;
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
@@ -11985,7 +12043,9 @@ thread_pread_test(x)
 	char tmpname[256];
 	volatile char *buffer1;
 	int anwser,bind_cpu;
-	int test_foo;
+#ifdef VXFS
+	int test_foo = 0;
+#endif
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -11995,7 +12055,7 @@ thread_pread_test(x)
 	thread_rqfd=r_traj_fd=(FILE *)0;
 	traj_offset=thread_qtime_stop=thread_qtime_start=0;
 	walltime=cputime=0;
-	anwser=bind_cpu=test_foo=0;
+	anwser=bind_cpu=0;
 	r_traj_bytes_completed=r_traj_ops_completed=0;
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
@@ -12402,7 +12462,9 @@ thread_rread_test(x)
 	volatile char *buffer1;
 	int anwser,bind_cpu;
 	char tmpname[256];
-	int test_foo;
+#ifdef VXFS
+	int test_foo = 0;
+#endif
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -12414,7 +12476,7 @@ thread_rread_test(x)
 	thread_qtime_stop=thread_qtime_start=0;
 	thread_rrqfd=r_traj_fd=(FILE *)0;
 	traj_offset=walltime=cputime=0;
-	anwser=bind_cpu=test_foo=0;
+	anwser=bind_cpu=0;
 	r_traj_bytes_completed=r_traj_ops_completed=0;
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
@@ -12813,7 +12875,9 @@ thread_reverse_read_test(x)
 	off64_t traj_offset;
 	char tmpname[256];
 	FILE *thread_revqfd=0;
-	int test_foo;
+#ifdef VXFS
+	int test_foo = 0;
+#endif
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -12824,7 +12888,7 @@ thread_reverse_read_test(x)
 	/*****************/
 	thread_qtime_stop=thread_qtime_start=0;
 	traj_offset=walltime=cputime=0;
-	anwser=bind_cpu=test_foo=0;
+	anwser=bind_cpu=0;
 	written_so_far=read_so_far=reverse_read=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
 #ifdef NO_THREADS
@@ -13206,7 +13270,9 @@ thread_stride_read_test(x)
 	off64_t traj_offset;
 	char tmpname[256];
 	FILE *thread_strqfd=0;
-	int test_foo;
+#ifdef VXFS
+	int test_foo = 0;
+#endif
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -13217,7 +13283,7 @@ thread_stride_read_test(x)
 	/*****************/
 	thread_qtime_stop=thread_qtime_start=0;
 	traj_offset=walltime=cputime=0;
-	anwser=bind_cpu=test_foo=0;
+	anwser=bind_cpu=0;
 	written_so_far=read_so_far=stride_read=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
 #ifdef NO_THREADS
@@ -13679,10 +13745,14 @@ thread_ranread_test(x)
 	off64_t traj_offset;
 	char tmpname[256];
 	FILE *thread_randrfd=0;
-	int test_foo;
+#ifdef VXFS
+	int test_foo = 0;
+#endif
 	long long save_pos;
+#if defined (bsd4_2) || defined(Windows)
 	unsigned int rand1,rand2;
 	long big_rand;
+#endif
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
@@ -13691,7 +13761,7 @@ thread_ranread_test(x)
 
 	thread_qtime_stop=thread_qtime_start=0;
 	traj_offset=walltime=cputime=0;
-	anwser=bind_cpu=test_foo=0;
+	anwser=bind_cpu=0;
 	written_so_far=ranread_so_far=re_written_so_far=re_read_so_far=0;
 	recs_per_buffer = cache_size/reclen ;
 #ifdef NO_THREADS
@@ -14100,9 +14170,13 @@ thread_ranwrite_test( x)
 	off64_t filebytes64;
 	char tmpname[256];
 	FILE *thread_randwqfd=0;
-	int test_foo;
+#ifdef VXFS
+	int test_foo = 0;
+#endif
+#if defined (bsd4_2) || defined(Windows)
 	unsigned int rand1,rand2;
 	long big_rand;
+#endif
 
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -14113,7 +14187,7 @@ thread_ranwrite_test( x)
 
 	thread_qtime_stop=thread_qtime_start=0;
 	traj_offset=walltime=cputime=0;
-	anwser=bind_cpu=test_foo=0;
+	anwser=bind_cpu=0;
 	filebytes64 = numrecs64*reclen;
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
 	w_traj_bytes_completed=w_traj_ops_completed=0;
@@ -15271,7 +15345,7 @@ void
 get_resolution()
 #endif
 {
-        double starttime, finishtime, besttime;
+        double starttime, finishtime, besttime = 0;
         long  j,delay;
 	int k;
 
@@ -17931,6 +18005,7 @@ int num;
 	struct child_stats *child_stat;
 	struct master_neutral_command *mnc;
 	struct master_command mc;
+	int temp;
 
 	master_join_count=num;
 	master_listen_pid=fork();
@@ -17965,7 +18040,8 @@ int num;
 		sscanf(mnc->m_throughput,"%f",&mc.m_throughput);
 		sscanf(mnc->m_start_time,"%f",&mc.m_start_time);
 		sscanf(mnc->m_stop_time,"%f",&mc.m_stop_time);
-		sscanf(mnc->m_stop_flag,"%d",&mc.m_stop_flag);
+		sscanf(mnc->m_stop_flag,"%d",&temp);
+		mc.m_stop_flag = temp;
 
 		switch(mc.m_command) {
 		case R_STAT_DATA:
@@ -18496,7 +18572,7 @@ long long kilos;
 int client_flag;
 #endif
 {
-	int x,y,i,fdx;
+	int x;
 
 
 	strcpy(sp_master_host,controlling_host_name);
@@ -18937,7 +19013,7 @@ sp_do_master_t()
 		sp_master_host,sp_tcount/1024,
 		(float)(sp_tcount/1024)/(sp_finish_time-sp_start_time));
 	printf("\n");
-	wait();
+	wait(NULL);
 	close(sp_mrfd);
 	sp_mrfd=0;
 }
