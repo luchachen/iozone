@@ -1300,5 +1300,9 @@ Revision 3.77
 =============================================================================
 Disable CPU utilization in distributed mode.
 Bug fix for CPU utilization in normal mode.
+=============================================================================
+Revision 3.78
+=============================================================================
+Fix compatibility with AIX for shmat()
 
 

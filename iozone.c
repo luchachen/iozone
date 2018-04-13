@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.77 $"
+#define THISVERSION "        Version $Revision: 3.78 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -8455,7 +8455,7 @@ long long size;
 {
 	long long size1;
 	char *addr;
-	long long shmid;
+	int shmid;
 	int tfd;
 	char *dumb;
 	
@@ -8472,14 +8472,14 @@ long long size;
 #ifdef SHARED_MEM
 	size1=max(size,page_size);
 	size1=(size1 +page_size) & ~(page_size-1);
-	shmid=(long long)shmget((key_t)(IPC_PRIVATE), (size_t)size1 , (int)(IPC_CREAT|0666));
-        if(shmid < (long long)0)
+	shmid=(int)shmget((key_t)(IPC_PRIVATE), (size_t)size1 , (int)(IPC_CREAT|0666));
+        if(shmid < (int)0)
         {
                 printf("\nUnable to get shared memory segment(shmget)\n");
 #ifdef NO_PRINT_LLD
-                printf("shmid = %ld, size = %ld, size1 = %d, Error %d\n",shmid,size,(size_t)size1,errno);
+                printf("shmid = %d, size = %ld, size1 = %d, Error %d\n",shmid,size,(size_t)size1,errno);
 #else
-                printf("shmid = %lld, size = %lld, size1 = %d, Error %d\n",shmid,size,(size_t)size1,errno);
+                printf("shmid = %d, size = %lld, size1 = %d, Error %d\n",shmid,size,(size_t)size1,errno);
 #endif
                 exit(119);
         }
@@ -8490,7 +8490,7 @@ long long size;
 	 * The POSIX standard states that if SHM_RDONLY
 	 * is not specified then it will be read/write.
 	 */
-        addr = (char *)shmat(shmid, 0, 0);
+        addr = (char *)shmat((int)shmid, 0, 0);
 #ifdef __LP64__
         if((long long)addr == (long long)-1)
 #else
