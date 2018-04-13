@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.218 $"
+#define THISVERSION "        Version $Revision: 3.221 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -198,6 +198,7 @@ char *help[] = {
 "           -+q Delay in seconds between tests.",
 "           -+l Enable record locking mode.",
 "           -+L Enable record locking mode, with shared file.",
+"           -+B Sequential mixed workload.",
 #if defined(O_DSYNC)
 "           -+D Enable O_DSYNC mode.",
 #endif
@@ -461,6 +462,7 @@ struct client_command {
 	int c_r_traj_flag;
 	int c_direct_flag;
 	int c_cpuutilflag;
+	int c_seq_mix;
 	int c_client_number;
 	int c_command;
 	int c_testnum;
@@ -542,6 +544,7 @@ struct client_neutral_command {
 	char c_r_traj_flag[2];		/* small int */
 	char c_direct_flag[2]; 		/* small int */
 	char c_cpuutilflag[2]; 		/* small int */
+	char c_seq_mix[2]; 		/* small int */
 	char c_stride[10]; 		/* small long long */
 	char c_rest_val[10]; 		/* small long long */
 	char c_purge[10]; 		/* very small long long */
@@ -1164,6 +1167,7 @@ char *build_name = NAME;
 #endif
 char trflag; 
 char cpuutilflag;
+char seq_mix;
 long base_time;
 long long mint, maxt; 
 long long w_traj_ops, r_traj_ops, w_traj_fsize,r_traj_fsize;
@@ -1227,7 +1231,7 @@ long long orig_min_rec_size = RECLEN_START;
 long long orig_max_rec_size = RECLEN_END;
 long long xover = CROSSOVER;
 char *throughput_tests[] = {"Initial write","Rewrite","Read","Re-read",
-	"Reverse Read","Stride read","Random read","Random mix","Random write","Pwrite","Pread"};
+	"Reverse Read","Stride read","Random read","Mixed workload","Random write","Pwrite","Pread"};
 char command_line[1024] = "\0";
 #ifdef unix
 double sc_clk_tck;
@@ -1319,7 +1323,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 14;
+int proto_version = 15;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1811,7 +1815,7 @@ char **argv;
 				inp_pat = PATTERN;
 			pattern = ((inp_pat << 24) | (inp_pat << 16) | (inp_pat << 8) 
 				| inp_pat);
-			verify++;
+			verify=1;
 	    		sprintf(splash[splash_line++],"\tVerify Mode. Pattern %x\n",pattern);
     			sprintf(splash[splash_line++],"\tPerformance measurements are invalid in this mode.\n");
 			break;
@@ -2260,6 +2264,10 @@ char **argv;
 					sprintf(splash[splash_line++],"\t>>> Record locking, shared file mode enabled. <<<\n");
 					share_file=1;
 					rlocking=1;
+					break;
+				case 'B':  /* Sequential mix */
+					sprintf(splash[splash_line++],"\t>>> Sequential Mixed workload. <<<\n");
+					seq_mix=1;
 					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
@@ -4732,7 +4740,7 @@ next3:
 		cleanup_comm();
 	}
 	/**************************************************************/
-	/*** random mix throughput tests ***************************/
+	/***  mixed workload throughput tests ***************************/
 	/**************************************************************/
 next4:
 	if(include_tflag)
@@ -4896,11 +4904,11 @@ next4:
 		store_times (walltime, cputime);	/* Must be Before store_dvalue(). */
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("\tChildren see throughput for %ld random mix \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent && !distributed) printf("\tParent sees throughput for %ld random mix \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent) printf("\tChildren see throughput for %ld mixed workload \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %ld mixed workload \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #else
-	if(!silent) printf("\tChildren see throughput for %lld random mix \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
-	if(!silent && !distributed) printf("\tParent sees throughput for %lld random mix \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
+	if(!silent) printf("\tChildren see throughput for %lld mixed workload \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
+	if(!silent && !distributed) printf("\tParent sees throughput for %lld mixed workload \t= %10.2f %s/sec\n", num_child, (double)(ptotal)/total_time,unit);
 #endif
 	if(!silent) printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	if(!silent) printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
@@ -6320,7 +6328,7 @@ long long *data2;
 				mylockr((int) fd, (int) 1, (int)0,
 				  lock_offset, reclen);
 			}
-			if(verify & diag_v)
+			if(verify && diag_v)
 				fill_buffer(pbuff,reclen,(long long)pattern,sverify,i);
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
@@ -14274,12 +14282,18 @@ thread_mix_test(x)
 	if(selector==0)
 	{
 		if(cdebug || mdebug) printf("Mix read %d\n",selector);
-		thread_ranread_test(x);
+		if(seq_mix)
+			thread_read_test(x);
+		else
+			thread_ranread_test(x);
 	}
 	else
 	{
 		if(cdebug || mdebug) printf("Mix write %d\n",selector);
-		thread_ranwrite_test(x);
+		if(seq_mix)
+			thread_write_test(x);
+		else
+			thread_ranwrite_test(x);
 	}
 	return(0);
 }
@@ -17257,6 +17271,7 @@ int send_size;
 	sprintf(outbuf.c_r_traj_flag,"%d",send_buffer->c_r_traj_flag);
 	sprintf(outbuf.c_direct_flag,"%d",send_buffer->c_direct_flag);
 	sprintf(outbuf.c_cpuutilflag,"%d",send_buffer->c_cpuutilflag);
+	sprintf(outbuf.c_seq_mix,"%d",send_buffer->c_seq_mix);
 	sprintf(outbuf.c_client_number,"%d",send_buffer->c_client_number);
 	sprintf(outbuf.c_command,"%d",send_buffer->c_command);
 	sprintf(outbuf.c_testnum,"%d",send_buffer->c_testnum);
@@ -17764,6 +17779,7 @@ struct in_addr *my_s_addr;
 	struct sockaddr_in addr,raddr;
 	struct hostent *he;
 	int port,tmp_port;
+	int ecount = 0;
 	struct in_addr *ip;
         he = gethostbyname(child_host_name);
         if (he == NULL)
@@ -17827,11 +17843,16 @@ struct in_addr *my_s_addr;
                 perror("Master: bind failed for sync channel to child.\n");
                 exit(24);
         }
-	sleep(1);
+again:
         rc = connect(master_socket_val, (struct sockaddr *)&raddr, 
 			sizeof(struct sockaddr_in));
 	if (rc < 0)
         {
+		if(ecount++ < 30)
+		{
+			sleep(1);
+			goto again;
+		}
                 perror("Master: connect failed\n");
 		printf("Error %d\n",errno);
                 exit(25);
@@ -17862,6 +17883,7 @@ struct in_addr my_s_addr;
 	int rc,master_socket_val;
 	struct sockaddr_in addr,raddr;
 	int port,tmp_port;
+	int ecount = 0;
 
 	port=child_port;
 
@@ -17901,11 +17923,16 @@ struct in_addr my_s_addr;
                 perror("Master: bind async failed\n");
                 exit(24);
         }
-	sleep(1);
+again:
         rc = connect(master_socket_val, (struct sockaddr *)&raddr, 
 			sizeof(struct sockaddr_in));
 	if (rc < 0)
         {
+		if(ecount++ < 30)
+		{
+			sleep(1);
+			goto again;
+		}
                 perror("Master: async connect failed\n");
                 exit(25);
         }
@@ -18069,6 +18096,7 @@ long long numrecs64, reclen;
 	cc.c_jflag = jflag;
 	cc.c_direct_flag = direct_flag;
 	cc.c_cpuutilflag = cpuutilflag;
+	cc.c_seq_mix = seq_mix;
 	cc.c_async_flag = async_flag;
 	cc.c_k_flag = k_flag;
 	cc.c_h_flag = h_flag;
@@ -18309,6 +18337,7 @@ become_client()
 	sscanf(cnc->c_jflag,"%d",&cc.c_jflag);
 	sscanf(cnc->c_direct_flag,"%d",&cc.c_direct_flag);
 	sscanf(cnc->c_cpuutilflag,"%d",&cc.c_cpuutilflag);
+	sscanf(cnc->c_seq_mix,"%d",&cc.c_seq_mix);
 	sscanf(cnc->c_async_flag,"%d",&cc.c_async_flag);
 	sscanf(cnc->c_k_flag,"%d",&cc.c_k_flag);
 	sscanf(cnc->c_h_flag,"%d",&cc.c_h_flag);
@@ -18363,6 +18392,7 @@ become_client()
 	jflag = cc.c_jflag;
 	direct_flag = cc.c_direct_flag;
 	cpuutilflag = cc.c_cpuutilflag;
+	seq_mix = cc.c_seq_mix;
 	async_flag = cc.c_async_flag;
 	k_flag = cc.c_k_flag;
 	h_flag = cc.c_h_flag;
@@ -18515,7 +18545,7 @@ become_client()
 	case THREAD_RANDOM_MIX_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child %d running random mix test\n",(int)chid);
+			printf("Child %d running mixed workload test\n",(int)chid);
 			fflush(stdout);
 		}
 		thread_mix_test((long)0);
@@ -19408,6 +19438,7 @@ struct in_addr *sp_my_ms_addr;
 	struct sockaddr_in addr,raddr;
 	struct hostent *he;
 	int port,tmp_port;
+	int ecount=0;
 	struct in_addr *ip;
         he = gethostbyname(sp_child_host_name);
         if (he == NULL)
@@ -19471,11 +19502,16 @@ struct in_addr *sp_my_ms_addr;
                 perror("Master: bind failed for sync channel to child.\n");
                 exit(24);
         }
-	sleep(1);
+again:
         rc = connect(master_socket_val, (struct sockaddr *)&raddr, 
 			sizeof(struct sockaddr_in));
 	if (rc < 0)
         {
+		if(ecount++ < 30)
+		{
+			sleep(1);
+			goto again;
+		}
                 perror("Master: connect failed\n");
 		printf("Error %d\n",errno);
                 exit(25);

@@ -1847,4 +1847,16 @@ Revision 3.218
 Add label to Excel spreadsheet that describes the rows and columns.
 Add support for Solaris64 with VxFS.
 Add support for Linux-arm
+=============================================================================
+Revision 3.219
+=============================================================================
+Add sleep to permit child to get connection up before master does connect.
+=============================================================================
+Revision 3.220
+=============================================================================
+Improve master connect to child, without delays.
+=============================================================================
+Revision 3.221
+=============================================================================
+Add -+B Mixed sequential testing. BlueArc request.
 
