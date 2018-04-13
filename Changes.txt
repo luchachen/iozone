@@ -1205,5 +1205,10 @@ an auto mode run.
 Revision 3.56
 =============================================================================
 Added support for SCO Unixware SVR5 with gcc compiler
+=============================================================================
+Revision 3.57
+=============================================================================
+Fixed bug where file locking was not being used when
+_LARGE_FILE64_SOURCE was defined in read_perf_test.
 
 

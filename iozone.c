@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.56 $"
+#define THISVERSION "        Version $Revision: 3.57 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -4223,9 +4223,6 @@ long long *data1,*data2;
 			perror("open");
 			exit(59);
 		}
-		if(file_lock)
-			if(mylockf((int) fd, (int) 1, (int)1) != 0)
-				printf("File lock for read failed. %d\n",errno);
 #ifdef ASYNC_IO
 #ifdef _HPUX_SOURCE
 		if(async_flag)
@@ -4241,6 +4238,9 @@ long long *data1,*data2;
 #endif
 
 #endif
+		if(file_lock)
+			if(mylockf((int) fd, (int) 1, (int)1) != 0)
+				printf("File lock for read failed. %d\n",errno);
 		if(mmapflag)
 		{
 			maddr=(char *)initfile(fd,filebytes64,0,PROT_READ);
