@@ -103,7 +103,7 @@
 #include <sys/errno.h>
 #include <unistd.h>
 #include <malloc.h>
-#ifdef _HPUX_SOURCE
+#ifdef VXFS
 #include <sys/fs/vx_ioctl.h>
 #endif
 
@@ -148,7 +148,7 @@ extern int one;
  * cache, pointed to by async_init(gc) will be of
  * this structure type.
  */
-char version[] = "Libasync Version $Revision: 3.16 $";
+char version[] = "Libasync Version $Revision: 3.19 $";
 struct cache_ent {
 	struct aiocb myaiocb;			/* For use in small file mode */
 #ifdef _LARGEFILE64_SOURCE 
@@ -1437,12 +1437,14 @@ struct cache *gc;
 	{
 		printf("aio_return error: %d\n",errno);
 	}
+
 	if(!ce->direct)
 	{
 		/* printf("Freeing buffer %x\n",ce->real_address);*/
 		free((void *)(ce->real_address));
 		free((void *)ce);
 	}
+
 }
 
 /*************************************************************************

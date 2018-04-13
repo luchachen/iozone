@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.217 $"
+#define THISVERSION "        Version $Revision: 3.218 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -9944,6 +9944,8 @@ void dump_excel()
 	{
 		bif_fd=create_xls(bif_filename);
 		do_label(bif_fd,command_line,bif_row++,bif_column);
+		do_label(bif_fd," ",bif_row++,bif_column);
+                do_label(bif_fd,"The top row is records sizes, the left column is file sizes",bif_row++,bif_column);
 	}
 	if(!silent) printf("Excel output is below:\n");
 

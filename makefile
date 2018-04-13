@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.84 $
+# Version $Revision: 1.88 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -33,6 +33,7 @@ all:
 	@echo "        ->   IRIX                 (32bit)   <-"
 	@echo "        ->   IRIX64               (64bit)   <-"
 	@echo "        ->   linux                (32bit)   <-"
+	@echo "        ->   linux-arm            (32bit)   <-"
 	@echo "        ->   linux-AMD64          (64bit)   <-"
 	@echo "        ->   linux-ia64           (64bit)   <-"
 	@echo "        ->   linux-powerpc        (32bit)   <-"
@@ -52,6 +53,7 @@ all:
 	@echo "        ->   Solaris-2.6          (32bit)   <-"
 	@echo "        ->   Solaris7gcc          (32bit)   <-"
 	@echo "        ->   Solaris8-64          (64bit)   <-"
+	@echo "        ->   Solaris8-64-VXFS     (64bit)   <-"
 	@echo "        ->   sppux                (32bit)   <-"
 	@echo "        ->   sppux-10.1           (32bit)   <-"
 	@echo "        ->   sppux_no_ansi-10.1   (32bit)   <-"
@@ -183,6 +185,15 @@ linux-ia64:	iozone_linux-ia64.o  libbif.o libasync.o
 	cc  -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM \
 		-D_LARGEFILE64_SOURCE -Dlinux \
 		iozone_linux-ia64.o libbif.o libasync.o -lrt -lpthread \
+		-o iozone
+
+#
+# GNU 'C' compiler Linux build with threads, largefiles, async I/O
+#
+linux-arm:	iozone_linux-arm.o  libbif.o libasync.o
+	cc  -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM \
+		-D_LARGEFILE64_SOURCE -Dlinux \
+		iozone_linux-arm.o libbif.o libasync.o -lrt -lpthread \
 		-o iozone
 
 #
@@ -332,6 +343,17 @@ Solaris-2.6:	iozone_solaris-2.6.o libbif.o
 Solaris8-64: iozone_solaris8-64.o libasync.o libbif.o
 	cc -fast -xtarget=generic64 -v -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-Dsolaris iozone_solaris8-64.o libasync.o libbif.o \
+		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -lthread \
+		-lpthread -lposix4 -lnsl -laio \
+		-lsocket -o iozone
+
+#
+# Solaris 64 bit build with threads, largefiles, async I/O, and Vxfs
+#
+Solaris8-64-VXFS: iozone_solaris8-64-VXFS.o libasync.o libbif.o
+	cc -fast -xtarget=generic64 -v -I/opt/VRTSxfs/include/ -Dunix \
+		-DVXFS -DHAVE_ANSIC_C -DASYNC_IO \
+		-Dsolaris iozone_solaris8-64-VXFS.o libasync.o libbif.o \
 		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -lthread \
 		-lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
@@ -633,6 +655,19 @@ iozone_linux-ia64.o:	iozone.c libbif.c libasync.c
 	cc -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE libasync.c  -o libasync.o 
 
+iozone_linux-arm.o:	iozone.c libbif.c libasync.c
+	@echo ""
+	@echo "Building iozone for Linux-arm"
+	@echo ""
+	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DHAVE_PREAD \
+		-DNAME='"linux-arm"' -DLINUX_ARM -DSHARED_MEM \
+		-Dlinux -D_LARGEFILE64_SOURCE iozone.c \
+		-o iozone_linux-arm.o
+	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
+		-DSHARED_MEM -DZBIG_ENDIAN2 -Dlinux libbif.c -o libbif.o
+	cc -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
+		-D_LARGEFILE64_SOURCE libasync.c  -o libasync.o
+
 iozone_linux-AMD64.o:	iozone.c libbif.c libasync.c
 	@echo ""
 	@echo "Building iozone for Linux-AMD64"
@@ -745,6 +780,24 @@ iozone_solaris8-64.o: iozone.c libasync.c libbif.c
 		-D__LP64__ -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
 		-Dsolaris -DHAVE_PREAD libasync.c -o libasync.o
 	cc -fast -xtarget=generic64 -v -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
+		-D__LP64__ -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
+		-Dsolaris -DZBIG_ENDIAN -DHAVE_PREAD libbif.c -o libbif.o
+
+iozone_solaris8-64-VXFS.o: iozone.c libasync.c libbif.c
+	@echo ""
+	@echo "Building iozone for Solaris8-64-VXFS"
+	@echo ""
+	cc -fast -xtarget=generic64 -v -c -I/opt/VRTSvxfs/include/ -Dunix \
+		-DVXFS -DHAVE_ANSIC_C -DASYNC_IO \
+		-D__LP64__ -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
+		-DNAME='"Solaris8-64"' -Dsolaris -DHAVE_PREAD \
+		iozone.c -o iozone_solaris8-64.o
+	cc -fast -xtarget=generic64 -v -c  -I/opt/VRTSvxfs/include/ -Dunix \
+		-DVXFS -DHAVE_ANSIC_C -DASYNC_IO \
+		-D__LP64__ -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
+		-Dsolaris -DHAVE_PREAD libasync.c -o libasync.o
+	cc -fast -xtarget=generic64 -v -c -I/opt/VRTSvxfs/include/ -Dunix \
+		-DVXFS -DHAVE_ANSIC_C -DASYNC_IO \
 		-D__LP64__ -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
 		-Dsolaris -DZBIG_ENDIAN -DHAVE_PREAD libbif.c -o libbif.o
 

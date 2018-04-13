@@ -78,7 +78,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.12 $";
+char libbif_version[] = "Libbif Version $Revision: 3.13 $";
 void do_eof(int );		/* Used internally */
 void do_header(int );		/* Used internally */
 #endif
@@ -128,7 +128,7 @@ struct label_record {
 	char rgbmed;
 	char rgblo;
 	char string_length;
-	char str_array[255];
+	char str_array[256];
 	};
 struct float_record {		/* Type 3 record */
 	char hi_opcode;
@@ -287,7 +287,20 @@ int row,column;
 	dptr[5]=sptr[2];
 	dptr[6]=sptr[1];
 	dptr[7]=sptr[0];
-#else
+#endif
+#if defined(ZBIG_ENDIAN2)
+	dptr[0]=sptr[4]; /* 16 bit swapped ARM */
+	dptr[1]=sptr[5];
+	dptr[2]=sptr[6];
+	dptr[3]=sptr[7];
+	dptr[4]=sptr[0];
+	dptr[5]=sptr[1];
+	dptr[6]=sptr[2];
+	dptr[7]=sptr[3];
+
+#endif
+
+#if !defined(ZBIG_ENDIAN) && !defined(ZBIG_ENDIAN2)
 	dptr[0]=sptr[0]; /* Do not convert to Little Endian */
 	dptr[1]=sptr[1];
 	dptr[2]=sptr[2];
@@ -325,7 +338,7 @@ int row,column;
 	i=strlen(string);
         labelrec.hi_opcode=LABEL;
         labelrec.lo_opcode=0x00;
-        labelrec.hi_length=0x07; /* 263 total bytes */
+        labelrec.hi_length=0x08; /* 264 total bytes */
         labelrec.lo_length=0x01;
         labelrec.rgblo=0x0;
         labelrec.rgbmed=0x0;
@@ -339,6 +352,7 @@ int row,column;
 		string[254]=0;
 	i=strlen(string);
 	strcpy(labelrec.str_array,string);
+
 	write(fd,&labelrec,sizeof(struct label_record));
 
 }
