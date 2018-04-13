@@ -1971,5 +1971,8 @@ Revision 3.251
 Make the default pattern random, and based on Iozone version.
 This is to prevent the hack from Richard Sharpe (in Samba)
 from special casing Iozone, and lying to the user.
-
+=============================================================================
+Revision 3.252
+=============================================================================
+bug fix in pattern gen.
 

@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.251 $"
+#define THISVERSION "        Version $Revision: 3.252 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -20751,7 +20751,7 @@ get_pattern(void)
         strcpy(cp,THISVERSION);
         x=strlen(THISVERSION);
         for(i=0;i<x;i++)
-                y+=*ptr;
+                y+=*ptr++;
         srand(y);
         pat=(rand()& 0xff);
         return(pat);
