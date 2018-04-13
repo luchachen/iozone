@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.455 $"
+#define THISVERSION "        Version $Revision: 3.457 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -2088,7 +2088,7 @@ char **argv;
 #ifdef NO_PRINT_LLD
 			sscanf(optarg,"%ld",&kilobytes64);
 #else
-			sscanf(optarg,"%lld",&kilobytes64);
+			sscanf(optarg,"%lld",(long long *)&kilobytes64);
 #endif
 			if(optarg[strlen(optarg)-1]=='k' ||
 				optarg[strlen(optarg)-1]=='K'){
@@ -2110,9 +2110,9 @@ char **argv;
 			min_file_size = (off64_t)s_range[0];   /* Make visable globally */
 
 #ifdef NO_PRINT_LLD
-	    		sprintf(splash[splash_line++],"\tFile size set to %ld kB\n",kilobytes64);
+	    		sprintf(splash[splash_line++],"\tFile size set to %ld kB\n",(long long)kilobytes64);
 #else
-	    		sprintf(splash[splash_line++],"\tFile size set to %lld kB\n",kilobytes64);
+	    		sprintf(splash[splash_line++],"\tFile size set to %lld kB\n",(long long)kilobytes64);
 #endif
 			sflag++;
 			break;
@@ -2484,9 +2484,9 @@ char **argv;
 			if(minimum_file_size < page_size/1024)
 				minimum_file_size=(off64_t)(page_size/1024);
 #ifdef NO_PRINT_LLD
-			sprintf(splash[splash_line++],"\tUsing minimum file size of %ld kilobytes.\n",minimum_file_size);
+			sprintf(splash[splash_line++],"\tUsing minimum file size of %ld kilobytes.\n",(long long)minimum_file_size);
 #else
-			sprintf(splash[splash_line++],"\tUsing minimum file size of %lld kilobytes.\n",minimum_file_size);
+			sprintf(splash[splash_line++],"\tUsing minimum file size of %lld kilobytes.\n",(long long)minimum_file_size);
 #endif
 			break;
 		case 'g':	/* Set maximum file size for auto mode */
@@ -2507,9 +2507,9 @@ char **argv;
 			if(maximum_file_size < RECLEN_START/1024LL)
 				maximum_file_size=(off64_t)(RECLEN_START/1024LL);
 #ifdef NO_PRINT_LLD
-			sprintf(splash[splash_line++],"\tUsing maximum file size of %ld kilobytes.\n",maximum_file_size);
+			sprintf(splash[splash_line++],"\tUsing maximum file size of %ld kilobytes.\n",(long long)maximum_file_size);
 #else
-			sprintf(splash[splash_line++],"\tUsing maximum file size of %lld kilobytes.\n",maximum_file_size);
+			sprintf(splash[splash_line++],"\tUsing maximum file size of %lld kilobytes.\n",(long long)maximum_file_size);
 #endif
 			break;
 		case 'z':	/* Set no cross over */
@@ -2615,9 +2615,9 @@ char **argv;
 					}
 					*strchr(subarg,',') = '\0';
 					#ifdef NO_PRINT_LLD
-						sscanf(subarg,"%ld",&burst_size_kb_64);
+						sscanf(subarg,"%ld",(long long *)&burst_size_kb_64);
 					#else
-						sscanf(subarg,"%lld",&burst_size_kb_64);
+						sscanf(subarg,"%lld",(long long *)&burst_size_kb_64);
 					#endif
 					if(subarg[strlen(subarg)-1]=='k' ||
 						subarg[strlen(subarg)-1]=='K'){
@@ -3276,10 +3276,10 @@ char **argv;
 	if (burst_size_kb_64 != -1 && !silent)
 #ifdef NO_PRINT_LLD
 		printf("\tBurst size set to %ld Kbytes.\n\tBurst sleep duration set to %ld msec\n",
-		burst_size_kb_64, burst_sleep_duration_msec);
+		(long long)burst_size_kb_64, (long long)burst_sleep_duration_msec);
 #else
 		printf("\tBurst size set to %lld Kbytes.\n\tBurst sleep duration set to %lld msec\n",
-		burst_size_kb_64, burst_sleep_duration_msec);
+		(long long)burst_size_kb_64, (long long)burst_sleep_duration_msec);
 #endif
 	if(!rflag)
 		reclen=(long long)4096;
@@ -3515,14 +3515,14 @@ long long reclength;
 		if(!silent) printf("%8ld",reclen/1024);
 	}
 #else
-	if(!silent) printf("%16lld",kilobytes64);
+	if(!silent) printf("%16lld",(long long)kilobytes64);
 	if(r_traj_flag || w_traj_flag)
 	{
 		if(!silent) printf("%8lld",(long long )0);
 	}
 	else
 	{
-		if(!silent) printf("%8lld",reclen/1024);
+		if(!silent) printf("%8lld",(long long)(reclen/1024));
 	}
 #endif
 	if(include_tflag)
@@ -3570,11 +3570,11 @@ long long reclength;
 	    	goodrecl = reclen/2;
 	    	printf("\nI/O error during read.  Try again with the command:\n");
 #ifdef NO_PRINT_LLD
-	    	printf("\n\tiozone %ld %ld ", kilobytes64,  goodrecl);
-	    	printf("\t(i.e. record size = %ld bytes)\n",  goodrecl);
+	    	printf("\n\tiozone %ld %ld ", (long long)kilobytes64,  (long long)goodrecl);
+	    	printf("\t(i.e. record size = %ld bytes)\n",  (long long)goodrecl);
 #else
-	    	printf("\n\tiozone %lld %lld ", kilobytes64,  goodrecl);
-	    	printf("\t(i.e. record size = %lld bytes)\n",  goodrecl);
+	    	printf("\n\tiozone %lld %lld ", (long long)kilobytes64,  (long long)goodrecl);
+	    	printf("\t(i.e. record size = %lld bytes)\n",  (long long)goodrecl);
 #endif
 	   }
 	}
@@ -3719,10 +3719,10 @@ void auto_test()
         if (min_rec_size > (long long)(min_file_size*1024)) {
 #ifdef NO_PRINT_LLD
             printf("Error: record length %ld is greater than filesize %ld kB\n ",
-                                min_rec_size,min_file_size);
+                                (long long)min_rec_size,(long long)min_file_size);
 #else
             printf("Error: record length %lld is greater than filesize %lld kB\n ",
-                                min_rec_size,min_file_size);
+                                (long long)min_rec_size,(long long)min_file_size);
 #endif
                 exit(23);
         }
@@ -3914,20 +3914,20 @@ throughput_test()
 	{
 #ifdef NO_PRINT_LLD
 	if(!silent) printf("\tEach %s writes a %ld kByte file in telemetry controlled records\n",
-		port,kilobytes64);
+		port,(long long)kilobytes64);
 #else
 	if(!silent) printf("\tEach %s writes a %lld kByte file in telemetry controlled records\n",
-		port,kilobytes64);
+		port,(long long)kilobytes64);
 #endif
 	}
 	else
 	{
 #ifdef NO_PRINT_LLD
 	if(!silent) printf("\tEach %s writes a %ld kByte file in %ld kbyte records\n",
-		port,kilobytes64,reclen/1024);
+		port,(long long)kilobytes64,(long long)reclen/1024);
 #else
 	if(!silent) printf("\tEach %s writes a %lld kByte file in %lld kByte records\n",
-		port,kilobytes64,reclen/1024);
+		port,(long long)kilobytes64,(long long)reclen/1024);
 #endif
 	}
 
@@ -7355,13 +7355,13 @@ char sverify;
 	printf("\n\n");
 #ifdef NO_PRINT_LLD
 	printf("Error in file: Found ?%lx? Expecting ?%lx? addr %lx\n",*where, (long long)((pattern_buf<<32)|pattern_buf),where);
-	printf("Error in file: Position %ld \n",file_position);
-	printf("Record # %ld Record size %ld kb \n",recnum,recsize/1024);
+	printf("Error in file: Position %ld \n",(long long)file_position);
+	printf("Record # %ld Record size %ld kb \n",(long long)recnum,(long long)recsize/1024);
 	printf("where %8.8lx loop %ld\n",where,i);
 #else
-	printf("Error in file: Found ?%llx? Expecting ?%llx? addr %lx\n",*where, (long long)((pattern_buf<<32)|pattern_buf),((long)where));
-	printf("Error in file: Position %lld \n",file_position);
-	printf("Record # %lld Record size %lld kb \n",recnum,recsize/1024);
+	printf("Error in file: Found ?%llx? Expecting ?%llx? addr %lx\n",(long long )(*where), (long long)((pattern_buf<<32)|pattern_buf),((long)where));
+	printf("Error in file: Position %lld \n",(long long)file_position);
+	printf("Record # %lld Record size %lld kb \n",(long long)recnum,(long long)recsize/1024);
 	printf("where %px loop %lld\n",where,(long long)i);
 #endif
 		   return(1);
@@ -7400,13 +7400,13 @@ char sverify;
 		   file_position+=k;
 	printf("\n\n");
 #ifdef NO_PRINT_LLD
-	printf("Error in file: Position %ld %ld %ld \n",i,j,k);
-	printf("Error in file: Position %ld \n",file_position);
-	printf("Record # %ld Record size %ld kb \n",recnum,recsize/1024);
+	printf("Error in file: Position %ld %ld %ld \n",(long long)i,(long long)j,(long long)k);
+	printf("Error in file: Position %ld \n",(long long)file_position);
+	printf("Record # %ld Record size %ld kb \n",(long long)recnum,(long long)recsize/1024);
 #else
-	printf("Error in file: Position %lld %lld %lld \n",i,j,k);
-	printf("Error in file: Position %lld \n",file_position);
-	printf("Record # %lld Record size %lld kb \n",recnum,recsize/1024);
+	printf("Error in file: Position %lld %lld %lld \n",(long long)i,(long long)j,(long long)k);
+	printf("Error in file: Position %lld \n",(long long)file_position);
+	printf("Record # %lld Record size %lld kb \n",(long long)recnum,(long long)recsize/1024);
 #endif
 	printf("Found pattern: Char >>%c<< Expecting >>%c<<\n", *where2,*pattern_ptr);
 	printf("Found pattern: Hex >>%x<< Expecting >>%x<<\n", *where2,*pattern_ptr);
@@ -8009,13 +8009,13 @@ long long *data2;
 				qtime_stop=time_so_far();
 				if(j==0)
 #ifdef NO_PRINT_LLD
-				fprintf(wqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000,reclen);
+				fprintf(wqfd,"%10.1ld %10.0f %10.1ld\n",(long long)(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000,(long long)reclen);
 				else
-				fprintf(rwqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000,reclen);
+				fprintf(rwqfd,"%10.1ld %10.0f %10.1ld\n",(long long)(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000,(long long)reclen);
 #else
-				fprintf(wqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000,reclen);
+				fprintf(wqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000,(long long)reclen);
 				else
-				fprintf(rwqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000,reclen);
+				fprintf(rwqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,((qtime_stop-qtime_start-time_res))*1000000,(long long)reclen);
 #endif
 			}
 			w_traj_ops_completed++;
@@ -8506,18 +8506,18 @@ long long *data1,*data2;
 			{
 #ifdef _64BIT_ARCH_
 #ifdef NO_PRINT_LLD
-				printf("\nError freading block %lu %lx\n", i,
+				printf("\nError freading block %lu %lx\n", (long long)i,
 					(unsigned long long)buffer);
 #else
-				printf("\nError freading block %llu %llx\n", i,
+				printf("\nError freading block %llu %llx\n", (long long)i,
 					(unsigned long long)buffer);
 #endif
 #else
 #ifdef NO_PRINT_LLD
-				printf("\nError freading block %lu %lx\n", i,
+				printf("\nError freading block %lu %lx\n", (long long)i,
 					(long)buffer);
 #else
-				printf("\nError freading block %llu %lx\n", i,
+				printf("\nError freading block %llu %lx\n", (long long)i,
 					(long)buffer);
 #endif
 #endif
@@ -8924,18 +8924,18 @@ long long *data1,*data2;
 			    {
 #ifdef _64BIT_ARCH_
 #ifdef NO_PRINT_LLD
-				printf("\nError reading block %ld %lx\n", i,
+				printf("\nError reading block %ld %lx\n", (long)i,
 					(unsigned long long)nbuff);
 #else
-				printf("\nError reading block %lld %llx\n", i,
+				printf("\nError reading block %lld %llx\n", (long long)i,
 					(unsigned long long)nbuff);
 #endif
 #else
 #ifdef NO_PRINT_LLD
-				printf("\nError reading block %ld %x\n", i,
+				printf("\nError reading block %ld %x\n", (long)i,
 					(long)nbuff);
 #else
-				printf("\nError reading block %lld %lx\n", i,
+				printf("\nError reading block %lld %lx\n", (long long)i,
 					(long)nbuff);
 #endif
 #endif
@@ -8972,13 +8972,13 @@ long long *data1,*data2;
 				qtime_stop=time_so_far();
 				if(j==0)
 #ifdef NO_PRINT_LLD
-				fprintf(rqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000,reclen);
+				fprintf(rqfd,"%10.1ld %10.0f %10.1ld\n",(long)(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000,(long)reclen);
 				else
-				fprintf(rrqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000,reclen);
+				fprintf(rrqfd,"%10.1ld %10.0f %10.1ld\n",(long)(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000,(long)reclen);
 #else
-				fprintf(rqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000,reclen);
+				fprintf(rqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000,(long long)reclen);
 				else
-				fprintf(rrqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000,reclen);
+				fprintf(rrqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,(qtime_stop-qtime_start-time_res)*1000000,(long long)reclen);
 #endif
 			}
 			r_traj_ops_completed++;
@@ -9402,10 +9402,10 @@ long long *data1, *data2;
 		  	     {
 #ifdef NO_PRINT_LLD
 				 printf("\nError reading block at %ld\n",
-					 offset64); 
+					 (long)offset64); 
 #else
 				 printf("\nError reading block at %lld\n",
-					 offset64); 
+					 (long long)offset64); 
 #endif
 				 perror("read");
 				 exit(70);
@@ -9526,10 +9526,10 @@ long long *data1, *data2;
 			  		  {
 #ifdef NO_PRINT_LLD
 						printf("\nError writing block at %ld\n",
-							offset64); 
+							(long)offset64); 
 #else
 						printf("\nError writing block at %lld\n",
-							offset64); 
+							(long long)offset64); 
 #endif
 						if(wval==-1)
 							perror("write");
@@ -9656,12 +9656,12 @@ long long *data1, *data2;
 		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)randreadrate[1]);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%9ld",randreadrate[0]);
-	if(!silent) printf("%9ld",randreadrate[1]);
+	if(!silent) printf("%9ld",(long)randreadrate[0]);
+	if(!silent) printf("%9ld",(long)randreadrate[1]);
 	if(!silent) fflush(stdout);
 #else
-	if(!silent) printf("%9lld",randreadrate[0]);
-	if(!silent) printf("%9lld",randreadrate[1]);
+	if(!silent) printf("%9lld",(long long)randreadrate[0]);
+	if(!silent) printf("%9lld",(long long)randreadrate[1]);
 	if(!silent) fflush(stdout);
 #endif
 	if(recnum)
@@ -9843,9 +9843,9 @@ long long *data1,*data2;
 				if(read((int)fd, (void*)nbuff, (size_t) reclen) != reclen)
 				{
 #ifdef NO_PRINT_LLD
-					printf("\nError reading block %ld\n", i); 
+					printf("\nError reading block %ld\n", (long)i); 
 #else
-					printf("\nError reading block %lld\n", i); 
+					printf("\nError reading block %lld\n", (long long)i); 
 #endif
 					perror("read");
 					exit(79);
@@ -9957,9 +9957,9 @@ long long *data1,*data2;
 		store_times(walltime[0], cputime[0]);
 	store_value((off64_t)revreadrate[0]);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%9ld",revreadrate[0]);
+	if(!silent) printf("%9ld",(long)revreadrate[0]);
 #else
-	if(!silent) printf("%9lld",revreadrate[0]);
+	if(!silent) printf("%9lld",(long long)revreadrate[0]);
 #endif
 	if(!silent) fflush(stdout);
 }
@@ -10091,9 +10091,9 @@ long long *data1,*data2;
 	if(wval != reclen)
 	{
 #ifdef NO_PRINT_LLD
-	    	printf("\nError writing block %ld, fd= %d\n", 0, fd);
+	    	printf("\nError writing block %ld, fd= %d\n", (long)0, fd);
 #else
-	    	printf("\nError writing block %lld, fd= %d\n", 0, fd);
+	    	printf("\nError writing block %lld, fd= %d\n", (long long)0, fd);
 #endif
 		if(wval==-1)
 			perror("write");
@@ -10163,9 +10163,9 @@ long long *data1,*data2;
 			       if(wval != reclen)
 			       {
 #ifdef NO_PRINT_LLD
-		    		   printf("\nError writing block %ld, fd= %d\n", i, fd);
+		    		   printf("\nError writing block %ld, fd= %d\n", (long)i, fd);
 #else
-		    		   printf("\nError writing block %lld, fd= %d\n", i, fd);
+		    		   printf("\nError writing block %lld, fd= %d\n", (long long)i, fd);
 #endif
 				   if(wval==-1)
 				   	perror("write");
@@ -10280,9 +10280,9 @@ long long *data1,*data2;
 		store_times(walltime, cputime);
 	store_value((off64_t)writeinrate);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf(" %9ld",writeinrate);
+	if(!silent) printf(" %9ld",(long)writeinrate);
 #else
-	if(!silent) printf(" %9lld",writeinrate);
+	if(!silent) printf(" %9lld",(long long)writeinrate);
 #endif
 	if(!silent) fflush(stdout);
 	if(restf)
@@ -10447,11 +10447,11 @@ long long *data1, *data2;
 		   	  if((uu=read((int)fd, (void*)nbuff, (size_t) reclen)) != reclen)
 		   	  {
 #ifdef NO_PRINT_LLD
-		    		printf("\nError reading block %ld, fd= %d Filename %s Read returned %ld\n", i, fd,filename,uu);
-		    		printf("\nSeeked to %ld Reclen = %ld\n", savepos64,reclen);
+		    		printf("\nError reading block %ld, fd= %d Filename %s Read returned %ld\n", (long)i, fd,filename,uu);
+		    		printf("\nSeeked to %ld Reclen = %ld\n", (long)savepos64,(long)reclen);
 #else
-		    		printf("\nError reading block %lld, fd= %d Filename %s Read returned %lld\n", i, fd,filename,uu);
-		    		printf("\nSeeked to %lld Reclen = %lld\n", savepos64,reclen);
+		    		printf("\nError reading block %lld, fd= %d Filename %s Read returned %lld\n", (long long)i, fd,filename,(long long)uu);
+		    		printf("\nSeeked to %lld Reclen = %lld\n", (long long)savepos64,(long long)reclen);
 #endif
 				perror("read");
 		    		exit(88);
@@ -10603,9 +10603,9 @@ long long *data1, *data2;
 		store_times(walltime, cputime);
 	store_value((off64_t)strideinrate);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf(" %9ld",strideinrate);
+	if(!silent) printf(" %9ld",(long)strideinrate);
 #else
-	if(!silent) printf(" %9lld",strideinrate);
+	if(!silent) printf(" %9lld",(long long)strideinrate);
 #endif
 	if(!silent) fflush(stdout);
 	if(restf)
@@ -10777,10 +10777,10 @@ long long *data1,*data2;
 			if(I_PWRITE(fd, nbuff, reclen, traj_offset) != reclen)
 			{
 #ifdef NO_PRINT_LLD
-			    	printf("\nError pwriting block %ld, fd= %d\n", i,
+			    	printf("\nError pwriting block %ld, fd= %d\n", (long)i,
 					 fd);
 #else
-			    	printf("\nError pwriting block %lld, fd= %d\n", i,
+			    	printf("\nError pwriting block %lld, fd= %d\n", (long long)i,
 					 fd);
 #endif
 				perror("pwrite");
@@ -10884,12 +10884,12 @@ long long *data1,*data2;
 		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)pwriterate[1]);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%8ld",pwriterate[0]);
-	if(!silent) printf("%9ld",pwriterate[1]);
+	if(!silent) printf("%8ld",(long)pwriterate[0]);
+	if(!silent) printf("%9ld",(long)pwriterate[1]);
 	if(!silent) fflush(stdout);
 #else
-	if(!silent) printf("%9lld",pwriterate[0]);
-	if(!silent) printf("%9lld",pwriterate[1]);
+	if(!silent) printf("%9lld",(long long)pwriterate[0]);
+	if(!silent) printf("%9lld",(long long)pwriterate[1]);
 	if(!silent) fflush(stdout);
 #endif
 }
@@ -11043,9 +11043,9 @@ long long *data1, *data2;
 					!= reclen)
 			{
 #ifdef NO_PRINT_LLD
-				printf("\nError reading block %ld %lx\n", i,(unsigned long)nbuff);
+				printf("\nError reading block %ld %lx\n", (long)i,(unsigned long)nbuff);
 #else
-				printf("\nError reading block %lld %lx\n", i,(unsigned long)nbuff);
+				printf("\nError reading block %lld %lx\n", (long long)i,(unsigned long)nbuff);
 #endif
 				perror("pread");
 				exit(103);
@@ -11133,12 +11133,12 @@ long long *data1, *data2;
 		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)preadrate[1]);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%8ld",preadrate[0]);
-	if(!silent) printf("%9ld",preadrate[1]);
+	if(!silent) printf("%8ld",(long)preadrate[0]);
+	if(!silent) printf("%9ld",(long)preadrate[1]);
 	if(!silent) fflush(stdout);
 #else
-	if(!silent) printf("%8lld",preadrate[0]);
-	if(!silent) printf("%9lld",preadrate[1]);
+	if(!silent) printf("%8lld",(long long)preadrate[0]);
+	if(!silent) printf("%9lld",(long long)preadrate[1]);
 	if(!silent) fflush(stdout);
 #endif
 }
@@ -11305,10 +11305,10 @@ long long *data1,*data2;
 				) != (reclen*numvecs))
 			{
 #ifdef NO_PRINT_LLD
-			    	printf("\nError pwriteving block %ld, fd= %d\n", i,
+			    	printf("\nError pwriteving block %ld, fd= %d\n", (long)i,
 					 fd);
 #else
-			    	printf("\nError pwriteving block %lld, fd= %d\n", i,
+			    	printf("\nError pwriteving block %lld, fd= %d\n", (long long)i,
 					 fd);
 #endif
 				perror("pwritev");
@@ -11404,12 +11404,12 @@ long long *data1,*data2;
 		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)pwritevrate[1]);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%9ld",pwritevrate[0]);
-	if(!silent) printf("%10ld",pwritevrate[1]);
+	if(!silent) printf("%9ld",(long)pwritevrate[0]);
+	if(!silent) printf("%10ld",(long)pwritevrate[1]);
 	if(!silent) fflush(stdout);
 #else
-	if(!silent) printf("%9lld",pwritevrate[0]);
-	if(!silent) printf("%10lld",pwritevrate[1]);
+	if(!silent) printf("%9lld",(long long)pwritevrate[0]);
+	if(!silent) printf("%10lld",(long long)pwritevrate[1]);
 	if(!silent) fflush(stdout);
 #endif
 }
@@ -11635,9 +11635,9 @@ long long *data1,*data2;
 				) != (numvecs * reclen))
 			{
 #ifdef NO_PRINT_LLD
-				printf("\nError preadving block %ld \n", i);
+				printf("\nError preadving block %ld \n", (long)i);
 #else
-				printf("\nError preadving block %lld \n", i);
+				printf("\nError preadving block %lld \n", (long long)i);
 #endif
 				perror("preadv");
 				exit(116);
@@ -11712,13 +11712,13 @@ long long *data1,*data2;
 		store_times(walltime[1], cputime[1]);
 	store_value((off64_t)preadvrate[1]);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%10ld",preadvrate[0]);
-	if(!silent) printf("%9ld",preadvrate[1]);
+	if(!silent) printf("%10ld",(long)preadvrate[0]);
+	if(!silent) printf("%9ld",(long)preadvrate[1]);
 	if(!silent) printf("\n");
 	if(!silent) fflush(stdout);
 #else
-	if(!silent) printf("%10lld",preadvrate[0]);
-	if(!silent) printf("%9lld",preadvrate[1]);
+	if(!silent) printf("%10lld",(long long)preadvrate[0]);
+	if(!silent) printf("%9lld",(long long)preadvrate[1]);
 	if(!silent) printf("\n");
 	if(!silent) fflush(stdout);
 #endif
@@ -11975,9 +11975,9 @@ long long who;
 		if(bif_flag)
 			do_float(bif_fd,(double)(rec_size/1024),bif_row,bif_column++);
 #ifdef NO_PRINT_LLD
-		if(!silent) printf("  %c%ld%c",'"',rec_size/1024,'"');
+		if(!silent) printf("  %c%ld%c",'"',(long)(rec_size/1024),'"');
 #else
-		if(!silent) printf("  %c%lld%c",'"',rec_size/1024,'"');
+		if(!silent) printf("  %c%lld%c",'"',(long long)(rec_size/1024),'"');
 #endif
 	}
 	if(!silent) printf("\n");
@@ -11993,9 +11993,9 @@ long long who;
 		do_float(bif_fd,(double)(current_file_size),bif_row,bif_column++);
 	}
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%c%ld%c  ",'"',current_file_size,'"');
+	if(!silent) printf("%c%ld%c  ",'"',(long)current_file_size,'"');
 #else
-	if(!silent) printf("%c%lld%c  ",'"',current_file_size,'"');
+	if(!silent) printf("%c%lld%c  ",'"',(long long)current_file_size,'"');
 #endif
 	for(i=0;i<=max_y;i++){
 		if(report_array[0][i] != current_file_size){
@@ -12008,17 +12008,17 @@ long long who;
 				do_float(bif_fd,(double)(current_file_size),bif_row,bif_column++);
 			}
 #ifdef NO_PRINT_LLD
-			if(!silent) printf("%c%ld%c  ",'"',current_file_size,'"');
+			if(!silent) printf("%c%ld%c  ",'"',(long)current_file_size,'"');
 #else
-			if(!silent) printf("%c%lld%c  ",'"',current_file_size,'"');
+			if(!silent) printf("%c%lld%c  ",'"',(long long)current_file_size,'"');
 #endif
 		}
 		if(bif_flag)
 			do_float(bif_fd,(double)(report_array[who][i]),bif_row,bif_column++);
 #ifdef NO_PRINT_LLD
-		if(!silent) printf(" %ld ",report_array[who][i]);
+		if(!silent) printf(" %ld ",(long)report_array[who][i]);
 #else
-		if(!silent) printf(" %lld ",report_array[who][i]);
+		if(!silent) printf(" %lld ",(long long)report_array[who][i]);
 #endif
 	}
 	if(bif_flag)
@@ -12205,9 +12205,9 @@ long long who;
 		if (bif_flag)
 			do_float(bif_fd, (double)(rec_size/1024), bif_row, bif_column++);
 #ifdef NO_PRINT_LLD
-		if(!silent) printf("  %c%ld%c",'"',rec_size/1024,'"');
+		if(!silent) printf("  %c%ld%c",'"',(long)(rec_size/1024),'"');
 #else
-		if(!silent) printf("  %c%lld%c",'"',rec_size/1024,'"');
+		if(!silent) printf("  %c%lld%c",'"',(long long)(rec_size/1024),'"');
 #endif
 	}
 	if(!silent) printf("\n");
@@ -12223,9 +12223,9 @@ long long who;
 		do_float(bif_fd, (double)(current_file_size), bif_row, bif_column++);
 	}
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%c%ld%c  ",'"',current_file_size,'"');
+	if(!silent) printf("%c%ld%c  ",'"',(long)current_file_size,'"');
 #else
-	if(!silent) printf("%c%lld%c  ",'"',current_file_size,'"');
+	if(!silent) printf("%c%lld%c  ",'"',(long long)current_file_size,'"');
 #endif
 	for (i = 0; i <= max_y; i++) {
 		if (report_array[0][i] != current_file_size) {
@@ -12238,9 +12238,9 @@ long long who;
 				do_float(bif_fd, (double)(current_file_size), bif_row, bif_column++);
 			}
 #ifdef NO_PRINT_LLD
-			if(!silent) printf("%c%ld%c  ",'"',current_file_size,'"');
+			if(!silent) printf("%c%ld%c  ",'"',(long)current_file_size,'"');
 #else
-			if(!silent) printf("%c%lld%c  ",'"',current_file_size,'"');
+			if(!silent) printf("%c%lld%c  ",'"',(long long)current_file_size,'"');
 #endif
 		}
 		if (bif_flag)
@@ -12448,9 +12448,9 @@ int shared_flag;
         {
                 printf("\nUnable to get shared memory segment(shmget)\n");
 #ifdef NO_PRINT_LLD
-                printf("shmid = %d, size = %ld, size1 = %lu, Error %d\n",shmid,size,(size_t)size1,errno);
+                printf("shmid = %d, size = %ld, size1 = %lu, Error %d\n",shmid,(long)size,(size_t)size1,errno);
 #else
-                printf("shmid = %d, size = %lld, size1 = %lu, Error %d\n",shmid,size,(unsigned long)size1,errno);
+                printf("shmid = %d, size = %lld, size1 = %lu, Error %d\n",shmid,(long long)size,(unsigned long)size1,errno);
 #endif
                 exit(119);
         }
@@ -12802,15 +12802,15 @@ thread_write_test( x)
 	{
 	   if(use_thread)
 #ifdef NO_PRINT_LLD
-		printf("\nStarting child %ld\n",xx);
+		printf("\nStarting child %ld\n",(long)xx);
 #else
-		printf("\nStarting child %lld\n",xx);
+		printf("\nStarting child %lld\n",(long long)xx);
 #endif
 	   else
 #ifdef NO_PRINT_LLD
-		printf("\nStarting process %d slot %ld\n",getpid(),xx);
+		printf("\nStarting process %d slot %ld\n",getpid(),(long)xx);
 #else
-		printf("\nStarting process %d slot %lld\n",getpid(),xx);
+		printf("\nStarting process %d slot %lld\n",getpid(),(long long)xx);
 #endif
 		
 	}
@@ -12829,9 +12829,9 @@ thread_write_test( x)
 	else
 	{
 #ifdef NO_PRINT_LLD
-		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],(long)xx2);
 #else
-		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],(long long)xx2);
 #endif
 	}
 	/*****************/
@@ -13197,10 +13197,10 @@ again:
 			   complete.
 			*/
 #ifdef NO_PRINT_LLD
-		    	printf("\nError writing block %ld, fd= %d\n", i,
+		    	printf("\nError writing block %ld, fd= %d\n", (long)i,
 				 fd);
 #else
-		    	printf("\nError writing block %lld, fd= %d\n", i,
+		    	printf("\nError writing block %lld, fd= %d\n", (long long)i,
 				 fd);
 #endif
 			if(wval==-1)
@@ -13237,9 +13237,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 		{
 			thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-			fprintf(thread_wqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+			fprintf(thread_wqfd,"%10.1ld %10.0f %10.1ld\n",(long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long)reclen);
 #else
-			fprintf(thread_wqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+			fprintf(thread_wqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long long)reclen);
 #endif
 		}
 		w_traj_ops_completed++;
@@ -13341,11 +13341,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 			
 	if (debug1) {
 #ifdef NO_PRINT_LLD
-		printf(" child/slot: %ld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",
+		printf(" child/slot: %ld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n", (long)xx,
 #else
-		printf(" child/slot: %lld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",
+		printf(" child/slot: %lld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n", (long long)xx,
 #endif
-			xx, walltime, cputime,
+			walltime, cputime,
 			cpu_util(cputime, walltime));
 	}
 	child_stat->flag = CHILD_STATE_HOLD; /* Tell parent I'm done */
@@ -13355,9 +13355,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	/*******************************************************************/
 	if(debug1)
 #ifdef NO_PRINT_LLD
-		printf("\nChild finished %ld\n",xx);
+		printf("\nChild finished %ld\n",(long)xx);
 #else
-		printf("\nChild finished %lld\n",xx);
+		printf("\nChild finished %lld\n",(long long)xx);
 #endif
 	if(!include_close)
 	{
@@ -13515,15 +13515,15 @@ thread_pwrite_test( x)
 	{
 	   if(use_thread)
 #ifdef NO_PRINT_LLD
-		printf("\nStarting child %ld\n",xx);
+		printf("\nStarting child %ld\n",(long)xx);
 #else
-		printf("\nStarting child %lld\n",xx);
+		printf("\nStarting child %lld\n",(long long)xx);
 #endif
 	   else
 #ifdef NO_PRINT_LLD
-		printf("\nStarting process %d slot %ld\n",getpid(),xx);
+		printf("\nStarting process %d slot %ld\n",getpid(),(long)xx);
 #else
-		printf("\nStarting process %d slot %lld\n",getpid(),xx);
+		printf("\nStarting process %d slot %lld\n",getpid(),(long long)xx);
 #endif
 		
 	}
@@ -13542,9 +13542,9 @@ thread_pwrite_test( x)
 	else
 	{
 #ifdef NO_PRINT_LLD
-	   sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+	   sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],(long)xx2);
 #else
-	   sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+	   sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],(long long)xx2);
 #endif
 	}
 	/*****************/
@@ -13846,10 +13846,10 @@ again:
 			   complete.
 			*/
 #ifdef NO_PRINT_LLD
-		    	printf("\nError pwriting block %ld, fd= %d\n", i,
+		    	printf("\nError pwriting block %ld, fd= %d\n", (long)i,
 				 fd);
 #else
-		    	printf("\nError pwriting block %lld, fd= %d\n", i,
+		    	printf("\nError pwriting block %lld, fd= %d\n", (long long)i,
 				 fd);
 #endif
 			if(wval==-1)
@@ -13891,9 +13891,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 		{
 			thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-			fprintf(thread_wqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+			fprintf(thread_wqfd,"%10.1ld %10.0f %10.1ld\n",(long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long)reclen);
 #else
-			fprintf(thread_wqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+			fprintf(thread_wqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long long)reclen);
 #endif
 		}
 		w_traj_ops_completed++;
@@ -13985,12 +13985,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 			
 	if (debug1) {
 #ifdef NO_PRINT_LLD
-		printf(" child/slot: %ld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",
+		printf(" child/slot: %ld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",(long)xx,
 #else
-		printf(" child/slot: %lld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",
+		printf(" child/slot: %lld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",(long long)xx,
 #endif
-			xx, walltime, cputime,
-			cpu_util(cputime, walltime));
+			walltime, cputime, cpu_util(cputime, walltime));
 	}
 	child_stat->flag = CHILD_STATE_HOLD; /* Tell parent I'm done */
 	stopped=0;
@@ -13999,9 +13998,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	/*******************************************************************/
 	if(debug1)
 #ifdef NO_PRINT_LLD
-		printf("\nChild finished %ld\n",xx);
+		printf("\nChild finished %ld\n",(long)xx);
 #else
-		printf("\nChild finished %lld\n",xx);
+		printf("\nChild finished %lld\n",(long long)xx);
 #endif
 	if(!include_close)
 	{
@@ -14156,15 +14155,15 @@ thread_rwrite_test(x)
 	{
 	   if(use_thread)
 #ifdef NO_PRINT_LLD
-		printf("\nStarting child %ld\n",xx);
+		printf("\nStarting child %ld\n",(long)xx);
 #else
-		printf("\nStarting child %lld\n",xx);
+		printf("\nStarting child %lld\n",(long long)xx);
 #endif
 	   else
 #ifdef NO_PRINT_LLD
-		printf("\nStarting process %d slot %ld\n",getpid(),xx);
+		printf("\nStarting process %d slot %ld\n",getpid(),(long)xx);
 #else
-		printf("\nStarting process %d slot %lld\n",getpid(),xx);
+		printf("\nStarting process %d slot %lld\n",getpid(),(long long)xx);
 #endif
 		
 	}
@@ -14183,9 +14182,9 @@ thread_rwrite_test(x)
 	else
 	{
 #ifdef NO_PRINT_LLD
-		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],(long)xx2);
 #else
-		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],(long long)xx2);
 #endif
 	}
 	flags = O_RDWR;
@@ -14230,9 +14229,9 @@ thread_rwrite_test(x)
 		if(distributed && client_iozone)
 			send_stop();
 #ifdef NO_PRINT_LLD
-		printf("\nChild %ld\n",xx);
+		printf("\nChild %ld\n",(long)xx);
 #else
-		printf("\nChild %lld\n",xx);
+		printf("\nChild %lld\n",(long long)xx);
 #endif
 		child_stat->flag = CHILD_STATE_HOLD;
 		perror(dummyfile[xx]);
@@ -14399,9 +14398,9 @@ thread_rwrite_test(x)
 			if(cdebug)
 			{
 #ifdef NO_PRINT_LLD
-fprintf(newstdout,"Chid: %ld Rewriting offset %ld for length of %ld\n",chid, i*reclen,reclen);
+fprintf(newstdout,"Chid: %ld Rewriting offset %ld for length of %ld\n",(long)chid,(long)(i*reclen),(long)reclen);
 #else
-fprintf(newstdout,"Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,reclen);
+fprintf(newstdout,"Chid: %lld Rewriting offset %lld for length of %lld\n",(long long)chid,(long long)(i*reclen),(long long)reclen);
 #endif
 			  fflush(newstdout);
 			}
@@ -14452,10 +14451,10 @@ fprintf(newstdout,"Chid: %lld Rewriting offset %lld for length of %lld\n",chid, 
 					break;
 				}
 #ifdef NO_PRINT_LLD
-		    		printf("\nError writing block %ld, fd= %d\n", i,
+		    		printf("\nError writing block %ld, fd= %d\n", (long)i,
 					 fd);
 #else
-		    		printf("\nError writing block %lld, fd= %d\n", i,
+		    		printf("\nError writing block %lld, fd= %d\n", (long long)i,
 					 fd);
 #endif
 				if(wval==-1)
@@ -14501,9 +14500,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 		{
 			thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-			fprintf(thread_rwqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+			fprintf(thread_rwqfd,"%10.1ld %10.0f %10.1ld\n",(long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long)reclen);
 #else
-			fprintf(thread_rwqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+			fprintf(thread_rwqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long long)reclen);
 #endif
 		}
 		if(rlocking)
@@ -14618,9 +14617,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 		fclose(w_traj_fd);
 	if(debug1)
 #ifdef NO_PRINT_LLD
-		printf("\nChild Stopping  %ld\n",xx);
+		printf("\nChild Stopping  %ld\n",(long)xx);
 #else
-		printf("\nChild Stopping  %lld\n",xx);
+		printf("\nChild Stopping  %lld\n",(long long)xx);
 #endif
 
 	if(L_flag)
@@ -14763,9 +14762,9 @@ thread_read_test(x)
 	else
 	{
 #ifdef NO_PRINT_LLD
-		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],(long)xx2);
 #else
-		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],(long long)xx2);
 #endif
 	}
 	if(oflag)
@@ -14852,15 +14851,15 @@ thread_read_test(x)
 	{
 	   if(use_thread)
 #ifdef NO_PRINT_LLD
-		printf("\nStarting child %ld\n",xx);
+		printf("\nStarting child %ld\n",(long)xx);
 #else
-		printf("\nStarting child %lld\n",xx);
+		printf("\nStarting child %lld\n",(long long)xx);
 #endif
 	   else
 #ifdef NO_PRINT_LLD
-		printf("\nStarting process %d slot %ld\n",getpid(),xx);
+		printf("\nStarting process %d slot %ld\n",getpid(),(long)xx);
 #else
-		printf("\nStarting process %d slot %lld\n",getpid(),xx);
+		printf("\nStarting process %d slot %lld\n",getpid(),(long long)xx);
 #endif
 		
 	}
@@ -15015,10 +15014,10 @@ thread_read_test(x)
 					break;
 				}
 #ifdef NO_PRINT_LLD
-		    		printf("\nError reading block %ld, fd= %d\n", i,
+		    		printf("\nError reading block %ld, fd= %d\n", (long)i,
 					 fd);
 #else
-		    		printf("\nError reading block %lld, fd= %d\n", i,
+		    		printf("\nError reading block %lld, fd= %d\n", (long long)i,
 					 fd);
 #endif
 				perror("read");
@@ -15090,9 +15089,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
                 {
                         thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-                        fprintf(thread_rqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+                        fprintf(thread_rqfd,"%10.1ld %10.0f %10.1ld\n",(long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long)reclen);
 #else
-                        fprintf(thread_rqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+                        fprintf(thread_rqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long long)reclen);
 #endif
                 }
 
@@ -15205,9 +15204,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 		fclose(r_traj_fd);
 	if(debug1)
 #ifdef NO_PRINT_LLD
-		printf("\nChild finished %ld\n",xx);
+		printf("\nChild finished %ld\n",(long)xx);
 #else
-		printf("\nChild finished %lld\n",xx);
+		printf("\nChild finished %lld\n",(long long)xx);
 #endif
 
 	if(L_flag)
@@ -15341,9 +15340,9 @@ thread_pread_test(x)
 	else
 	{
 #ifdef NO_PRINT_LLD
-		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],(long)xx2);
 #else
-		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],(long long)xx2);
 #endif
 	}
 	if(oflag)
@@ -15413,15 +15412,15 @@ thread_pread_test(x)
 	{
 	   if(use_thread)
 #ifdef NO_PRINT_LLD
-		printf("\nStarting child %ld\n",xx);
+		printf("\nStarting child %ld\n",(long)xx);
 #else
-		printf("\nStarting child %lld\n",xx);
+		printf("\nStarting child %lld\n",(long long)xx);
 #endif
 	   else
 #ifdef NO_PRINT_LLD
-		printf("\nStarting process %d slot %ld\n",getpid(),xx);
+		printf("\nStarting process %d slot %ld\n",getpid(),(long)xx);
 #else
-		printf("\nStarting process %d slot %lld\n",getpid(),xx);
+		printf("\nStarting process %d slot %lld\n",getpid(),(long long)xx);
 #endif
 		
 	}
@@ -15550,10 +15549,10 @@ thread_pread_test(x)
 					break;
 				}
 #ifdef NO_PRINT_LLD
-		    		printf("\nError preading block %ld, fd= %d\n", i,
+		    		printf("\nError preading block %ld, fd= %d\n", (long)i,
 					 fd);
 #else
-		    		printf("\nError preading block %lld, fd= %d\n", i,
+		    		printf("\nError preading block %lld, fd= %d\n", (long long)i,
 					 fd);
 #endif
 				perror("pread");
@@ -15625,9 +15624,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
                 {
                         thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-                        fprintf(thread_rqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+                        fprintf(thread_rqfd,"%10.1ld %10.0f %10.1ld\n",(long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long)reclen);
 #else
-                        fprintf(thread_rqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+                        fprintf(thread_rqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long long)reclen);
 #endif
                 }
 
@@ -15730,9 +15729,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 		fclose(r_traj_fd);
 	if(debug1)
 #ifdef NO_PRINT_LLD
-		printf("\nChild finished %ld\n",xx);
+		printf("\nChild finished %ld\n",(long)xx);
 #else
-		printf("\nChild finished %lld\n",xx);
+		printf("\nChild finished %lld\n",(long long)xx);
 #endif
 
 	if(L_flag)
@@ -15868,15 +15867,15 @@ thread_rread_test(x)
 	{
 	   if(use_thread)
 #ifdef NO_PRINT_LLD
-		printf("\nStarting child %ld\n",xx);
+		printf("\nStarting child %ld\n",(long)xx);
 #else
-		printf("\nStarting child %lld\n",xx);
+		printf("\nStarting child %lld\n",(long long)xx);
 #endif
 	   else
 #ifdef NO_PRINT_LLD
-		printf("\nStarting process %d slot %ld\n",getpid(),xx);
+		printf("\nStarting process %d slot %ld\n",getpid(),(long)xx);
 #else
-		printf("\nStarting process %d slot %lld\n",getpid(),xx);
+		printf("\nStarting process %d slot %lld\n",getpid(),(long long)xx);
 #endif
 		
 	}
@@ -15895,9 +15894,9 @@ thread_rread_test(x)
 	else
 	{
 #ifdef NO_PRINT_LLD
-		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],(long)xx2);
 #else
-		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],(long long)xx2);
 #endif
 	}
 	if(oflag)
@@ -16128,10 +16127,10 @@ thread_rread_test(x)
 					break;
 				}
 #ifdef NO_PRINT_LLD
-		    		printf("\nError writing block %ld, fd= %d\n", i,
+		    		printf("\nError writing block %ld, fd= %d\n", (long)i,
 					 fd);
 #else
-		    		printf("\nError writing block %lld, fd= %d\n", i,
+		    		printf("\nError writing block %lld, fd= %d\n", (long long)i,
 					 fd);
 #endif
 				perror("read");
@@ -16203,9 +16202,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
                 {
                         thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-                        fprintf(thread_rrqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+                        fprintf(thread_rrqfd,"%10.1ld %10.0f %10.1ld\n",(long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long)reclen);
 #else
-                        fprintf(thread_rrqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+                        fprintf(thread_rrqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long long)reclen);
 #endif
                 }
 
@@ -16679,9 +16678,9 @@ thread_reverse_read_test(x)
 					break;
 				}
 #ifdef NO_PRINT_LLD
-				printf("\nError reading block %ld\n", i); 
+				printf("\nError reading block %ld\n", (long)i); 
 #else
-				printf("\nError reading block %lld\n", i); 
+				printf("\nError reading block %lld\n", (long long)i); 
 #endif
 				perror("read");
 				if (!no_unlink)
@@ -16761,9 +16760,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
                 {
                         thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-                        fprintf(thread_revqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+                        fprintf(thread_revqfd,"%10.1ld %10.0f %10.1ld\n",(long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long)reclen);
 #else
-                        fprintf(thread_revqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+                        fprintf(thread_revqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long long)reclen);
 #endif
                 }
 	}
@@ -16848,9 +16847,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
                 fclose(thread_revqfd);
 	if(debug1)
 #ifdef NO_PRINT_LLD
-		printf("\nChild finished %ld\n",xx);
+		printf("\nChild finished %ld\n",(long)xx);
 #else
-		printf("\nChild finished %lld\n",xx);
+		printf("\nChild finished %lld\n",(long long)xx);
 #endif
 
 	if(L_flag)
@@ -16972,15 +16971,15 @@ thread_stride_read_test(x)
 	{
 	   if(use_thread)
 #ifdef NO_PRINT_LLD
-		printf("\nStarting child %ld\n",xx);
+		printf("\nStarting child %ld\n",(long)xx);
 #else
-		printf("\nStarting child %lld\n",xx);
+		printf("\nStarting child %lld\n",(long long)xx);
 #endif
 	   else
 #ifdef NO_PRINT_LLD
-		printf("\nStarting process %d slot %ld\n",getpid(),xx);
+		printf("\nStarting process %d slot %ld\n",getpid(),(long)xx);
 #else
-		printf("\nStarting process %d slot %lld\n",getpid(),xx);
+		printf("\nStarting process %d slot %lld\n",getpid(),(long long)xx);
 #endif
 		
 	}
@@ -16999,9 +16998,9 @@ thread_stride_read_test(x)
 	else
 	{
 #ifdef NO_PRINT_LLD
-		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],(long)xx2);
 #else
-		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],(long long)xx2);
 #endif
 	}
 	if(oflag)
@@ -17189,9 +17188,9 @@ thread_stride_read_test(x)
 					break;
 				}
 #ifdef NO_PRINT_LLD
-		    		printf("\nError reading block %ld, fd= %d\n", i, fd);
+		    		printf("\nError reading block %ld, fd= %d\n", (long)i, fd);
 #else
-		    		printf("\nError reading block %lld, fd= %d\n", i, fd);
+		    		printf("\nError reading block %lld, fd= %d\n", (long long)i, fd);
 #endif
 				perror("read");
 				if (!no_unlink)
@@ -17306,9 +17305,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
                 {
                         thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-                        fprintf(thread_strqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+                        fprintf(thread_strqfd,"%10.1ld %10.0f %10.1ld\n",(long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long)reclen);
 #else
-                        fprintf(thread_strqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+                        fprintf(thread_strqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long long)reclen);
 #endif
                 }
 	}
@@ -17395,9 +17394,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	free(dummyfile[xx]);
 	if(debug1)
 #ifdef NO_PRINT_LLD
-		printf("\nChild finished %ld\n",xx);
+		printf("\nChild finished %ld\n",(long)xx);
 #else
-		printf("\nChild finished %lld\n",xx);
+		printf("\nChild finished %lld\n",(long long)xx);
 #endif
 
 	if(L_flag)
@@ -17655,9 +17654,9 @@ void *x;
 	else
 	{
 #ifdef NO_PRINT_LLD
-		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],(long)xx2);
 #else
-		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],(long long)xx2);
 #endif
 	}
 	if(oflag)
@@ -17743,15 +17742,15 @@ void *x;
 	{
 	   if(use_thread)
 #ifdef NO_PRINT_LLD
-		printf("\nStarting child %ld\n",xx);
+		printf("\nStarting child %ld\n",(long)xx);
 #else
-		printf("\nStarting child %lld\n",xx);
+		printf("\nStarting child %lld\n",(long long)xx);
 #endif
 	   else
 #ifdef NO_PRINT_LLD
-		printf("\nStarting process %d slot %ld\n",getpid(),xx);
+		printf("\nStarting process %d slot %ld\n",getpid(),(long)xx);
 #else
-		printf("\nStarting process %d slot %lld\n",getpid(),xx);
+		printf("\nStarting process %d slot %lld\n",getpid(),(long long)xx);
 #endif
 		
 	}
@@ -17913,10 +17912,10 @@ void *x;
 				}
 #ifdef NO_PRINT_LLD
 				printf("\nError reading block at %ld\n",
-					 offset); 
+					 (long)offset); 
 #else
 				printf("\nError reading block at %lld\n",
-					 offset); 
+					 (long long)offset); 
 #endif
 				perror("ranread");
 				if (!no_unlink)
@@ -17991,9 +17990,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
                 {
                         thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-                        fprintf(thread_randrfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+                        fprintf(thread_randrfd,"%10.1ld %10.0f %10.1ld\n",(long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long)reclen);
 #else
-                        fprintf(thread_randrfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+                        fprintf(thread_randrfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long long)reclen);
 #endif
                 }
 	}
@@ -18085,9 +18084,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	free(dummyfile[xx]);
 	if(debug1)
 #ifdef NO_PRINT_LLD
-		printf("\nChild finished %ld\n",xx);
+		printf("\nChild finished %ld\n",(long)xx);
 #else
-		printf("\nChild finished %lld\n",xx);
+		printf("\nChild finished %lld\n",(long long)xx);
 #endif
 
 	if(L_flag)
@@ -18278,15 +18277,15 @@ thread_ranwrite_test( x)
 	{
 	   if(use_thread)
 #ifdef NO_PRINT_LLD
-		printf("\nStarting child %ld\n",xx);
+		printf("\nStarting child %ld\n",(long)xx);
 #else
-		printf("\nStarting child %lld\n",xx);
+		printf("\nStarting child %lld\n",(long long)xx);
 #endif
 	   else
 #ifdef NO_PRINT_LLD
-		printf("\nStarting process %d slot %ld\n",getpid(),xx);
+		printf("\nStarting process %d slot %ld\n",getpid(),(long)xx);
 #else
-		printf("\nStarting process %d slot %lld\n",getpid(),xx);
+		printf("\nStarting process %d slot %lld\n",getpid(),(long long)xx);
 #endif
 		
 	}
@@ -18305,9 +18304,9 @@ thread_ranwrite_test( x)
 	else
 	{
 #ifdef NO_PRINT_LLD
-		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx2],(long)xx2);
 #else
-		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],xx2);
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx2],(long long)xx2);
 #endif
 	}
 	/*****************/
@@ -18624,10 +18623,10 @@ again:
 			   complete.
 			*/
 #ifdef NO_PRINT_LLD
-		    	printf("\nError writing block %ld, fd= %d\n", i,
+		    	printf("\nError writing block %ld, fd= %d\n", (long)i,
 				 fd);
 #else
-		    	printf("\nError writing block %lld, fd= %d\n", i,
+		    	printf("\nError writing block %lld, fd= %d\n", (long long)i,
 				 fd);
 #endif
 			if(wval==-1)
@@ -18669,9 +18668,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 		{
 			thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-			fprintf(thread_randwqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+			fprintf(thread_randwqfd,"%10.1ld %10.0f %10.1ld\n",(long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long)reclen);
 #else
-			fprintf(thread_randwqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+			fprintf(thread_randwqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long long)reclen);
 #endif
 		}
 		w_traj_ops_completed++;
@@ -18767,9 +18766,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	/*******************************************************************/
 	if(debug1)
 #ifdef NO_PRINT_LLD
-		printf("\nChild finished %ld\n",xx);
+		printf("\nChild finished %ld\n",(long)xx);
 #else
-		printf("\nChild finished %lld\n",xx);
+		printf("\nChild finished %lld\n",(long long)xx);
 #endif
 	if(!include_close)
 	{
@@ -18851,9 +18850,9 @@ thread_cleanup_test(x)
 	else
 	{
 #ifdef NO_PRINT_LLD
-		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],xx);
+		sprintf(dummyfile[xx],"%s.DUMMY.%ld",filearray[xx],(long)xx);
 #else
-		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],xx);
+		sprintf(dummyfile[xx],"%s.DUMMY.%lld",filearray[xx],(long long)xx);
 #endif
 	}
 	if(!no_unlink)
@@ -18948,9 +18947,9 @@ int x;
 	{
 		printf("\nthread created has an id of %p\n",(void *)ts);
 #ifdef NO_PRINT_LLD
-		printf("meme %ld\n",meme);
+		printf("meme %ld\n",(long)meme);
 #else
-		printf("meme %lld\n",meme);
+		printf("meme %lld\n",(long long)meme);
 #endif
 	}
 	return((long long)meme);
@@ -19099,17 +19098,17 @@ dump_throughput_cpu()
 	label = OPS_flag ?  "ops/sec" :
 		MS_flag ? "microseconds/op" : "kBytes/sec";
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("\"Record size = %ld kBytes \"\n", reclen/1024);
+	if(!silent) printf("\"Record size = %ld kBytes \"\n", (long)(reclen/1024));
 #else
-	if(!silent) printf("\"Record size = %lld kBytes \"\n", reclen/1024);
+	if(!silent) printf("\"Record size = %lld kBytes \"\n", (long long)(reclen/1024));
 #endif
 	if(!silent) printf("\"Output is in CPU%%\"\n\n");
 	if (bif_flag)
 	{
 #ifdef NO_PRINT_LLD
-		sprintf(print_str, "Record size = %ld kBytes", reclen/1024);
+		sprintf(print_str, "Record size = %ld kBytes", (long)(reclen/1024));
 #else
-		sprintf(print_str, "Record size = %lld kBytes", reclen/1024);
+		sprintf(print_str, "Record size = %lld kBytes", (long long)(reclen/1024));
 #endif
 		do_label(bif_fd, print_str, bif_row++, bif_column);
 		sprintf(print_str, "Output is in CPU%%");
@@ -19178,17 +19177,17 @@ dump_throughput()
 	else
 		label="kBytes/sec";
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("\"Record size = %ld kBytes \"\n",reclen/1024);
+	if(!silent) printf("\"Record size = %ld kBytes \"\n",(long)(reclen/1024));
 #else
-	if(!silent) printf("\"Record size = %lld kBytes \"\n",reclen/1024);
+	if(!silent) printf("\"Record size = %lld kBytes \"\n",(long long)(reclen/1024));
 #endif
 	if(!silent) printf("\"Output is in %s\"\n\n",label);
 	if(bif_flag)
 	{
 #ifdef NO_PRINT_LLD
-		sprintf(print_str,"Record size = %ld kBytes",reclen/1024);
+		sprintf(print_str,"Record size = %ld kBytes",(long)(reclen/1024));
 #else
-		sprintf(print_str,"Record size = %lld kBytes",reclen/1024);
+		sprintf(print_str,"Record size = %lld kBytes",(long long)(reclen/1024));
 #endif
 		do_label(bif_fd,print_str,bif_row++,bif_column);
 		sprintf(print_str,"Output is in %s",label);
@@ -19444,9 +19443,9 @@ long long size;
 {
 	if(munmap(buffer,(size_t)size)<0)
 #ifdef NO_PRINT_LLD
-		printf("munmap buffer %lx, size %ld failed.\n",(long)buffer,size);
+		printf("munmap buffer %lx, size %ld failed.\n",(long)buffer,(long)size);
 #else
-		printf("munmap buffer %lx, size %lld failed.\n",(long)buffer,size);
+		printf("munmap buffer %lx, size %lld failed.\n",(long)buffer,(long long)size);
 #endif
 	
 }
@@ -20051,7 +20050,17 @@ long which;
 #endif
 {
 	long long traj_offset = 0;
+#ifdef NO_PRINT_LLD
+	long tmp1 = 0;
+	long tmp2 = 0;
+	long tmp3 = 0;
+	long tmp4 = 0;
+#else
+	long long tmp1 = 0;
 	long long tmp2 = 0;
+	long long tmp3 = 0;
+	long long tmp4 = 0;
+#endif
 	int tmp = 0;
 	int tokens;
 	int ret=0;
@@ -20086,20 +20095,26 @@ long which;
 	if(tokens == 3)
 	{
 #ifdef NO_PRINT_LLD
-		ret=sscanf(sbuf,"%ld %ld %d\n",&traj_offset,&tmp2,&tmp);
+		ret=sscanf(sbuf,"%ld %ld %d\n",&tmp1,&tmp2,&tmp);
+		traj_offset=(long long)tmp1;
+		*traj_size=(long long)tmp2;
 #else
-		ret=sscanf(sbuf,"%lld %lld %d\n",&traj_offset,&tmp2,&tmp);
+		ret=sscanf(sbuf,"%lld %lld %d\n",&tmp1,&tmp2,&tmp);
+		traj_offset=(long long)tmp1;
+		*traj_size=(long long)tmp2;
 #endif
-	/*printf("\nReading %s trajectory with %d items\n",which?"write":"read",tokens);*/
-		*traj_size=tmp2;
 		*delay= ((float)tmp/1000);
 	}
 	if(tokens == 2)
 	{ 
 #ifdef NO_PRINT_LLD
-		ret=sscanf(sbuf,"%ld %ld\n",&traj_offset,traj_size);
+		ret=sscanf(sbuf,"%ld %ld\n",&tmp3,&tmp4);
+		traj_offset=(long long)tmp3;
+		*traj_size=(long long)tmp4;
 #else
-		ret=sscanf(sbuf,"%lld %lld\n",&traj_offset,traj_size);
+		ret=sscanf(sbuf,"%lld %lld\n",&tmp3,&tmp4);
+		traj_offset=(long long)tmp3;
+		*traj_size=(long long)tmp4;
 #endif
 		*delay=compute_time;
 	/*printf("\nReading %s trajectory with %d items\n",which?"write":"read",tokens);*/
@@ -20116,9 +20131,9 @@ long which;
 	}
 #ifdef DEBUG
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("\nOffset %ld  Size %ld Compute delay %f\n",traj_offset, *traj_size,*delay);
+	if(!silent) printf("\nOffset %ld  Size %ld Compute delay %f\n",(long)traj_offset, (long)(*traj_size),*delay);
 #else
-	if(!silent) printf("\nOffset %lld  Size %lld Compute delay %f\n",traj_offset, *traj_size,*delay);
+	if(!silent) printf("\nOffset %lld  Size %lld Compute delay %f\n",(long long)traj_offset, (long long)(*traj_size),*delay);
 #endif
 #endif
 	return(traj_offset);
@@ -20231,17 +20246,17 @@ r_traj_size()
 		if(tokens==3)
 		{
 #ifdef NO_PRINT_LLD
-			ret=sscanf(sbuf,"%ld %ld %d\n",&traj_offset,&traj_size,&dummy);
+			ret=sscanf(sbuf,"%ld %ld %d\n",(long *)&traj_offset,(long *)&traj_size,&dummy);
 #else
-			ret=sscanf(sbuf,"%lld %lld %d\n",&traj_offset,&traj_size,&dummy);
+			ret=sscanf(sbuf,"%lld %lld %d\n",(long long *)&traj_offset,(long long *)&traj_size,&dummy);
 #endif
 		}
 		if(tokens==2)
 		{
 #ifdef NO_PRINT_LLD
-			ret=sscanf(sbuf,"%ld %ld\n",&traj_offset,&traj_size);
+			ret=sscanf(sbuf,"%ld %ld\n",(long *)&traj_offset,(long *)&traj_size);
 #else
-			ret=sscanf(sbuf,"%lld %lld\n",&traj_offset,&traj_size);
+			ret=sscanf(sbuf,"%lld %lld\n",(long long *)&traj_offset,(long long *)&traj_size);
 #endif
 		}
 		if((tokens != 2) && (tokens !=3))
@@ -20258,9 +20273,9 @@ r_traj_size()
 #ifdef DEBUG
 
 #ifdef NO_PRINT_LLD
-	printf("File size of read %ld Item count %ld\n",r_traj_fsize,r_traj_ops);
+	printf("File size of read %ld Item count %ld\n",(long)r_traj_fsize,(long)r_traj_ops);
 #else
-	printf("File size of read %lld Item count %lld\n",r_traj_fsize,r_traj_ops);
+	printf("File size of read %lld Item count %lld\n",(long long)r_traj_fsize,(long long)r_traj_ops);
 #endif
 
 #endif
@@ -20328,17 +20343,17 @@ w_traj_size()
 		if(tokens==3)
 		{
 #ifdef NO_PRINT_LLD
-			ret=sscanf(sbuf,"%ld %ld %d\n",&traj_offset,&traj_size,&dummy);
+			ret=sscanf(sbuf,"%ld %ld %d\n",(long *)&traj_offset,(long *)&traj_size,&dummy);
 #else
-			ret=sscanf(sbuf,"%lld %lld %d",&traj_offset,&traj_size,&dummy);
+			ret=sscanf(sbuf,"%lld %lld %d",(long long *)&traj_offset,(long long *)&traj_size,&dummy);
 #endif
 		}
 		if(tokens==2)
 		{
 #ifdef NO_PRINT_LLD
-			ret=sscanf(sbuf,"%ld %ld\n",&traj_offset,&traj_size);
+			ret=sscanf(sbuf,"%ld %ld\n",(long *)&traj_offset,(long *)&traj_size);
 #else
-			ret=sscanf(sbuf,"%lld %lld\n",&traj_offset,&traj_size);
+			ret=sscanf(sbuf,"%lld %lld\n",(long long *)&traj_offset,(long long *)&traj_size);
 #endif
 		}
 		if(tokens > 3)
@@ -20355,9 +20370,9 @@ w_traj_size()
 	w_traj_fsize=max_offset;
 #ifdef DEBUG
 #ifdef NO_PRINT_LLD
-	printf("File size of write %ld Item count %ld\n",w_traj_fsize,w_traj_ops);
+	printf("File size of write %ld Item count %ld\n",(long)w_traj_fsize,(long)w_traj_ops);
 #else
-	printf("File size of write %lld Item count %lld\n",w_traj_fsize,w_traj_ops);
+	printf("File size of write %lld Item count %lld\n",(long long)w_traj_fsize,(long long)w_traj_ops);
 #endif
 #endif
 	fclose(fd);
@@ -20989,9 +21004,9 @@ again:
 	sprintf(outbuf.m_stop_flag,"%d",send_buffer->m_stop_flag);
 	sprintf(outbuf.m_actual,"%f",send_buffer->m_actual);
 #ifdef NO_PRINT_LLD
-	sprintf(outbuf.m_child_flag,"%ld",send_buffer->m_child_flag);
+	sprintf(outbuf.m_child_flag,"%ld",(long)(send_buffer->m_child_flag));
 #else
-	sprintf(outbuf.m_child_flag,"%lld",send_buffer->m_child_flag);
+	sprintf(outbuf.m_child_flag,"%lld",(long long)(send_buffer->m_child_flag));
 #endif
 	rc=write(child_socket_val,&outbuf,sizeof(struct master_neutral_command));
         if (rc < 0) {
@@ -21109,27 +21124,27 @@ int send_size;
 	sprintf(outbuf.c_restf,"%d",send_buffer->c_restf);
 	sprintf(outbuf.c_mygen,"%d",send_buffer->c_mygen);
 #ifdef NO_PRINT_LLD
-	sprintf(outbuf.c_stride,"%ld",send_buffer->c_stride);
-	sprintf(outbuf.c_rest_val,"%ld",send_buffer->c_rest_val);
-	sprintf(outbuf.c_delay,"%ld",send_buffer->c_delay);
-	sprintf(outbuf.c_purge,"%ld",send_buffer->c_purge);
-	sprintf(outbuf.c_fetchon,"%ld",send_buffer->c_fetchon);
-	sprintf(outbuf.c_numrecs64,"%ld",send_buffer->c_numrecs64);
-	sprintf(outbuf.c_reclen,"%ld",send_buffer->c_reclen);
-	sprintf(outbuf.c_child_flag,"%ld",send_buffer->c_child_flag);
-	sprintf(outbuf.c_delay_start,"%ld",send_buffer->c_delay_start);
-	sprintf(outbuf.c_depth,"%ld",send_buffer->c_depth);
+	sprintf(outbuf.c_stride,"%ld"(long)(,send_buffer->c_stride));
+	sprintf(outbuf.c_rest_val,"%ld",(long)(send_buffer->c_rest_val));
+	sprintf(outbuf.c_delay,"%ld",(long)(send_buffer->c_delay));
+	sprintf(outbuf.c_purge,"%ld",(long)(send_buffer->c_purge));
+	sprintf(outbuf.c_fetchon,"%ld",(long)(send_buffer->c_fetchon));
+	sprintf(outbuf.c_numrecs64,"%ld",(long)(send_buffer->c_numrecs64));
+	sprintf(outbuf.c_reclen,"%ld",(long)(send_buffer->c_reclen));
+	sprintf(outbuf.c_child_flag,"%ld",(long)(send_buffer->c_child_flag));
+	sprintf(outbuf.c_delay_start,"%ld",(long)(send_buffer->c_delay_start));
+	sprintf(outbuf.c_depth,"%ld",(long)(send_buffer->c_depth));
 #else
-	sprintf(outbuf.c_delay,"%lld",send_buffer->c_delay);
-	sprintf(outbuf.c_stride,"%lld",send_buffer->c_stride);
-	sprintf(outbuf.c_rest_val,"%lld",send_buffer->c_rest_val);
-	sprintf(outbuf.c_purge,"%lld",send_buffer->c_purge);
-	sprintf(outbuf.c_fetchon,"%lld",send_buffer->c_fetchon);
-	sprintf(outbuf.c_numrecs64,"%lld",send_buffer->c_numrecs64);
-	sprintf(outbuf.c_reclen,"%lld",send_buffer->c_reclen);
-	sprintf(outbuf.c_child_flag,"%lld",send_buffer->c_child_flag);
-	sprintf(outbuf.c_delay_start,"%lld",send_buffer->c_delay_start);
-	sprintf(outbuf.c_depth,"%lld",send_buffer->c_depth);
+	sprintf(outbuf.c_delay,"%lld",(long long)(send_buffer->c_delay));
+	sprintf(outbuf.c_stride,"%lld",(long long)(send_buffer->c_stride));
+	sprintf(outbuf.c_rest_val,"%lld",(long long)(send_buffer->c_rest_val));
+	sprintf(outbuf.c_purge,"%lld",(long long)(send_buffer->c_purge));
+	sprintf(outbuf.c_fetchon,"%lld",(long long)(send_buffer->c_fetchon));
+	sprintf(outbuf.c_numrecs64,"%lld",(long long)(send_buffer->c_numrecs64));
+	sprintf(outbuf.c_reclen,"%lld",(long long)(send_buffer->c_reclen));
+	sprintf(outbuf.c_child_flag,"%lld",(long long)(send_buffer->c_child_flag));
+	sprintf(outbuf.c_delay_start,"%lld",(long long)(send_buffer->c_delay_start));
+	sprintf(outbuf.c_depth,"%lld",(long long)(send_buffer->c_depth));
 #endif
 	sprintf(outbuf.c_stop_flag,"%d",send_buffer->c_stop_flag);
 	sprintf(outbuf.c_compute_time,"%f",send_buffer->c_compute_time);
@@ -21985,9 +22000,9 @@ long long numrecs64, reclen;
 	 */
 	sscanf(mnc->m_client_number,"%d",&mc.m_client_number);	
 #ifdef NO_PRINT_LLD
-	sscanf(mnc->m_child_flag,"%ld",&mc.m_child_flag);	
+	sscanf(mnc->m_child_flag,"%ld",(long *)&mc.m_child_flag);	
 #else
-	sscanf(mnc->m_child_flag,"%lld",&mc.m_child_flag);	
+	sscanf(mnc->m_child_flag,"%lld",(long long *)&mc.m_child_flag);	
 #endif
 
 	child_index = mc.m_client_number;
@@ -22127,25 +22142,25 @@ become_client()
 	/* 5. Get state information from the master */
 
 #ifdef NO_PRINT_LLD
-	sscanf(cnc->c_numrecs64,"%ld",&cc.c_numrecs64);
-	sscanf(cnc->c_reclen,"%ld",&cc.c_reclen);
-	sscanf(cnc->c_fetchon,"%ld",&cc.c_fetchon);
-	sscanf(cnc->c_purge,"%ld",&cc.c_purge);
-	sscanf(cnc->c_delay,"%ld",&cc.c_delay);
-	sscanf(cnc->c_stride,"%ld",&cc.c_stride);
-	sscanf(cnc->c_rest_val,"%ld",&cc.c_rest_val);
-	sscanf(cnc->c_delay_start,"%ld",&cc.c_delay_start);
-	sscanf(cnc->c_depth,"%ld",&cc.c_depth);
+	sscanf(cnc->c_numrecs64,"%ld",(long *)(&cc.c_numrecs64));
+	sscanf(cnc->c_reclen,"%ld",(long *)(&cc.c_reclen));
+	sscanf(cnc->c_fetchon,"%ld",(long *)(&cc.c_fetchon));
+	sscanf(cnc->c_purge,"%ld",(long *)(&cc.c_purge));
+	sscanf(cnc->c_delay,"%ld",(long *)(&cc.c_delay));
+	sscanf(cnc->c_stride,"%ld",(long *)(&cc.c_stride));
+	sscanf(cnc->c_rest_val,"%ld",(long *)(&cc.c_rest_val));
+	sscanf(cnc->c_delay_start,"%ld",(long *)(&cc.c_delay_start));
+	sscanf(cnc->c_depth,"%ld",(long *)(&cc.c_depth));
 #else
-	sscanf(cnc->c_numrecs64,"%lld",&cc.c_numrecs64);
-	sscanf(cnc->c_reclen,"%lld",&cc.c_reclen);
-	sscanf(cnc->c_fetchon,"%lld",&cc.c_fetchon);
-	sscanf(cnc->c_purge,"%lld",&cc.c_purge);
-	sscanf(cnc->c_delay,"%lld",&cc.c_delay);
-	sscanf(cnc->c_stride,"%lld",&cc.c_stride);
-	sscanf(cnc->c_rest_val,"%lld",&cc.c_rest_val);
-	sscanf(cnc->c_delay_start,"%lld",&cc.c_delay_start);
-	sscanf(cnc->c_depth,"%lld",&cc.c_depth);
+	sscanf(cnc->c_numrecs64,"%lld",(long long *)(&cc.c_numrecs64));
+	sscanf(cnc->c_reclen,"%lld",(long long *)(&cc.c_reclen));
+	sscanf(cnc->c_fetchon,"%lld",(long long *)(&cc.c_fetchon));
+	sscanf(cnc->c_purge,"%lld",(long long *)(&cc.c_purge));
+	sscanf(cnc->c_delay,"%lld",(long long *)(&cc.c_delay));
+	sscanf(cnc->c_stride,"%lld",(long long *)(&cc.c_stride));
+	sscanf(cnc->c_rest_val,"%lld",(long long *)(&cc.c_rest_val));
+	sscanf(cnc->c_delay_start,"%lld",(long long *)(&cc.c_delay_start));
+	sscanf(cnc->c_depth,"%lld",(long long *)(&cc.c_depth));
 #endif
 	sscanf(cnc->c_pit_hostname,"%s",cc.c_pit_hostname);
 	sscanf(cnc->c_pit_service,"%s",cc.c_pit_service);
@@ -25197,9 +25212,9 @@ void * thread_fwrite_test( x)
 		{
 			thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-			fprintf(thread_wqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+			fprintf(thread_wqfd,"%10.1ld %10.0f %10.1ld\n",(long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long)reclen);
 #else
-			fprintf(thread_wqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+			fprintf(thread_wqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long long)reclen);
 #endif
 		}
                 w_traj_ops_completed++;
@@ -25271,12 +25286,11 @@ void * thread_fwrite_test( x)
 
         if (debug1) {
 #ifdef NO_PRINT_LLD
-                printf(" child/slot: %ld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",
+                printf(" child/slot: %ld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n", (long)xx,
 #else
-                printf(" child/slot: %lld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",
+                printf(" child/slot: %lld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",(long long)xx,
 #endif
-                        xx, walltime, cputime,
-                        cpu_util(cputime, walltime));
+                        walltime, cputime,cpu_util(cputime, walltime));
         }
         child_stat->flag = CHILD_STATE_HOLD; /* Tell parent I'm done */
         stopped=0;
@@ -25287,9 +25301,9 @@ void * thread_fwrite_test( x)
 
         if(debug1)
 #ifdef NO_PRINT_LLD
-                printf("\nChild finished %ld\n",xx);
+                printf("\nChild finished %ld\n",(long)xx);
 #else
-                printf("\nChild finished %lld\n",xx);
+                printf("\nChild finished %lld\n",(long long)xx);
 #endif
         if(Q_flag && (thread_wqfd !=0) )
                 fclose(thread_wqfd);
@@ -25442,15 +25456,15 @@ void * thread_fread_test( x)
         {
            if(use_thread)
 #ifdef NO_PRINT_LLD
-                printf("\nStarting child %ld\n",xx);
+                printf("\nStarting child %ld\n",(long)xx);
 #else
-                printf("\nStarting child %lld\n",xx);
+                printf("\nStarting child %lld\n",(long long)xx);
 #endif
            else
 #ifdef NO_PRINT_LLD
-                printf("\nStarting process %d slot %ld\n",getpid(),xx);
+                printf("\nStarting process %d slot %ld\n",getpid(),(long)xx);
 #else
-                printf("\nStarting process %d slot %lld\n",getpid(),xx);
+                printf("\nStarting process %d slot %lld\n",getpid(),(long long)xx);
 #endif
 
         }
@@ -25615,18 +25629,18 @@ void * thread_fread_test( x)
 		{
 #ifdef _64BIT_ARCH_
 #ifdef NO_PRINT_LLD
-			printf("\nError freading block %ld %x\n", i,
+			printf("\nError freading block %ld %x\n", (long)i,
 				(unsigned long)buffer);
 #else
-			printf("\nError freading block %lld %llx\n", i,
+			printf("\nError freading block %lld %llx\n", (long long)i,
 				(unsigned long long)buffer);
 #endif
 #else
 #ifdef NO_PRINT_LLD
-			printf("\nError freading block %ld %lx\n", i,
+			printf("\nError freading block %ld %lx\n", (long)i,
 				(long)buffer);
 #else
-			printf("\nError freading block %lld %lx\n", i,
+			printf("\nError freading block %lld %lx\n", (long long)i,
 				(long)buffer);
 #endif
 #endif
@@ -25656,9 +25670,9 @@ void * thread_fread_test( x)
 		{
 			thread_qtime_stop=time_so_far();
 #ifdef NO_PRINT_LLD
-			fprintf(thread_wqfd,"%10.1ld %10.0f %10.1ld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+			fprintf(thread_wqfd,"%10.1ld %10.0f %10.1ld\n",(long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long)reclen);
 #else
-			fprintf(thread_wqfd,"%10.1lld %10.0f %10.1lld\n",(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,reclen);
+			fprintf(thread_wqfd,"%10.1lld %10.0f %10.1lld\n",(long long)(traj_offset)/1024,((thread_qtime_stop-thread_qtime_start-time_res))*1000000,(long long)reclen);
 #endif
 		}
                 w_traj_ops_completed++;
@@ -25722,12 +25736,11 @@ void * thread_fread_test( x)
 
         if (debug1) {
 #ifdef NO_PRINT_LLD
-                printf(" child/slot: %ld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",
+                printf(" child/slot: %ld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",(long)xx,
 #else
-                printf(" child/slot: %lld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",
+                printf(" child/slot: %lld, wall-cpu: %8.3f %8.3fC" " -> %6.2f%%\n",(long long)xx,
 #endif
-                        xx, walltime, cputime,
-                        cpu_util(cputime, walltime));
+                        walltime, cputime,cpu_util(cputime, walltime));
         }
         child_stat->flag = CHILD_STATE_HOLD; /* Tell parent I'm done */
         stopped=0;
@@ -25738,9 +25751,9 @@ void * thread_fread_test( x)
 
         if(debug1)
 #ifdef NO_PRINT_LLD
-                printf("\nChild finished %ld\n",xx);
+                printf("\nChild finished %ld\n",(long)xx);
 #else
-                printf("\nChild finished %lld\n",xx);
+                printf("\nChild finished %lld\n",(long long)xx);
 #endif
         if(Q_flag && (thread_wqfd !=0) )
                 fclose(thread_wqfd);

@@ -2567,3 +2567,9 @@ Make the my_sig_t change effective for all BSD derivatives.
 Revision 3.455
 Unify the usage of __FreeBSD__
 =============================================================================
+Revision 3.456
+Build on BSD 10.3 without warnings.  Clang compilers.
+=============================================================================
+Revision 3.457
+Build on BSD 10.3 without warnings.  Clang compilers.
+=============================================================================
