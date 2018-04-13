@@ -1451,4 +1451,13 @@ Revision 3.121
 =============================================================================
 Add changes from Debian. Add powerpc and sparc.
 Add changes to fix warning on Irix and Irix64
+=============================================================================
+Revision 3.122 
+=============================================================================
+Bug fix for cluster mode. Need to bzero buffers before sprintf or sscanf
+=============================================================================
+Revision 3.123 
+=============================================================================
+Bug fix for handling all chars that are transported over messaging.
+
 

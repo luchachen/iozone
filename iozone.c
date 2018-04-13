@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.121 $"
+#define THISVERSION "        Version $Revision: 3.123 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -394,34 +394,34 @@ struct client_command {
 	char c_execute_name[256];
 	char c_write_traj_filename[256];
 	char c_read_traj_filename[256];
-	char c_oflag;
-	char c_jflag;
-	char c_async_flag;
-	char c_k_flag;
-	char c_h_flag;
-	char c_mflag;
-	char c_pflag;
-	char c_stride_flag;
-	char c_verify;
-	char c_sverify;
-	char c_diag_v;
-	char c_Q_flag;
-	char c_OPS_flag;
-	char c_mmapflag;
-	char c_mmapasflag;
-	char c_mmapnsflag;
-	char c_mmapssflag;
-	char c_no_copy_flag;
-	char c_include_close;
-	char c_include_flush;
-	char c_disrupt_flag;
-	char c_compute_flag;
-	char c_xflag;
-	char c_w_traj_flag;
-	char c_r_traj_flag;
-	char c_MS_flag;
-	char c_mmap_mix;
-	char c_stop_flag;
+	int c_oflag;
+	int c_jflag;
+	int c_async_flag;
+	int c_k_flag;
+	int c_h_flag;
+	int c_mflag;
+	int c_pflag;
+	int c_stride_flag;
+	int c_verify;
+	int c_sverify;
+	int c_diag_v;
+	int c_Q_flag;
+	int c_OPS_flag;
+	int c_mmapflag;
+	int c_mmapasflag;
+	int c_mmapnsflag;
+	int c_mmapssflag;
+	int c_no_copy_flag;
+	int c_include_close;
+	int c_include_flush;
+	int c_disrupt_flag;
+	int c_compute_flag;
+	int c_xflag;
+	int c_MS_flag;
+	int c_mmap_mix;
+	int c_stop_flag;
+	int c_w_traj_flag;
+	int c_r_traj_flag;
 	int c_direct_flag;
 	int c_client_number;
 	int c_command;
@@ -461,34 +461,34 @@ struct client_neutral_command {
 	char c_execute_name[256];
 	char c_write_traj_filename[256];
 	char c_read_traj_filename[256];
-	char c_oflag;
-	char c_jflag;
-	char c_async_flag;
-	char c_k_flag;
-	char c_h_flag;
-	char c_mflag;
-	char c_pflag;
-	char c_stride_flag;
-	char c_verify;
-	char c_sverify;
-	char c_diag_v;
-	char c_Q_flag;
-	char c_OPS_flag;
-	char c_mmapflag;
-	char c_mmapasflag;
-	char c_mmapnsflag;
-	char c_mmapssflag;
-	char c_no_copy_flag;
-	char c_include_close;
-	char c_include_flush;
-	char c_disrupt_flag;
-	char c_compute_flag;
-	char c_stop_flag; 		
-	char c_xflag;
-	char c_w_traj_flag;
-	char c_r_traj_flag;
-	char c_MS_flag;
-	char c_mmap_mix;
+	char c_oflag[2];
+	char c_jflag[2];
+	char c_async_flag[2];
+	char c_k_flag[2];
+	char c_h_flag[2];
+	char c_mflag[2];
+	char c_pflag[2];
+	char c_stride_flag[2];
+	char c_verify[2];
+	char c_sverify[2];
+	char c_diag_v[2];
+	char c_Q_flag[2];
+	char c_OPS_flag[2];
+	char c_mmapflag[2];
+	char c_mmapasflag[2];
+	char c_mmapnsflag[2];
+	char c_mmapssflag[2];
+	char c_no_copy_flag[2];
+	char c_include_close[2];
+	char c_include_flush[2];
+	char c_disrupt_flag[2];
+	char c_compute_flag[2];
+	char c_stop_flag[2];
+	char c_xflag[2];
+	char c_MS_flag[2];
+	char c_mmap_mix[2];
+	char c_w_traj_flag[20];		/* int */
+	char c_r_traj_flag[20];		/* int */
 	char c_direct_flag[20]; 	/* int */
 	char c_client_number[20]; 	/* int */
 	char c_command[20]; 		/* int */
@@ -1165,7 +1165,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 3;
+int proto_version = 5;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1194,7 +1194,8 @@ char Q_flag,OPS_flag;
 char no_copy_flag,include_close,include_flush;
 char disrupt_flag,compute_flag,xflag;
 int no_unlink = 0;
-char r_traj_flag,w_traj_flag,MS_flag;
+int r_traj_flag,w_traj_flag;
+char MS_flag;
 int direct_flag;
 int current_client_number;
 long long chid;
@@ -14255,6 +14256,7 @@ int send_size;
 	int rc;
 	struct master_neutral_command outbuf;
 	
+	bzero(&outbuf, sizeof(struct master_neutral_command));
 	if(cdebug>=1)
 	{
 		fprintf(newstdout,"Child sending message to %s 0\n",controlling_host_name);
@@ -14316,6 +14318,7 @@ int send_size;
 	int rc;
 	struct client_neutral_command outbuf;
 
+	bzero(&outbuf,sizeof(struct client_neutral_command));
 	if(mdebug)
 	{
 		printf("Master_neutral_command size = %d\n",sizeof(struct master_neutral_command));
@@ -14331,33 +14334,33 @@ int send_size;
 	strcpy(outbuf.c_execute_name,send_buffer->c_execute_name);
 	strcpy(outbuf.c_write_traj_filename,send_buffer->c_write_traj_filename);
 	strcpy(outbuf.c_read_traj_filename,send_buffer->c_read_traj_filename);
-	sprintf(&outbuf.c_oflag,"%c",send_buffer->c_oflag);
-	sprintf(&outbuf.c_jflag,"%c",send_buffer->c_jflag);
-	sprintf(&outbuf.c_async_flag,"%c",send_buffer->c_async_flag);
-	sprintf(&outbuf.c_mmapflag,"%c",send_buffer->c_mmapflag);
-	sprintf(&outbuf.c_k_flag,"%c",send_buffer->c_k_flag);
-	sprintf(&outbuf.c_h_flag,"%c",send_buffer->c_h_flag);
-	sprintf(&outbuf.c_mflag,"%c",send_buffer->c_mflag);
-	sprintf(&outbuf.c_pflag,"%c",send_buffer->c_pflag);
-	sprintf(&outbuf.c_stride_flag,"%c",send_buffer->c_stride_flag);
-	sprintf(&outbuf.c_verify,"%c",send_buffer->c_verify);
-	sprintf(&outbuf.c_sverify,"%c",send_buffer->c_sverify);
-	sprintf(&outbuf.c_diag_v,"%c",send_buffer->c_diag_v);
-	sprintf(&outbuf.c_Q_flag,"%c",send_buffer->c_Q_flag);
-	sprintf(&outbuf.c_include_flush,"%c",send_buffer->c_include_flush);
-	sprintf(&outbuf.c_OPS_flag,"%c",send_buffer->c_OPS_flag);
-	sprintf(&outbuf.c_mmapnsflag,"%c",send_buffer->c_mmapnsflag);
-	sprintf(&outbuf.c_mmapssflag,"%c",send_buffer->c_mmapssflag);
-	sprintf(&outbuf.c_mmapasflag,"%c",send_buffer->c_mmapasflag);
-	sprintf(&outbuf.c_no_copy_flag,"%c",send_buffer->c_no_copy_flag);
-	sprintf(&outbuf.c_include_close,"%c",send_buffer->c_include_close);
-	sprintf(&outbuf.c_disrupt_flag,"%c",send_buffer->c_disrupt_flag);
-	sprintf(&outbuf.c_compute_flag,"%c",send_buffer->c_compute_flag);
-	sprintf(&outbuf.c_xflag,"%c",send_buffer->c_xflag);
-	sprintf(&outbuf.c_w_traj_flag,"%c",send_buffer->c_w_traj_flag);
-	sprintf(&outbuf.c_r_traj_flag,"%c",send_buffer->c_r_traj_flag);
-	sprintf(&outbuf.c_MS_flag,"%c",send_buffer->c_MS_flag);
-	sprintf(&outbuf.c_mmap_mix,"%c",send_buffer->c_mmap_mix);
+	sprintf(outbuf.c_oflag,"%d",send_buffer->c_oflag);
+	sprintf(outbuf.c_jflag,"%d",send_buffer->c_jflag);
+	sprintf(outbuf.c_async_flag,"%d",send_buffer->c_async_flag);
+	sprintf(outbuf.c_mmapflag,"%d",send_buffer->c_mmapflag);
+	sprintf(outbuf.c_k_flag,"%d",send_buffer->c_k_flag);
+	sprintf(outbuf.c_h_flag,"%d",send_buffer->c_h_flag);
+	sprintf(outbuf.c_mflag,"%d",send_buffer->c_mflag);
+	sprintf(outbuf.c_pflag,"%d",send_buffer->c_pflag);
+	sprintf(outbuf.c_stride_flag,"%d",send_buffer->c_stride_flag);
+	sprintf(outbuf.c_verify,"%d",send_buffer->c_verify);
+	sprintf(outbuf.c_sverify,"%d",send_buffer->c_sverify);
+	sprintf(outbuf.c_diag_v,"%d",send_buffer->c_diag_v);
+	sprintf(outbuf.c_Q_flag,"%d",send_buffer->c_Q_flag);
+	sprintf(outbuf.c_include_flush,"%d",send_buffer->c_include_flush);
+	sprintf(outbuf.c_OPS_flag,"%d",send_buffer->c_OPS_flag);
+	sprintf(outbuf.c_mmapnsflag,"%d",send_buffer->c_mmapnsflag);
+	sprintf(outbuf.c_mmapssflag,"%d",send_buffer->c_mmapssflag);
+	sprintf(outbuf.c_mmapasflag,"%d",send_buffer->c_mmapasflag);
+	sprintf(outbuf.c_no_copy_flag,"%d",send_buffer->c_no_copy_flag);
+	sprintf(outbuf.c_include_close,"%d",send_buffer->c_include_close);
+	sprintf(outbuf.c_disrupt_flag,"%d",send_buffer->c_disrupt_flag);
+	sprintf(outbuf.c_compute_flag,"%d",send_buffer->c_compute_flag);
+	sprintf(outbuf.c_xflag,"%d",send_buffer->c_xflag);
+	sprintf(outbuf.c_MS_flag,"%d",send_buffer->c_MS_flag);
+	sprintf(outbuf.c_mmap_mix,"%d",send_buffer->c_mmap_mix);
+	sprintf(outbuf.c_w_traj_flag,"%d",send_buffer->c_w_traj_flag);
+	sprintf(outbuf.c_r_traj_flag,"%d",send_buffer->c_r_traj_flag);
 	sprintf(outbuf.c_direct_flag,"%d",send_buffer->c_direct_flag);
 	sprintf(outbuf.c_client_number,"%d",send_buffer->c_client_number);
 	sprintf(outbuf.c_command,"%d",send_buffer->c_command);
@@ -14389,7 +14392,7 @@ int send_size;
 	sprintf(outbuf.c_delay_start,"%lld",send_buffer->c_delay_start);
 	sprintf(outbuf.c_depth,"%lld",send_buffer->c_depth);
 #endif
-	sprintf(&outbuf.c_stop_flag,"%c",send_buffer->c_stop_flag);
+	sprintf(outbuf.c_stop_flag,"%d",send_buffer->c_stop_flag);
 	sprintf(outbuf.c_compute_time,"%f",send_buffer->c_compute_time);
 
 	if(mdebug >= 1)
@@ -15044,6 +15047,7 @@ long long numrecs64, reclen;
 	char command[512];
 	struct in_addr my_s_addr;
 
+	bzero(&cc,sizeof(struct client_command));
 	for(x=0;x<512;x++)
 		command[x]=0;
 
@@ -15239,6 +15243,7 @@ become_client()
 	char client_name[256];
 	char *workdir;
 
+	bzero(&mc,sizeof(struct master_command));
 	x=fork(); /* Become a daemon so that remote shell will return. */
 	if(x != 0)
 		exit(0);
@@ -15354,40 +15359,40 @@ become_client()
 	sscanf(cnc->c_working_dir,"%s",cc.c_working_dir);
 	sscanf(cnc->c_write_traj_filename,"%s",cc.c_write_traj_filename);
 	sscanf(cnc->c_read_traj_filename,"%s",cc.c_read_traj_filename);
-	sscanf(&cnc->c_oflag,"%c",&cc.c_oflag);
-	sscanf(&cnc->c_jflag,"%c",&cc.c_jflag);
+	sscanf(cnc->c_oflag,"%d",&cc.c_oflag);
+	sscanf(cnc->c_jflag,"%d",&cc.c_jflag);
 	sscanf(cnc->c_direct_flag,"%d",&cc.c_direct_flag);
-	sscanf(&cnc->c_async_flag,"%c",&cc.c_async_flag);
-	sscanf(&cnc->c_k_flag,"%c",&cc.c_k_flag);
-	sscanf(&cnc->c_h_flag,"%c",&cc.c_h_flag);
-	sscanf(&cnc->c_mflag,"%c",&cc.c_mflag);
-	sscanf(&cnc->c_pflag,"%c",&cc.c_pflag);
-	sscanf(&cnc->c_stride_flag,"%c",&cc.c_stride_flag);
-	sscanf(&cnc->c_verify,"%c",&cc.c_verify);
-	sscanf(&cnc->c_sverify,"%c",&cc.c_sverify);
-	sscanf(&cnc->c_diag_v,"%c",&cc.c_diag_v);
+	sscanf(cnc->c_async_flag,"%d",&cc.c_async_flag);
+	sscanf(cnc->c_k_flag,"%d",&cc.c_k_flag);
+	sscanf(cnc->c_h_flag,"%d",&cc.c_h_flag);
+	sscanf(cnc->c_mflag,"%d",&cc.c_mflag);
+	sscanf(cnc->c_pflag,"%d",&cc.c_pflag);
+	sscanf(cnc->c_stride_flag,"%d",&cc.c_stride_flag);
+	sscanf(cnc->c_verify,"%d",&cc.c_verify);
+	sscanf(cnc->c_sverify,"%d",&cc.c_sverify);
+	sscanf(cnc->c_diag_v,"%d",&cc.c_diag_v);
 	sscanf(cnc->c_file_lock,"%d",&cc.c_file_lock);
 	sscanf(cnc->c_multiplier,"%d",&cc.c_multiplier);
 	sscanf(cnc->c_pattern,"%d",&cc.c_pattern);
 	sscanf(cnc->c_version,"%d",&cc.c_version);
 	sscanf(cnc->c_base_time,"%d",&cc.c_base_time);
-	sscanf(&cnc->c_Q_flag,"%c",&cc.c_Q_flag);
-	sscanf(&cnc->c_xflag,"%c",&cc.c_xflag);
-	sscanf(&cnc->c_w_traj_flag,"%c",&cc.c_w_traj_flag);
-	sscanf(&cnc->c_r_traj_flag,"%c",&cc.c_r_traj_flag);
-	sscanf(&cnc->c_include_flush,"%c",&cc.c_include_flush);
-	sscanf(&cnc->c_OPS_flag,"%c",&cc.c_OPS_flag);
-	sscanf(&cnc->c_mmapflag,"%c",&cc.c_mmapflag);
-	sscanf(&cnc->c_mmapasflag,"%c",&cc.c_mmapasflag);
-	sscanf(&cnc->c_mmapnsflag,"%c",&cc.c_mmapnsflag);
-	sscanf(&cnc->c_mmapssflag,"%c",&cc.c_mmapssflag);
-	sscanf(&cnc->c_no_copy_flag,"%c",&cc.c_no_copy_flag);
+	sscanf(cnc->c_Q_flag,"%d",&cc.c_Q_flag);
+	sscanf(cnc->c_xflag,"%d",&cc.c_xflag);
+	sscanf(cnc->c_include_flush,"%d",&cc.c_include_flush);
+	sscanf(cnc->c_OPS_flag,"%d",&cc.c_OPS_flag);
+	sscanf(cnc->c_mmapflag,"%d",&cc.c_mmapflag);
+	sscanf(cnc->c_mmapasflag,"%d",&cc.c_mmapasflag);
+	sscanf(cnc->c_mmapnsflag,"%d",&cc.c_mmapnsflag);
+	sscanf(cnc->c_mmapssflag,"%d",&cc.c_mmapssflag);
+	sscanf(cnc->c_no_copy_flag,"%d",&cc.c_no_copy_flag);
+	sscanf(cnc->c_w_traj_flag,"%d",&cc.c_w_traj_flag);
+	sscanf(cnc->c_r_traj_flag,"%d",&cc.c_r_traj_flag);
 	sscanf(cnc->c_no_unlink,"%d",&cc.c_no_unlink);
-	sscanf(&cnc->c_include_close,"%c",&cc.c_include_close);
-	sscanf(&cnc->c_disrupt_flag,"%c",&cc.c_disrupt_flag);
-	sscanf(&cnc->c_compute_flag,"%c",&cc.c_compute_flag);
-	sscanf(&cnc->c_MS_flag,"%c",&cc.c_MS_flag);
-	sscanf(&cnc->c_mmap_mix,"%c",&cc.c_mmap_mix);
+	sscanf(cnc->c_include_close,"%d",&cc.c_include_close);
+	sscanf(cnc->c_disrupt_flag,"%d",&cc.c_disrupt_flag);
+	sscanf(cnc->c_compute_flag,"%d",&cc.c_compute_flag);
+	sscanf(cnc->c_MS_flag,"%d",&cc.c_MS_flag);
+	sscanf(cnc->c_mmap_mix,"%d",&cc.c_mmap_mix);
 	sscanf(cnc->c_compute_time,"%f",&cc.c_compute_time);
 
 	strcpy(write_traj_filename,cc.c_write_traj_filename);
@@ -15792,7 +15797,7 @@ start_child_listen_loop()
 	 	 */
 		sscanf(cnc->c_command,"%d",&cc.c_command);
 		sscanf(cnc->c_client_number,"%d",&cc.c_client_number);
-		sscanf(&cnc->c_stop_flag,"%c",&cc.c_stop_flag);
+		sscanf(cnc->c_stop_flag,"%d",&cc.c_stop_flag);
 
 		switch(cc.c_command) {
 		case R_STOP_FLAG:
