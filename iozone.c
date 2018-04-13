@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.147 $"
+#define THISVERSION "        Version $Revision: 3.148 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -10280,6 +10280,7 @@ thread_rwrite_test(x)
 		if(mmapflag)
 		{
 			wmaddr = &maddr[i*reclen];
+			if(cdebug)
 printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,reclen);
 			fill_area((long long*)nbuff,(long long*)wmaddr,(long long)reclen);
 			if(!mmapnsflag)

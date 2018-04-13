@@ -1562,3 +1562,8 @@ Revision 3.147
 Add "Test running" So users will know the test is running
 and not to hit control 'c' too soon.
 Bug fix in libbif.c do_float()
+=============================================================================
+Revision 3.148 
+=============================================================================
+Turn off some child debug code.
+
