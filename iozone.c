@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.259 $"
+#define THISVERSION "        Version $Revision: 3.260 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1923,6 +1923,16 @@ char **argv;
 #else
 	    		sprintf(splash[splash_line++],"\tRecord Size %lld KB\n",reclen/1024);
 #endif
+			if(max_rec_size > MAXBUFFERSIZE) {
+#ifdef NO_PRINT_LLD
+				printf("Error: maximum record size %ld KB is greater than maximum buffer size %ld KB\n ",
+					max_rec_size/1024, MAXBUFFERSIZE/1024);
+#else
+				printf("Error: maximum record size %lld KB is greater than maximum buffer size %lld KB\n ",
+					(long long)(max_rec_size/1024LL), (long long)MAXBUFFERSIZE/1024LL);
+#endif
+				exit(23);
+			}
 			break;
 		case 'J':	/* Specify the compute time in millisecs */
 			compute_time = (float)(atoi(optarg));

@@ -84,9 +84,10 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.14 $";
+char libbif_version[] = "Libbif Version $Revision: 3.15 $";
 void do_eof(int );		/* Used internally */
 void do_header(int );		/* Used internally */
+int endian(void);
 #endif
 
 #define BOF 0x9
@@ -318,6 +319,18 @@ int row,column;
 	   dptr[6]=sptr[6];
 	   dptr[7]=sptr[7];
 	}
+	if(endian()==-1) /* Unsupported architecture */
+	{
+	   dptr[0]=0;
+	   dptr[1]=0;
+	   dptr[2]=0;
+	   dptr[3]=0;
+	   dptr[4]=0;
+	   dptr[5]=0;
+	   dptr[6]=0;
+	   dptr[7]=0;
+	   printf("Excel output not supported on this architecture.\n");
+	}
 	write(fd,&floatrec,11); /* Don't write floatrec. Padding problems */
 	write(fd,&floatrec.data,8); /* Write value seperately */
 }
@@ -419,4 +432,5 @@ endian(void)
 		(c5==0x08) && (c6==0x07) && (c7==0x06) && (c8==0x05) )
 		return(ENDIAN_3);
 
+	return(-1);
 }

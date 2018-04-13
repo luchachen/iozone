@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.99 $
+# Version $Revision: 1.103 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -158,9 +158,10 @@ linux:	iozone_linux.o libasync.o libbif.o fileop_linux.o
 #
 # GNU 'C' compiler Linux build for powerpc chip with threads, largefiles, async I/O 
 #
-linux-powerpc: iozone_linux-powerpc.o  libbif.o libasync.o
+linux-powerpc: iozone_linux-powerpc.o  libbif.o libasync.o fileop_linux-ppc.o
 	$(CC) -O3 $(LDFLAGS) iozone_linux-powerpc.o libasync.o \
 		libbif.o -lpthread  -lrt -o iozone
+	$(CC)  -O3 -Dlinux fileop_linux-ppc.o -o fileop
 #
 # GNU 'C' compiler Linux build for sparc chip with threads, largefiles, async I/O 
 #
@@ -171,18 +172,20 @@ linux-sparc: iozone_linux-sparc.o  libbif.o libasync.o
 #
 # GNU 'C' compiler Linux build with threads, largefiles, async I/O 
 #
-linux-ia64:	iozone_linux-ia64.o  libbif.o libasync.o
+linux-ia64:	iozone_linux-ia64.o  libbif.o libasync.o fileop_linux-ia64.o
 	$(CC) -O3 $(LDFLAGS) iozone_linux-ia64.o libbif.o libasync.o \
 		-lrt -lpthread -o iozone
+	$(CC)  -O3 -Dlinux fileop_linux-ia64.o -o fileop
 
 #
 # GNU 'C' compiler Linux build for powerpc chip with threads, largefiles, async I/O 
 #
-linux-powerpc64: iozone_linux-powerpc64.o  libbif.o libasync.o
+linux-powerpc64: iozone_linux-powerpc64.o  libbif.o libasync.o fileop_linux-ppc64.o
 	$(CC) -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE -Dlinux \
 		iozone_linux-powerpc64.o libasync.o libbif.o -lpthread \
 		-lrt -o iozone
+	$(CC)  -O3 -Dlinux fileop_linux-ppc64.o -o fileop
 		
 #
 # GNU 'C' compiler Linux build with threads, largefiles, async I/O
@@ -194,9 +197,10 @@ linux-arm:	iozone_linux-arm.o  libbif.o libasync.o
 #
 # GNU 'C' compiler Linux build with threads, largefiles, async I/O 
 #
-linux-AMD64:	iozone_linux-AMD64.o  libbif.o libasync.o
+linux-AMD64:	iozone_linux-AMD64.o  libbif.o libasync.o fileop_linux-AMD64.o
 	$(CC)  -O3 $(LDFLAGS) iozone_linux-AMD64.o libbif.o libasync.o \
 		-lrt -lpthread -o iozone
+	$(CC)  -O3 -Dlinux fileop_linux-AMD64.o -o fileop
 
 #
 # GNU 'C' compiler Linux build with S/390, threads, largfiles, async I/O
@@ -219,9 +223,10 @@ linux-S390X:	iozone_linux-s390x.o libbif.o libasync.o
 # POSIX 1003.1b compliant async I/O header files.  Has threads, no
 # largefile support.
 # 
-AIX:	iozone_AIX.o  libbif.o  
+AIX:	iozone_AIX.o  libbif.o  fileop_AIX.o
 	$(CC)  -O $(LDFLAGS) iozone_AIX.o libbif.o \
 		-lpthreads -o iozone
+	$(CC)  -O -Dlinux fileop_linux-AIX.o -o fileop
 
 # 
 # AIX-LF
@@ -229,9 +234,10 @@ AIX:	iozone_AIX.o  libbif.o
 # POSIX 1003.1b compliant async I/O header files.  Has threads, and
 # largefile support.
 # 
-AIX-LF:	iozone_AIX-LF.o  libbif.o  
+AIX-LF:	iozone_AIX-LF.o  libbif.o   fileop_AIX-LF.o
 	$(CC)  -O $(LDFLAGS) iozone_AIX-LF.o libbif.o \
 		-lpthreads -o iozone
+	$(CC)  -O fileop_AIX-LF.o -o fileop
 
 #
 # IRIX 32 bit build with threads, largefiles, async I/O 
@@ -295,10 +301,11 @@ convex:	iozone_convex.o libbif.o
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
 #
-Solaris:	iozone_solaris.o libasync.o libbif.o 
+Solaris:	iozone_solaris.o libasync.o libbif.o fileop_Solaris.o
 	$(CC)  -O $(LDFLAGS) iozone_solaris.o libasync.o libbif.o \
 		-lthread -lpthread -lposix4 -lnsl -laio -lsocket \
 		-o iozone
+	$(CC)  -O fileop_Solaris.o -o fileop
 
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
@@ -310,10 +317,11 @@ Solaris7gcc:	iozone_solaris7gcc.o libasync7.o libbif7.o
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
 #
-Solaris10gcc:	iozone_solaris10gcc.o libasync10.o libbif10.o 
+Solaris10gcc:	iozone_solaris10gcc.o libasync10.o libbif10.o fileop_Solaris10gcc.o
 	$(GCC)  -O $(LDFLAGS) iozone_solaris10gcc.o libasync10.o libbif10.o \
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
+	$(GCC)  -O fileop_Solaris10gcc.o -o fileop
 
 
 #
@@ -321,7 +329,7 @@ Solaris10gcc:	iozone_solaris10gcc.o libasync10.o libbif10.o
 #
 Solaris-2.6:	iozone_solaris-2.6.o libbif.o 
 	$(CC)  -O $(LDFLAGS) iozone_solaris-2.6.o libbif.o \
-		-lnsl -laio -l socket -o iozone
+		-lnsl -laio -lsocket -o iozone
 
 #
 # Solaris 64 bit build with threads, largefiles, and async I/O
@@ -345,8 +353,9 @@ Solaris8-64-VXFS: iozone_solaris8-64-VXFS.o libasync.o libbif.o
 # can get this from www.cygwin.com
 # No largefiles, No async I/O
 #
-Windows:	iozone_windows.o libbif.o
+Windows:	iozone_windows.o libbif.o fileop_windows.o
 	$(GCC) -O $(LDFLAGS) iozone_windows.o libbif.o -o iozone
+	$(GCC) -O $(LDFLAGS) fileop_windows.o -o fileop
 
 #
 # Uwin build requires UWIN development environment. 
@@ -359,29 +368,33 @@ UWIN:	iozone_uwin.o libbif.o
 # GNU C compiler BSD/OS build with threads, largefiles, no async I/O
 #
 
-bsdi:	iozone_bsdi.o libbif.o
+bsdi:	iozone_bsdi.o libbif.o fileop_bsdi.o
 	$(CC) -O $(LDFLAGS) iozone_bsdi.o libbif.o -o iozone
+	$(CC) -O fileop_bsdi.o -o fileop
 
 #
 # GNU C compiler FreeBSD build with no threads, no largefiles, no async I/O
 #
 
-freebsd:	iozone_freebsd.o libbif.o
+freebsd:	iozone_freebsd.o libbif.o fileop_freebsd.o
 	$(CC) $(LDFLAGS) iozone_freebsd.o libbif.o -o iozone
+	$(CC)  -O fileop_freebsd.o -o fileop
 
 #
 # GNU C compiler MacosX build with no threads, no largefiles, no async I/O
 #
 
-macosx:	iozone_macosx.o libbif.o
+macosx:	iozone_macosx.o libbif.o fileop_macosx.o
 	$(CC) -O $(LDFLAGS) iozone_macosx.o libbif.o -o iozone
+	$(CC)  -O fileop_macosx.o -o fileop
 #
 #
 # GNU C compiler OpenBSD build with no threads, no largefiles, no async I/O
 #
 
-openbsd:	iozone_openbsd.o libbif.o
+openbsd:	iozone_openbsd.o libbif.o fileop_openbsd.o
 	$(CC) -O $(LDFLAGS) iozone_openbsd.o libbif.o -o iozone
+	$(CC)  -O fileop_openbsd.o -o fileop
 
 #
 # GNU C compiler OpenBSD build with threads, no largefiles, no async I/O
@@ -453,8 +466,9 @@ SCO_Unixware_gcc:	iozone_SCO_Unixware_gcc.o  libbif.o libasync.o
 # GNU C compiler NetBSD build with no threads, no largefiles, no async I/O
 #
 
-netbsd:	iozone_netbsd.o  libbif.o
+netbsd:	iozone_netbsd.o  libbif.o fileop_netbsd.o
 	$(CC) -O $(LDFLAGS) iozone_netbsd.o libbif.o -o iozone
+	$(CC) -O fileop_netbsd.o -o fileop
 
 #
 #
@@ -627,11 +641,95 @@ iozone_linux.o:	iozone.c libbif.c libasync.c
 	$(CC) -Wall -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE $(CFLAGS) libasync.c  -o libasync.o 
 
+fileop_AIX.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for AIX"
+	@echo ""
+	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_AIX.o
+
+fileop_AIX-LF.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for AIX-LF"
+	@echo ""
+	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_AIX-LF.o
+
+fileop_bsdi.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for BSDi"
+	@echo ""
+	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_bsdi.o
+
+fileop_freebsd.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for FreeBSD"
+	@echo ""
+	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_freebsd.o
+
+fileop_netbsd.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for NetBSD"
+	@echo ""
+	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_netbsd.o
+
+fileop_Solaris.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for Solaris"
+	@echo ""
+	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_Solaris.o
+
+fileop_Solaris10gcc.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for Solaris10gcc"
+	@echo ""
+	$(CC) -c -O $(CFLAGS) fileop.c -o fileop_Solaris10gcc.o
+
 fileop_linux.o:	fileop.c
 	@echo ""
 	@echo "Building fileop for Linux"
 	@echo ""
 	$(CC) -Wall -c -O3 $(CFLAGS) fileop.c -o fileop_linux.o
+
+fileop_openbsd.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for OpenBSD"
+	@echo ""
+	$(CC) -Wall -c -O $(CFLAGS) fileop.c -o fileop_openbsd.o
+
+fileop_macosx.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for MAC OS X"
+	@echo ""
+	$(CC) -Wall -c -O $(CFLAGS) fileop.c -o fileop_macosx.o
+
+fileop_linux-ia64.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for Linux-ia64"
+	@echo ""
+	$(CC) -Wall -c -O3 $(CFLAGS) fileop.c -o fileop_linux-ia64.o
+
+fileop_linux-ppc.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for Linux-powerpc"
+	@echo ""
+	$(CC) -Wall -c -O3 $(CFLAGS) fileop.c -o fileop_linux-ppc.o
+
+fileop_linux-ppc64.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for Linux-powerpc64"
+	@echo ""
+	$(CC) -Wall -c -O3 $(CFLAGS) fileop.c -o fileop_linux-ppc64.o
+
+fileop_linux-AMD64.o:	fileop.c
+	@echo ""
+	@echo "Building fileop for Linux-AMD64"
+	@echo ""
+	$(CC) -Wall -c -O3 $(CFLAGS) fileop.c -o fileop_linux-AMD64.o
+
+fileop_windows.o: fileop.c
+	@echo ""
+	@echo "Building fileop for Windows"
+	@echo ""
+	$(GCC) -Wall -c -O3 $(CFLAGS) -DWindows fileop.c -o fileop_windows.o
 
 iozone_linux-ia64.o:	iozone.c libbif.c libasync.c
 	@echo ""
@@ -658,7 +756,7 @@ iozone_linux-arm.o:	iozone.c libbif.c libasync.c
 	$(CC) -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE $(CFLAGS) libasync.c  -o libasync.o
 
-iozone_linux-AMD64.o:	iozone.c libbif.c libasync.c
+iozone_linux-AMD64.o:	iozone.c libbif.c libasync.c 
 	@echo ""
 	@echo "Building iozone for Linux-AMD64"
 	@echo ""
@@ -805,7 +903,7 @@ iozone_solaris8-64-VXFS.o: iozone.c libasync.c libbif.c
 		-D__LP64__ -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 \
 		-Dsolaris -DHAVE_PREAD $(CFLAGS) libbif.c -o libbif.o
 
-iozone_windows.o:	iozone.c libasync.c libbif.c
+iozone_windows.o:	iozone.c libasync.c libbif.c fileop.c
 	@echo ""
 	@echo "Building iozone for Windows (No async I/O)"
 	@echo ""

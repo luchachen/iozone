@@ -2004,3 +2004,8 @@ Add error checking for -f and -F in the wrong modes.
 Revision 3.259
 =============================================================================
 Bug fix for pbuffer allocation on remote clients.
+=============================================================================
+Revision 3.260
+=============================================================================
+Check for max_rec_size when using ranges. -r -r -r
+

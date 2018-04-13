@@ -1,12 +1,24 @@
 /*
- * Maintainer: Don Capps
- * 5/22/2005
+ * Author: Don Capps
+ * 3/13/2006
+ * Copyright:  (2006)
+ *   You are free to distribute and use this benchmark, for free.
+ * You are not permitted to distribute modified versions, or
+ * borrow code from this project to create proprietary products
+ * or competitive benchmarks. Any product that contains any
+ * of this code will be considered a derivative work and will
+ * be the sole property of me.
  *
- * A long time ago I ran across this simple benchmark.
- * It simply tests how fast can a system create and
- * destroy files.
- *
- * Usage:  fileop X
+  fileop [-f X ]|[-l # -u #] [-s Y] [-t] [-v] [-e] [-b] [-w]
+       -f # Force factor. X^3 files will be created and removed.
+       -l # Lower limit on the value of the Force factor.
+       -u # Upper limit on the value of the Force factor.
+       -s # Optional. Sets filesize for the create/write.
+       -t # Verbose output option.
+       -v # Version information.
+       -e # Excel importable format.
+       -b Output best case
+       -w Output worst case
  *
  * X is a force factor. The total number of files will
  *   be X * X * X   ( X ^ 3 )
@@ -40,7 +52,10 @@
 #include <Windows.h>
 #endif
 
-int x;
+int x,excel;
+int verbose = 0;
+int sz = 1;
+char *mbuffer;
 #define _STAT_CREATE 0
 #define _STAT_WRITE 1
 #define _STAT_CLOSE 2
@@ -53,7 +68,8 @@ int x;
 #define _STAT_READDIR 9
 #define _STAT_DIR_CREATE 10
 #define _STAT_DIR_DELETE 11
-#define _NUM_STATS 13
+#define _STAT_READ 12
+#define _NUM_STATS 14
 struct stat_struct {
 	double starttime;
 	double endtime;
@@ -78,180 +94,356 @@ void file_readdir(int);
 void file_delete(int);
 void file_link(int);
 void file_unlink(int);
+void file_read(int);
 void splash(void);
 void usage(void);
+void *memset();
+void bzero();
+void clear_stats();
 
-#define THISVERSION "        $Revision: 1.18 $"
+#define THISVERSION "        $Revision: 1.35 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;
 
+int cret;
+int lower, upper,range;
+int i;
+int best, worst;
+
 int main(int argc, char **argv)
 {
-	if(argc == 2)
-	{
-		x=atoi(argv[1]);
-	}
-	else
+	if(argc == 1)
 	{
 		usage();
 		exit(1);
 	}
-	splash();
-	/*
-	 * Dir Create test 
-	 */
-	dir_create(x);
+	while((cret = getopt(argc,argv,"bwetvf:s:l:u: ")) != EOF){
+		switch(cret){
+		case 'f':	/* Force factor */
+			x=atoi(optarg);
+			break;
+		case 's':	/* Size of files */
+			sz=atoi(optarg);
+			break;
+		case 'l':	/* lower force value */
+			lower=atoi(optarg);
+			range=1;
+			break;
+		case 'v':	/* version */
+			splash();
+			exit(0);
+			break;
+		case 'u':	/* upper force value */
+			upper=atoi(optarg);
+			range=1;
+			break;
+		case 't':	/* verbose */
+			verbose=1;
+			break;
+		case 'e':	/* Excel */
+			excel=1;
+			break;
+		case 'b':	/* Best */
+			best=1;
+			break;
+		case 'w':	/* Worst */
+			worst=1;
+			break;
+		}
+	}
+	mbuffer=(char *)malloc(sz);
+	memset(mbuffer,'a',sz);
+	if(!excel)
+	  printf("\nFileop:  File size is %d,  Output is in Ops/sec. (A=Avg, B=Best, W=Worst)\n",sz);
+	if(!verbose)
+	{
+#ifdef Windows
+	   	printf(" .     %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %12s\n",
+       	   	"mkdir","rmdir","create","read","write","close","stat",
+		"access","chmod","readdir","delete"," Total_files");
+#else
 
-	printf("mkdir:   Dirs = %9lld ",stats[_STAT_DIR_CREATE].counter);
-	printf("Total Time = %12.9f seconds\n", stats[_STAT_DIR_CREATE].total_time);
-	printf("         Avg mkdir(s)/sec     = %12.2f (%12.9f seconds/op)\n",
+	   	printf(" .     %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %12s\n",
+       	   	"mkdir","rmdir","create","read","write","close","stat",
+		"access","chmod","readdir","link  ","unlink","delete",
+		" Total_files");
+#endif
+	}
+	if(x==0)
+		x=1;
+	if(range==0)
+		lower=upper=x;
+	for(i=lower;i<=upper;i++)
+	{
+		clear_stats();
+		x=i;
+	   /*
+	    * Dir Create test 
+	    */
+	   dir_create(x);
+
+	   if(verbose)
+	   {
+	      printf("mkdir:   Dirs = %9lld ",stats[_STAT_DIR_CREATE].counter);
+	      printf("Total Time = %12.9f seconds\n", stats[_STAT_DIR_CREATE].total_time);
+	      printf("         Avg mkdir(s)/sec     = %12.2f (%12.9f seconds/op)\n",
 			stats[_STAT_DIR_CREATE].counter/stats[_STAT_DIR_CREATE].total_time,
 			stats[_STAT_DIR_CREATE].total_time/stats[_STAT_DIR_CREATE].counter);
-	printf("         Best mkdir(s)/sec    = %12.2f (%12.9f seconds/op)\n",1/stats[_STAT_DIR_CREATE].best,stats[_STAT_DIR_CREATE].best);
-	printf("         Worst mkdir(s)/sec   = %12.2f (%12.9f seconds/op)\n\n",1/stats[_STAT_DIR_CREATE].worst,stats[_STAT_DIR_CREATE].worst);
-	/*
-	 * Dir delete test
-	 */
-	dir_delete(x);
+	      printf("         Best mkdir(s)/sec    = %12.2f (%12.9f seconds/op)\n",1/stats[_STAT_DIR_CREATE].best,stats[_STAT_DIR_CREATE].best);
+	      printf("         Worst mkdir(s)/sec   = %12.2f (%12.9f seconds/op)\n\n",1/stats[_STAT_DIR_CREATE].worst,stats[_STAT_DIR_CREATE].worst);
+	   }
+	   /*
+	    * Dir delete test
+	    */
+	   dir_delete(x);
 
-	printf("rmdir:   Dirs = %9lld ",stats[_STAT_DIR_DELETE].counter);
-	printf("Total Time = %12.9f seconds\n",stats[_STAT_DIR_DELETE].total_time);
-	printf("         Avg rmdir(s)/sec     = %12.2f (%12.9f seconds/op)\n",
+	   if(verbose)
+	   {
+	   printf("rmdir:   Dirs = %9lld ",stats[_STAT_DIR_DELETE].counter);
+	   printf("Total Time = %12.9f seconds\n",stats[_STAT_DIR_DELETE].total_time);
+	   printf("         Avg rmdir(s)/sec     = %12.2f (%12.9f seconds/op)\n",
 			stats[_STAT_DIR_DELETE].counter/stats[_STAT_DIR_DELETE].total_time,
 			stats[_STAT_DIR_DELETE].total_time/stats[_STAT_DIR_DELETE].counter);
-	printf("         Best rmdir(s)/sec    = %12.2f (%12.9f seconds/op)\n",1/stats[_STAT_DIR_DELETE].best,stats[_STAT_DIR_DELETE].best);
-	printf("         Worst rmdir(s)/sec   = %12.2f (%12.9f seconds/op)\n\n",1/stats[_STAT_DIR_DELETE].worst,stats[_STAT_DIR_DELETE].worst);
+	   printf("         Best rmdir(s)/sec    = %12.2f (%12.9f seconds/op)\n",1/stats[_STAT_DIR_DELETE].best,stats[_STAT_DIR_DELETE].best);
+	   printf("         Worst rmdir(s)/sec   = %12.2f (%12.9f seconds/op)\n\n",1/stats[_STAT_DIR_DELETE].worst,stats[_STAT_DIR_DELETE].worst);
+	   }
 
-	/*
-	 * Create test 
-	 */
-	file_create(x);
-	printf("create:  Files = %9lld ",stats[_STAT_CREATE].counter);
-	printf("Total Time = %12.9f seconds\n", stats[_STAT_CREATE].total_time);
-	printf("         Avg create(s)/sec    = %12.2f (%12.9f seconds/op)\n",
+	   /*
+	    * Create test 
+	    */
+	   file_create(x);
+	   if(verbose)
+	   {
+	      printf("create:  Files = %9lld ",stats[_STAT_CREATE].counter);
+	      printf("Total Time = %12.9f seconds\n", stats[_STAT_CREATE].total_time);
+	      printf("         Avg create(s)/sec    = %12.2f (%12.9f seconds/op)\n",
 			stats[_STAT_CREATE].counter/stats[_STAT_CREATE].total_time,
 			stats[_STAT_CREATE].total_time/stats[_STAT_CREATE].counter);
-	printf("         Best create(s)/sec   = %12.2f (%12.9f seconds/op)\n",
+	      printf("         Best create(s)/sec   = %12.2f (%12.9f seconds/op)\n",
 			1/stats[_STAT_CREATE].best,stats[_STAT_CREATE].best);
-	printf("         Worst create(s)/sec  = %12.2f (%12.9f seconds/op)\n\n",
+	      printf("         Worst create(s)/sec  = %12.2f (%12.9f seconds/op)\n\n",
 			1/stats[_STAT_CREATE].worst,stats[_STAT_CREATE].worst);
-	printf("write:   Files = %9lld ",stats[_STAT_WRITE].counter);
-	printf("Total Time = %12.9f seconds\n", stats[_STAT_WRITE].total_time);
-	printf("         Avg write(s)/sec     = %12.2f (%12.9f seconds/op)\n",
+	      printf("write:   Files = %9lld ",stats[_STAT_WRITE].counter);
+	      printf("Total Time = %12.9f seconds\n", stats[_STAT_WRITE].total_time);
+	      printf("         Avg write(s)/sec     = %12.2f (%12.9f seconds/op)\n",
 			stats[_STAT_WRITE].counter/stats[_STAT_WRITE].total_time,
 			stats[_STAT_WRITE].total_time/stats[_STAT_WRITE].counter);
-	printf("         Best write(s)/sec    = %12.2f (%12.9f seconds/op)\n",
+	      printf("         Best write(s)/sec    = %12.2f (%12.9f seconds/op)\n",
 			1/stats[_STAT_WRITE].best,stats[_STAT_WRITE].best);
-	printf("         Worst write(s)/sec   = %12.2f (%12.9f seconds/op)\n\n",
+   	      printf("         Worst write(s)/sec   = %12.2f (%12.9f seconds/op)\n\n",
 			1/stats[_STAT_WRITE].worst,stats[_STAT_WRITE].worst);
-	printf("close:   Files = %9lld ",stats[_STAT_CLOSE].counter);
-	printf("Total Time = %12.9f seconds\n", stats[_STAT_CLOSE].total_time);
-	printf("         Avg close(s)/sec     = %12.2f (%12.9f seconds/op)\n",
+	      printf("close:   Files = %9lld ",stats[_STAT_CLOSE].counter);
+	      printf("Total Time = %12.9f seconds\n", stats[_STAT_CLOSE].total_time);
+	      printf("         Avg close(s)/sec     = %12.2f (%12.9f seconds/op)\n",
 			stats[_STAT_CLOSE].counter/stats[_STAT_CLOSE].total_time,
 			stats[_STAT_CLOSE].total_time/stats[_STAT_CLOSE].counter);
-	printf("         Best close(s)/sec    = %12.2f (%12.9f seconds/op)\n",
+	      printf("         Best close(s)/sec    = %12.2f (%12.9f seconds/op)\n",
 			1/stats[_STAT_CLOSE].best,stats[_STAT_CLOSE].best);
-	printf("         Worst close(s)/sec   = %12.2f (%12.9f seconds/op)\n\n",
+	      printf("         Worst close(s)/sec   = %12.2f (%12.9f seconds/op)\n\n",
 			1/stats[_STAT_CLOSE].worst,stats[_STAT_CLOSE].worst);
+	   }
 
-	/*
-	 * Stat test 
-	 */
-	file_stat(x);
+	   /*
+	    * Stat test 
+	    */
+	   file_stat(x);
 
-	printf("stat:    Files = %9lld ",stats[_STAT_STAT].counter);
-	printf("Total Time = %12.9f seconds\n", stats[_STAT_STAT].total_time);
-	printf("         Avg stat(s)/sec      = %12.2f (%12.9f seconds/op)\n",
+	   if(verbose)
+	   {
+	      printf("stat:    Files = %9lld ",stats[_STAT_STAT].counter);
+	      printf("Total Time = %12.9f seconds\n", stats[_STAT_STAT].total_time);
+	      printf("         Avg stat(s)/sec      = %12.2f (%12.9f seconds/op)\n",
 			stats[_STAT_STAT].counter/stats[_STAT_STAT].total_time,
 			stats[_STAT_STAT].total_time/stats[_STAT_STAT].counter);
-	printf("         Best stat(s)/sec     = %12.2f (%12.9f seconds/op)\n",
+	      printf("         Best stat(s)/sec     = %12.2f (%12.9f seconds/op)\n",
 			1/stats[_STAT_STAT].best,stats[_STAT_STAT].best);
-	printf("         Worst stat(s)/sec    = %12.2f (%12.9f seconds/op)\n\n",
+	      printf("         Worst stat(s)/sec    = %12.2f (%12.9f seconds/op)\n\n",
 			1/stats[_STAT_STAT].worst,stats[_STAT_STAT].worst);
+	   }
+	   /*
+	    * Read test 
+	    */
+	   file_read(x);
 
-	/*
-	 * Access test 
-	 */
-	file_access(x);
-	printf("access:  Files = %9lld ",stats[_STAT_ACCESS].counter);
-	printf("Total Time = %12.9f seconds\n", stats[_STAT_ACCESS].total_time);
-	printf("         Avg access(s)/sec    = %12.2f (%12.9f seconds/op)\n",
+	   if(verbose)
+	   {
+	      printf("read:    Files = %9lld ",stats[_STAT_READ].counter);
+	      printf("Total Time = %12.9f seconds\n", stats[_STAT_READ].total_time);
+	      printf("         Avg read(s)/sec      = %12.2f (%12.9f seconds/op)\n",
+			stats[_STAT_READ].counter/stats[_STAT_READ].total_time,
+			stats[_STAT_READ].total_time/stats[_STAT_READ].counter);
+	      printf("         Best read(s)/sec     = %12.2f (%12.9f seconds/op)\n",
+			1/stats[_STAT_READ].best,stats[_STAT_READ].best);
+	      printf("         Worst read(s)/sec    = %12.2f (%12.9f seconds/op)\n\n",
+			1/stats[_STAT_READ].worst,stats[_STAT_READ].worst);
+	   }
+
+	   /*
+	    * Access test 
+	    */
+	   file_access(x);
+	   if(verbose)
+	   {
+	      printf("access:  Files = %9lld ",stats[_STAT_ACCESS].counter);
+	      printf("Total Time = %12.9f seconds\n", stats[_STAT_ACCESS].total_time);
+	      printf("         Avg access(s)/sec    = %12.2f (%12.9f seconds/op)\n",
 			stats[_STAT_ACCESS].counter/stats[_STAT_ACCESS].total_time,
 			stats[_STAT_ACCESS].total_time/stats[_STAT_ACCESS].counter);
-	printf("         Best access(s)/sec   = %12.2f (%12.9f seconds/op)\n",
+	      printf("         Best access(s)/sec   = %12.2f (%12.9f seconds/op)\n",
 			1/stats[_STAT_ACCESS].best,stats[_STAT_ACCESS].best);
-	printf("         Worst access(s)/sec  = %12.2f (%12.9f seconds/op)\n\n",
+	      printf("         Worst access(s)/sec  = %12.2f (%12.9f seconds/op)\n\n",
 			1/stats[_STAT_ACCESS].worst,stats[_STAT_ACCESS].worst);
-	/*
-	 * Chmod test 
-	 */
-	file_chmod(x);
+	   }
+	   /*
+	    * Chmod test 
+	    */
+	   file_chmod(x);
 
-	printf("chmod:   Files = %9lld ",stats[_STAT_CHMOD].counter);
-	printf("Total Time = %12.9f seconds\n", stats[_STAT_CHMOD].total_time);
-	printf("         Avg chmod(s)/sec     = %12.2f (%12.9f seconds/op)\n",
+	   if(verbose)
+	   {
+	      printf("chmod:   Files = %9lld ",stats[_STAT_CHMOD].counter);
+	      printf("Total Time = %12.9f seconds\n", stats[_STAT_CHMOD].total_time);
+	      printf("         Avg chmod(s)/sec     = %12.2f (%12.9f seconds/op)\n",
 			stats[_STAT_CHMOD].counter/stats[_STAT_CHMOD].total_time,
 			stats[_STAT_CHMOD].total_time/stats[_STAT_CHMOD].counter);
-	printf("         Best chmod(s)/sec    = %12.2f (%12.9f seconds/op)\n",
+	      printf("         Best chmod(s)/sec    = %12.2f (%12.9f seconds/op)\n",
 			1/stats[_STAT_CHMOD].best,stats[_STAT_CHMOD].best);
-	printf("         Worst chmod(s)/sec   = %12.2f (%12.9f seconds/op)\n\n",
+	      printf("         Worst chmod(s)/sec   = %12.2f (%12.9f seconds/op)\n\n",
 			1/stats[_STAT_CHMOD].worst,stats[_STAT_CHMOD].worst);
-	/*
-	 * readdir test 
-	 */
-	file_readdir(x);
+	   }
+	   /*
+	    * readdir test 
+	    */
+	   file_readdir(x);
 
-	printf("readdir: Files = %9lld ",stats[_STAT_READDIR].counter);
-	printf("Total Time = %12.9f seconds\n", stats[_STAT_READDIR].total_time);
-	printf("         Avg readdir(s)/sec   = %12.2f (%12.9f seconds/op)\n",
+	   if(verbose)
+	   {
+	      printf("readdir: Files = %9lld ",stats[_STAT_READDIR].counter);
+	      printf("Total Time = %12.9f seconds\n", stats[_STAT_READDIR].total_time);
+	      printf("         Avg readdir(s)/sec   = %12.2f (%12.9f seconds/op)\n",
 			stats[_STAT_READDIR].counter/stats[_STAT_READDIR].total_time,
 			stats[_STAT_READDIR].total_time/stats[_STAT_READDIR].counter);
-	printf("         Best readdir(s)/sec  = %12.2f (%12.9f seconds/op)\n",
+	      printf("         Best readdir(s)/sec  = %12.2f (%12.9f seconds/op)\n",
 			1/stats[_STAT_READDIR].best,stats[_STAT_READDIR].best);
-	printf("         Worst readdir(s)/sec = %12.2f (%12.9f seconds/op)\n\n",
+	      printf("         Worst readdir(s)/sec = %12.2f (%12.9f seconds/op)\n\n",
 			1/stats[_STAT_READDIR].worst,stats[_STAT_READDIR].worst);
+	   }
 #if !defined(Windows)
-	/*
-	 * link test 
-	 */
-	file_link(x);
-	printf("link:    Files = %9lld ",stats[_STAT_LINK].counter);
-	printf("Total Time = %12.9f seconds\n",stats[_STAT_LINK].total_time);
-	printf("         Avg link(s)/sec      = %12.2f (%12.9f seconds/op)\n",
+	   /*
+	    * link test 
+	    */
+	   file_link(x);
+	   if(verbose)
+	   {
+	      printf("link:    Files = %9lld ",stats[_STAT_LINK].counter);
+	      printf("Total Time = %12.9f seconds\n",stats[_STAT_LINK].total_time);
+	      printf("         Avg link(s)/sec      = %12.2f (%12.9f seconds/op)\n",
 			stats[_STAT_LINK].counter/stats[_STAT_LINK].total_time,
 			stats[_STAT_LINK].total_time/stats[_STAT_LINK].counter);
-	printf("         Best link(s)/sec     = %12.2f (%12.9f seconds/op)\n",
+	      printf("         Best link(s)/sec     = %12.2f (%12.9f seconds/op)\n",
 			1/stats[_STAT_LINK].best,stats[_STAT_LINK].best);
-	printf("         Worst link(s)/sec    = %12.2f (%12.9f seconds/op)\n\n",
+	      printf("         Worst link(s)/sec    = %12.2f (%12.9f seconds/op)\n\n",
 			1/stats[_STAT_LINK].worst,stats[_STAT_LINK].worst);
-	/*
-	 * unlink test 
-	 */
-	file_unlink(x);
-	printf("unlink:  Files = %9lld ",stats[_STAT_UNLINK].counter);
-	printf("Total Time = %12.9f seconds\n", stats[_STAT_UNLINK].total_time);
-	printf("         Avg unlink(s)/sec    = %12.2f (%12.9f seconds/op)\n",
+	   }
+	   /*
+	    * unlink test 
+	    */
+	   file_unlink(x);
+	   if(verbose)
+	   {
+	      printf("unlink:  Files = %9lld ",stats[_STAT_UNLINK].counter);
+	      printf("Total Time = %12.9f seconds\n", stats[_STAT_UNLINK].total_time);
+	      printf("         Avg unlink(s)/sec    = %12.2f (%12.9f seconds/op)\n",
 			stats[_STAT_UNLINK].counter/stats[_STAT_UNLINK].total_time,
 			stats[_STAT_UNLINK].total_time/stats[_STAT_UNLINK].counter);
-	printf("         Best unlink(s)/sec   = %12.2f (%12.9f seconds/op)\n",
+	      printf("         Best unlink(s)/sec   = %12.2f (%12.9f seconds/op)\n",
 			1/stats[_STAT_UNLINK].best,stats[_STAT_UNLINK].best);
-	printf("         Worst unlink(s)/sec  = %12.2f (%12.9f seconds/op)\n\n",
+	      printf("         Worst unlink(s)/sec  = %12.2f (%12.9f seconds/op)\n\n",
 			1/stats[_STAT_UNLINK].worst,stats[_STAT_UNLINK].worst);
+	   }
 #endif
-	/*
-	 * Delete test 
-	 */
-	file_delete(x);
-	printf("delete:  Files = %9lld ",stats[_STAT_DELETE].counter);
-	printf("Total Time = %12.9f seconds\n", stats[_STAT_DELETE].total_time);
-	printf("         Avg delete(s)/sec    = %12.2f (%12.9f seconds/op)\n",
+	   /*
+	    * Delete test 
+	    */
+	   file_delete(x);
+	   if(verbose)
+	   {
+	      printf("delete:  Files = %9lld ",stats[_STAT_DELETE].counter);
+	      printf("Total Time = %12.9f seconds\n", stats[_STAT_DELETE].total_time);
+	      printf("         Avg delete(s)/sec    = %12.2f (%12.9f seconds/op)\n",
 			stats[_STAT_DELETE].counter/stats[_STAT_DELETE].total_time,
 			stats[_STAT_DELETE].total_time/stats[_STAT_DELETE].counter);
-	printf("         Best delete(s)/sec   = %12.2f (%12.9f seconds/op)\n",
+	      printf("         Best delete(s)/sec   = %12.2f (%12.9f seconds/op)\n",
 			1/stats[_STAT_DELETE].best,stats[_STAT_DELETE].best);
-	printf("         Worst delete(s)/sec  = %12.2f (%12.9f seconds/op)\n\n",
+	      printf("         Worst delete(s)/sec  = %12.2f (%12.9f seconds/op)\n\n",
 			1/stats[_STAT_DELETE].worst,stats[_STAT_DELETE].worst);
+	   }
+	   if(!verbose)
+	   {
+	         printf("%c %4d %6.0f ",'A',x,stats[_STAT_DIR_CREATE].counter/stats[_STAT_DIR_CREATE].total_time);
+	         printf("%6.0f ",stats[_STAT_DIR_DELETE].counter/stats[_STAT_DIR_DELETE].total_time);
+	         printf("%6.0f ",stats[_STAT_CREATE].counter/stats[_STAT_CREATE].total_time);
+	         printf("%6.0f ",stats[_STAT_READ].counter/stats[_STAT_READ].total_time);
+	         printf("%6.0f ",stats[_STAT_WRITE].counter/stats[_STAT_WRITE].total_time);
+	         printf("%6.0f ",stats[_STAT_CLOSE].counter/stats[_STAT_CLOSE].total_time);
+	         printf("%6.0f ",stats[_STAT_STAT].counter/stats[_STAT_STAT].total_time);
+	         printf("%6.0f ",stats[_STAT_ACCESS].counter/stats[_STAT_ACCESS].total_time);
+	         printf("%6.0f ",stats[_STAT_CHMOD].counter/stats[_STAT_CHMOD].total_time);
+	         printf("%6.0f ",stats[_STAT_READDIR].counter/stats[_STAT_READDIR].total_time);
+#ifndef Windows
+	         printf("%6.0f ",stats[_STAT_LINK].counter/stats[_STAT_LINK].total_time);
+	         printf("%6.0f ",stats[_STAT_UNLINK].counter/stats[_STAT_UNLINK].total_time);
+#endif
+	         printf("%6.0f ",stats[_STAT_DELETE].counter/stats[_STAT_DELETE].total_time);
+	         printf("%12d ",x*x*x);
+	         printf("\n");
+  	   	 fflush(stdout);
+
+		if(best)
+		{
+	         printf("%c %4d %6.0f ",'B',x, 1/stats[_STAT_DIR_CREATE].best);
+	         printf("%6.0f ",1/stats[_STAT_DIR_DELETE].best);
+	         printf("%6.0f ",1/stats[_STAT_CREATE].best);
+	         printf("%6.0f ",1/stats[_STAT_READ].best);
+	         printf("%6.0f ",1/stats[_STAT_WRITE].best);
+	         printf("%6.0f ",1/stats[_STAT_CLOSE].best);
+	         printf("%6.0f ",1/stats[_STAT_STAT].best);
+	         printf("%6.0f ",1/stats[_STAT_ACCESS].best);
+	         printf("%6.0f ",1/stats[_STAT_CHMOD].best);
+	         printf("%6.0f ",1/stats[_STAT_READDIR].best);
+#ifndef Windows
+	         printf("%6.0f ",1/stats[_STAT_LINK].best);
+	         printf("%6.0f ",1/stats[_STAT_UNLINK].best);
+#endif
+	         printf("%6.0f ",1/stats[_STAT_DELETE].best);
+	         printf("%12d ",x*x*x);
+		 printf("\n");
+  	   	 fflush(stdout);
+		}
+		if(worst)
+		{
+	         printf("%c %4d %6.0f ",'W',x, 1/stats[_STAT_DIR_CREATE].worst);
+	         printf("%6.0f ",1/stats[_STAT_DIR_DELETE].worst);
+	         printf("%6.0f ",1/stats[_STAT_CREATE].worst);
+	         printf("%6.0f ",1/stats[_STAT_READ].worst);
+	         printf("%6.0f ",1/stats[_STAT_WRITE].worst);
+	         printf("%6.0f ",1/stats[_STAT_CLOSE].worst);
+	         printf("%6.0f ",1/stats[_STAT_STAT].worst);
+	         printf("%6.0f ",1/stats[_STAT_ACCESS].worst);
+	         printf("%6.0f ",1/stats[_STAT_CHMOD].worst);
+	         printf("%6.0f ",1/stats[_STAT_READDIR].worst);
+#ifndef Windows
+	         printf("%6.0f ",1/stats[_STAT_LINK].worst);
+	         printf("%6.0f ",1/stats[_STAT_UNLINK].worst);
+#endif
+	         printf("%6.0f ",1/stats[_STAT_DELETE].worst);
+	         printf("%12d ",x*x*x);
+		 printf("\n");
+  	   	 fflush(stdout);
+		}
+	   }
+	}
 	return(0);
 }
 
@@ -366,7 +558,7 @@ file_create(int x)
 		 stats[_STAT_CREATE].worst=stats[_STAT_CREATE].speed;
 
 	      stats[_STAT_WRITE].starttime=time_so_far();
-	      write(fd,"a",1);
+	      write(fd,mbuffer,sz);
 	      stats[_STAT_WRITE].endtime=time_so_far();
 	      stats[_STAT_WRITE].counter++;
 	      stats[_STAT_WRITE].speed=stats[_STAT_WRITE].endtime-stats[_STAT_WRITE].starttime;
@@ -378,6 +570,7 @@ file_create(int x)
 	      if(stats[_STAT_WRITE].speed > stats[_STAT_WRITE].worst)
 		 stats[_STAT_WRITE].worst=stats[_STAT_WRITE].speed;
 
+	      fsync(fd);
 	      stats[_STAT_CLOSE].starttime=time_so_far();
 	      close(fd);
 	      stats[_STAT_CLOSE].endtime=time_so_far();
@@ -753,6 +946,54 @@ file_delete(int x)
 	  rmdir(buf);
 	}
 }
+void 
+file_read(int x)
+{
+	int i,j,k,y,fd;
+	char buf[100];
+	stats[_STAT_READ].best=(double)99999.9;
+	stats[_STAT_READ].worst=(double)0.00000000;
+	for(i=0;i<x;i++)
+	{
+	  sprintf(buf,"iozone_L1_%d",i);
+	  chdir(buf);
+	  for(j=0;j<x;j++)
+	  {
+	    sprintf(buf,"iozone_L1_%d_L2_%d",i,j);
+	    chdir(buf);
+	    for(k=0;k<x;k++)
+	    {
+	      sprintf(buf,"iozone_file_%d_%d_%d",i,j,k);
+	      fd=open(buf,O_RDONLY);
+	      if(fd < 0)
+	      {
+	        printf("Open failed\n");
+	        exit(1);
+	      }
+	      stats[_STAT_READ].starttime=time_so_far();
+	      y=read(fd,mbuffer,sz);
+	      if(y < 0)
+	      {
+	        printf("Read failed\n");
+	        exit(1);
+	      }
+	      stats[_STAT_READ].endtime=time_so_far();
+	      close(fd);
+	      stats[_STAT_READ].speed=stats[_STAT_READ].endtime-stats[_STAT_READ].starttime;
+	      if(stats[_STAT_READ].speed < (double)0.0)
+		stats[_STAT_READ].speed=(double)0.0;
+	      stats[_STAT_READ].total_time+=stats[_STAT_READ].speed;
+	      stats[_STAT_READ].counter++;
+	      if(stats[_STAT_READ].speed < stats[_STAT_READ].best)
+		 stats[_STAT_READ].best=stats[_STAT_READ].speed;
+	      if(stats[_STAT_READ].speed > stats[_STAT_READ].worst)
+		 stats[_STAT_READ].worst=stats[_STAT_READ].speed;
+	    }
+	    chdir("..");
+	  }
+	  chdir("..");
+	}
+}
 
 /************************************************************************/
 /* Time measurement routines. Thanks to Iozone :-)			*/
@@ -816,23 +1057,39 @@ splash(void)
 void 
 usage(void)
 {
-  printf("fileop X\n");
+  splash();
+  printf("     fileop [-f X ]|[-l # -u #] [-s Y] [-t] [-v] [-e] [-b] -[w]\n");
   printf("\n");
-  printf("X .. Force factor. X^3 files will be created and removed.\n");
+  printf("     -f # Force factor. X^3 files will be created and removed.\n");
+  printf("     -l # Lower limit on the value of the Force factor.\n");
+  printf("     -u # Upper limit on the value of the Force factor.\n");
+  printf("     -s # Optional. Sets filesize for the create/write.\n");
+  printf("     -t # Verbose output option.\n");
+  printf("     -v # Version information.\n");
+  printf("     -e # Excel importable format.\n");
+  printf("     -b Output best case results\n");
+  printf("     -w Output worst case results\n");
   printf("\n");
-  printf("   The structure of the file tree is:\n");
-  printf("   X number of Level 1 directorys, with X number of\n");
-  printf("   level 2 directories, with X number of files in each\n");
-  printf("   of the level 2 directories.\n");
+  printf("     The structure of the file tree is:\n");
+  printf("     X number of Level 1 directorys, with X number of\n");
+  printf("     level 2 directories, with X number of files in each\n");
+  printf("     of the level 2 directories.\n");
   printf("\n");
-  printf("   Example:  fileop 2\n");
+  printf("     Example:  fileop 2\n");
   printf("\n");
-  printf("           dir_1                        dir_2\n");
-  printf("          /     \\                      /     \\ \n");
-  printf("    sdir_1       sdir_2          sdir_1       sdir_2\n");
-  printf("    /     \\     /     \\          /     \\      /     \\ \n");
-  printf(" file_1 file_2 file_1 file_2   file_1 file_2 file_1 file_2\n");
+  printf("             dir_1                        dir_2\n");
+  printf("            /     \\                      /     \\ \n");
+  printf("      sdir_1       sdir_2          sdir_1       sdir_2\n");
+  printf("      /     \\     /     \\          /     \\      /     \\ \n");
+  printf("   file_1 file_2 file_1 file_2   file_1 file_2 file_1 file_2\n");
   printf("\n");
-  printf(" Each file will be created, and then 1 byte is written to the file.\n");
+  printf("   Each file will be created, and then Y bytes is written to the file.\n");
   printf("\n");
+}
+void
+clear_stats()
+{
+	int i;
+	for(i=0;i<_NUM_STATS;i++)
+		bzero((char *)&stats[i],sizeof(struct stat_struct));
 }
