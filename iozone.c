@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.124 $"
+#define THISVERSION "        Version $Revision: 3.125 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -14277,7 +14277,7 @@ int send_size;
 	sprintf(outbuf.m_stop_time,"%f",send_buffer->m_stop_time);
 	sprintf(outbuf.m_start_time,"%f",send_buffer->m_start_time);
 	sprintf(outbuf.m_fini_time,"%f",send_buffer->m_fini_time);
-	sprintf(outbuf.m_stop_flag,"%c",send_buffer->m_stop_flag);
+	sprintf(outbuf.m_stop_flag,"%d",send_buffer->m_stop_flag);
 	sprintf(outbuf.m_actual,"%f",send_buffer->m_actual);
 #ifdef NO_PRINT_LLD
 	sprintf(outbuf.m_child_flag,"%ld",send_buffer->m_child_flag);
@@ -15733,7 +15733,7 @@ int num;
 		sscanf(mnc->m_throughput,"%f",&mc.m_throughput);
 		sscanf(mnc->m_start_time,"%f",&mc.m_start_time);
 		sscanf(mnc->m_stop_time,"%f",&mc.m_stop_time);
-		sscanf(mnc->m_stop_flag,"%c",&mc.m_stop_flag);
+		sscanf(mnc->m_stop_flag,"%d",&mc.m_stop_flag);
 
 		switch(mc.m_command) {
 		case R_STAT_DATA:
@@ -16028,6 +16028,7 @@ distribute_stop()
 	int i;
 	struct client_command cc;
 	cc.c_command = R_STOP_FLAG;
+	cc.c_stop_flag = 1;
 	for(i=0;i<num_child;i++)
 	{
 		cc.c_client_number = (int)i; 
