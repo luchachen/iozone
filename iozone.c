@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.336 $"
+#define THISVERSION "        Version $Revision: 3.337 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1245,7 +1245,8 @@ long long res_prob,rec_prob;
 char silent,read_sync;
 char master_iozone, client_iozone,distributed;
 int bif_fd,s_count;
-int bif_row,bif_column,dedup_mseed;
+int bif_row,bif_column;
+int dedup_mseed = 1;
 char aflag, Eflag, hflag, Rflag, rflag, sflag;
 char diag_v,sent_stop,dedup,dedup_interior,dedup_compress;
 char *dedup_ibuf;
@@ -2560,6 +2561,8 @@ char **argv;
 					     exit(200);
 					}
 					dedup_mseed = atoi(subarg);
+					if(dedup_mseed ==0)
+						dedup_mseed = 1;
 					sprintf(splash[splash_line++],"\tDedup manual seed %d .\n",dedup_mseed);
 					break;
 				default:
