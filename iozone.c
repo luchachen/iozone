@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.319 $"
+#define THISVERSION "        Version $Revision: 3.321 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -8087,7 +8087,7 @@ long long *data1, *data2;
 	char *maddr,*free_addr;
 	int fd,wval;
 	long long *recnum= 0;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo=0;
 #endif
 #ifdef ASYNC_IO
@@ -8586,7 +8586,7 @@ long long *data1,*data2;
 	volatile char *buffer1;
 	int ltest;
 	char *nbuff;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo=0;
 #endif
 #ifdef ASYNC_IO
@@ -8878,7 +8878,7 @@ long long *data1,*data2;
 	int fd,wval;
 	char *maddr;
 	char *wmaddr,*free_addr,*nbuff;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo=0;
 #endif
 #ifdef ASYNC_IO
@@ -9197,7 +9197,7 @@ long long *data1, *data2;
 	char *nbuff;
 	char *maddr;
 	char *wmaddr;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo=0;
 #endif
 #ifdef ASYNC_IO
@@ -9514,7 +9514,7 @@ long long *data1,*data2;
 	off64_t numrecs64,traj_offset;
 	off64_t lock_offset=0;
 	long long traj_size;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo=0;
 #endif
 	char *nbuff;
@@ -9836,7 +9836,7 @@ long long *data1, *data2;
 	int ltest;
 	off64_t traj_offset;
 	long long traj_size;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo = 0;
 #endif
 	char *nbuff;
@@ -10079,7 +10079,7 @@ long long *data1,*data2;
 	off64_t filebytes64,i;
 	off64_t numrecs64;
 	int fd,ltest;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo = 0;
 #endif
 	long long flags_here;
@@ -10450,7 +10450,7 @@ long long *data1,*data2;
 	unsigned long long preadvrate[2];
 	off64_t filebytes64;
 	int fd,open_flags,ltest;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo = 0;
 #endif
 	char *nbuff;
@@ -11625,7 +11625,7 @@ thread_write_test( x)
 	char *wmaddr,*free_addr;
 	char now_string[30];
 	int anwser,bind_cpu,wval;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo = 0;
 #endif
 	off64_t filebytes64;
@@ -12315,7 +12315,7 @@ thread_pwrite_test( x)
 	char *wmaddr,*free_addr;
 	char now_string[30];
 	int anwser,bind_cpu,wval;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo = 0;
 #endif
 	off64_t filebytes64;
@@ -12913,7 +12913,7 @@ thread_rwrite_test(x)
 	int anwser,bind_cpu,wval;
 	FILE *thread_rwqfd,*thread_Lwqfd;
 	char tmpname[256];
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo = 0;
 #endif
 #ifdef ASYNC_IO
@@ -13457,7 +13457,7 @@ thread_read_test(x)
 	char now_string[30];
 	int anwser,bind_cpu;
 	long wval;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo = 0;
 #endif
 #ifdef ASYNC_IO
@@ -14006,7 +14006,7 @@ thread_pread_test(x)
 	char now_string[30];
 	volatile char *buffer1;
 	int anwser,bind_cpu;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo = 0;
 #endif
 #ifdef ASYNC_IO
@@ -14505,7 +14505,7 @@ thread_rread_test(x)
 	int anwser,bind_cpu;
 	long wval;
 	char tmpname[256];
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo = 0;
 #endif
 #ifdef ASYNC_IO
@@ -15049,7 +15049,7 @@ thread_reverse_read_test(x)
 	char tmpname[256];
 	FILE *thread_revqfd=0;
 	FILE *thread_Lwqfd=0;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo = 0;
 #endif
 #ifdef ASYNC_IO
@@ -15550,7 +15550,7 @@ thread_stride_read_test(x)
 	char now_string[30];
 	FILE *thread_strqfd=0;
 	FILE *thread_Lwqfd=0;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo = 0;
 #endif
 #ifdef ASYNC_IO
@@ -16130,7 +16130,7 @@ thread_ranread_test(x)
 	FILE *thread_randrfd=0;
 	FILE *thread_Lwqfd=0;
 	long long *recnum=0;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo = 0;
 #endif
 	long long save_pos;
@@ -16699,7 +16699,7 @@ thread_ranwrite_test( x)
 	FILE *thread_randwqfd=0;
 	FILE *thread_Lwqfd=0;
 	long long *recnum = 0;
-#ifdef VXFS
+#if defined(VXFS) || defined(solaris)
 	int test_foo = 0;
 #endif
 #if defined (bsd4_2) || defined(Windows)

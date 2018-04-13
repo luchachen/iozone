@@ -2194,3 +2194,9 @@ Add IMON_SYNC to enable monitor scripts to be run sync.
 Revision 3.319
 Add directio() for Solaris
 =============================================================================
+Revision 3.320
+Add fixes for unresolved references in directio() for Solaris
+=============================================================================
+Revision 3.321
+Fix type oh.
+=============================================================================
