@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.73 $"
+#define THISVERSION "        Version $Revision: 3.75 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -844,6 +844,10 @@ char client_filename[256];
 #endif
 #ifdef _HPUX_SOURCE
 #define REMOTE_SHELL "remsh"
+#endif
+/* Default to rsh */
+#ifndef REMOTE_SHELL
+#define REMOTE_SHELL "rsh"
 #endif
 /* 
  * Host ports used to listen, and handle errors.
@@ -15179,7 +15183,7 @@ long long childnum;
 	cc.c_command = R_FLAG_DATA;
 	cc.c_child_flag = CHILD_STATE_BEGIN; 
 	cc.c_client_number = (int)childnum; 
-	master_send(master_send_sockets[x],"rsnperf", &cc,sizeof(struct client_command));
+	master_send(master_send_sockets[x],child_idents[x].child_name, &cc,sizeof(struct client_command));
 }
 
 /*
@@ -15353,7 +15357,7 @@ distribute_stop()
 		cc.c_client_number = (int)i; 
 		if(mdebug)
 			printf("Master distributing stop flag to child %d\n",i);
-		master_send(master_send_async_sockets[i],cc.c_client_name, &cc,sizeof(struct client_command));
+		master_send(master_send_async_sockets[i],child_idents[i].child_name, &cc,sizeof(struct client_command));
 	}
 }
 

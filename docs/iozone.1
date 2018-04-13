@@ -174,7 +174,13 @@ testing. The number of names should be equal to the number of processes or
 threads that are specified.
 .TP
 .BI \-g\ #
-Set maximum file size (in Kbytes) for auto mode. See
+Set maximum file size (in Kbytes) for auto mode. One may also specify
+.BI \-g\ #k 
+(size in Kbytes) or
+.BI \-g\ #m 
+(size in Mbytes) or
+.BI \-g\ #g
+(size in Gbytes). See
 .BI \-n
 for minimum file size.
 .TP
@@ -263,7 +269,13 @@ Iozone
 will call uname() and will put the string in the output file.
 .TP
 .BI \-n\ #
-Set minimum file size (in Kbytes) for auto mode. See
+Set minimum file size (in Kbytes) for auto mode. One may also specify
+.BI \-n\ #k 
+(size in Kbytes) or
+.BI \-n\ #m 
+(size in Mbytes) or
+.BI \-n\ #g
+(size in Gbytes). See
 .BI \-g
 for maximum file size.
 .TP
@@ -442,8 +454,20 @@ to include the small record sizes in the automatic tests also.
 .TP
 .BI \-Z
 Enable mixing of mmap I/O and file I/O.
+.TP
+.BI \-+m\ filename
+Used to specify a filename that will be used to specify
+the clients in a distributed measurement. The file
+contains one line for each client. The fields are 
+space delimited. Field 1 is the client name. Field 2
+is the working directory, on the client, where Iozone
+will run. Field 3 is the path to the executable Iozone
+on the client.
+.TP
+.BI \-+u
+Used to enable CPU statistics collection.
 
 .SH AUTHOR
 Original Author: William D. Norcott. wnorcott@us.oracle.com
 
-Features & extensions: Don Capps capps@technologist.com
+Features & extensions: Don Capps capps@iozone.org
