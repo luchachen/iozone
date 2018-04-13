@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.228 $"
+#define THISVERSION "        Version $Revision: 3.233 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -206,6 +206,7 @@ char *help[] = {
 "           -+A #  Enable madvise. 0 = normal, 1=random, 2=sequential",
 "                                  3=dontneed, 4=willneed",
 #endif
+"           -+V Enable shared file. No locking.",
 "" };
 
 char *head1[] = {
@@ -444,6 +445,7 @@ struct client_command {
 	int c_odsync;
 	int c_diag_v;
 	int c_Q_flag;
+	int c_L_flag;
 	int c_OPS_flag;
 	int c_mmapflag;
 	int c_mmapasflag;
@@ -526,6 +528,7 @@ struct client_neutral_command {
 	char c_odsync[2];
 	char c_diag_v[2];
 	char c_Q_flag[2];
+	char c_L_flag[2];
 	char c_OPS_flag[2];
 	char c_mmapflag[2];
 	char c_mmapasflag[2];
@@ -870,6 +873,7 @@ void purgeit();			/* Purge on chip cache		  */
 void throughput_test();		/* Multi process throughput 	  */
 void multi_throughput_test();	/* Multi process throughput 	  */
 void prepage();			/* Pre-fault user buffer	  */
+void get_date();
 #ifdef HAVE_ANSIC_C
 float do_compute(float);	/* compute cycle simulation       */
 #else
@@ -1323,7 +1327,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 15;
+int proto_version = 16;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1352,6 +1356,7 @@ int restf;
 char sverify = 1;
 char odsync = 0;
 char Q_flag,OPS_flag;
+char L_flag=0;
 char no_copy_flag,include_close,include_flush;
 char disrupt_flag,compute_flag,xflag;
 int no_unlink = 0;
@@ -2265,9 +2270,16 @@ char **argv;
 					share_file=1;
 					rlocking=1;
 					break;
+				case 'V':  /* No Record locking shared files*/
+					sprintf(splash[splash_line++],"\t>>> Shared file mode enabled. <<<\n");
+					share_file=1;
+					break;
 				case 'B':  /* Sequential mix */
 					sprintf(splash[splash_line++],"\t>>> Sequential Mixed workload. <<<\n");
 					seq_mix=1;
+					break;
+				case 'T':  /* Time stamps on */
+					L_flag=1;
 					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
@@ -6338,6 +6350,8 @@ long long *data2;
 				if(Index > (MAXBUFFERSIZE-reclen))
 					Index=0;
 				pbuff = mbuffer + Index;	
+				if(verify)
+					fill_buffer(pbuff,reclen,(long long)pattern,sverify,(long long)0);
 			}
 			if(async_flag && no_copy_flag)
 			{
@@ -10594,6 +10608,7 @@ thread_write_test( x)
 	char *nbuff;
 	char *maddr;
 	char *wmaddr,*free_addr;
+	char now_string[30];
 	int anwser,bind_cpu,wval;
 #ifdef VXFS
 	int test_foo = 0;
@@ -10601,6 +10616,7 @@ thread_write_test( x)
 	off64_t filebytes64;
 	char tmpname[256];
 	FILE *thread_wqfd;
+	FILE *thread_Lwqfd;
 
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -10611,7 +10627,7 @@ thread_write_test( x)
 
 	nbuff=maddr=wmaddr=free_addr=0;
 	thread_qtime_stop=thread_qtime_start=0;
-	thread_wqfd=w_traj_fd=(FILE *)0;
+	thread_wqfd=w_traj_fd=thread_Lwqfd=(FILE *)0;
 	traj_offset=walltime=cputime=0;
 	anwser=bind_cpu=0;
 	if(w_traj_flag)
@@ -10797,6 +10813,18 @@ thread_write_test( x)
 			exit(40);
 		}
 		fprintf(thread_wqfd,"Offset in Kbytes   Latency in microseconds Transfer size in bytes\n");
+	}
+	if(L_flag)
+	{
+		sprintf(tmpname,"Child_%d.log",(int)xx);
+		thread_Lwqfd=fopen(tmpname,"a");
+		if(thread_Lwqfd==0)
+		{
+			printf("Unable to open %s\n",tmpname);
+			exit(40);
+		}
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Write test start: ",now_string);
 	}
 	starttime1 = time_so_far();
 	if(cpuutilflag)
@@ -11084,6 +11112,12 @@ again:
 	if(w_traj_flag)
 		fclose(w_traj_fd);
 
+	if(L_flag)
+	{
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Write test finished: ",now_string);
+		fclose(thread_Lwqfd);
+	}
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -11132,6 +11166,7 @@ thread_pwrite_test( x)
 	char *nbuff;
 	char *maddr;
 	char *wmaddr,*free_addr;
+	char now_string[30];
 	int anwser,bind_cpu,wval;
 #ifdef VXFS
 	int test_foo = 0;
@@ -11139,6 +11174,7 @@ thread_pwrite_test( x)
 	off64_t filebytes64;
 	char tmpname[256];
 	FILE *thread_wqfd;
+	FILE *thread_Lwqfd;
 
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -11149,7 +11185,7 @@ thread_pwrite_test( x)
 
 	nbuff=maddr=wmaddr=free_addr=0;
 	thread_qtime_stop=thread_qtime_start=0;
-	thread_wqfd=w_traj_fd=(FILE *)0;
+	thread_wqfd=w_traj_fd=thread_Lwqfd=(FILE *)0;
 	traj_offset=walltime=cputime=0;
 	anwser=bind_cpu=0;
 	if(w_traj_flag)
@@ -11335,6 +11371,18 @@ thread_pwrite_test( x)
 			exit(40);
 		}
 		fprintf(thread_wqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
+	}
+	if(L_flag)
+	{
+		sprintf(tmpname,"Child_%d.log",(int)xx);
+		thread_Lwqfd=fopen(tmpname,"a");
+		if(thread_Lwqfd==0)
+		{
+			printf("Unable to open %s\n",tmpname);
+			exit(40);
+		}
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Pwrite test start: ",now_string);
 	}
 	starttime1 = time_so_far();
 	if(cpuutilflag)
@@ -11618,6 +11666,12 @@ again:
 	if(w_traj_flag)
 		fclose(w_traj_fd);
 
+	if(L_flag)
+	{
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Pwrite test finished: ",now_string);
+		fclose(thread_Lwqfd);
+	}
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -11668,8 +11722,9 @@ thread_rwrite_test(x)
 	char *nbuff;
 	char *maddr,*free_addr;
 	char *wmaddr;
+	char now_string[30];
 	int anwser,bind_cpu,wval;
-	FILE *thread_rwqfd;
+	FILE *thread_rwqfd,*thread_Lwqfd;
 	char tmpname[256];
 #ifdef VXFS
 	int test_foo = 0;
@@ -11682,7 +11737,7 @@ thread_rwrite_test(x)
 #endif
 
 	wmaddr=nbuff=maddr=free_addr=0;
-	thread_rwqfd=w_traj_fd=(FILE *)0;
+	thread_rwqfd=w_traj_fd=thread_Lwqfd=(FILE *)0;
 	traj_offset=thread_qtime_stop=thread_qtime_start=0;
 	walltime=cputime=0;
 	anwser=bind_cpu=0;
@@ -11820,6 +11875,18 @@ thread_rwrite_test(x)
 			exit(40);
 		}
 		fprintf(thread_rwqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
+	}
+	if(L_flag)
+	{
+		sprintf(tmpname,"Child_%d.log",(int)xx);
+		thread_Lwqfd=fopen(tmpname,"a");
+		if(thread_Lwqfd==0)
+		{
+			printf("Unable to open %s\n",tmpname);
+			exit(40);
+		}
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Rewrite test start: ",now_string);
 	}
 	child_stat->flag = CHILD_STATE_READY;
 	if(distributed && client_iozone)
@@ -12066,6 +12133,12 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 		printf("\nChild Stopping  %lld\n",xx);
 #endif
 
+	if(L_flag)
+	{
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Rewrite test finished: ",now_string);
+		fclose(thread_Lwqfd);
+	}
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -12097,6 +12170,7 @@ thread_read_test(x)
 	long long r_traj_ops_completed;
 	int fd;
 	FILE *r_traj_fd,*thread_rqfd;
+	FILE *thread_Lwqfd;
 	long long flags = 0;
 	off64_t traj_offset;
 	off64_t lock_offset=0;
@@ -12114,6 +12188,7 @@ thread_read_test(x)
 	char *wmaddr=0;
 	char tmpname[256];
 	volatile char *buffer1;
+	char now_string[30];
 	int anwser,bind_cpu;
 #ifdef VXFS
 	int test_foo = 0;
@@ -12124,7 +12199,7 @@ thread_read_test(x)
 	long long *gc=0;
 #endif
 
-	thread_rqfd=r_traj_fd=(FILE *)0;
+	thread_rqfd=thread_Lwqfd=r_traj_fd=(FILE *)0;
 	traj_offset=thread_qtime_stop=thread_qtime_start=0;
 	walltime=cputime=0;
 	anwser=bind_cpu=0;
@@ -12252,6 +12327,18 @@ thread_read_test(x)
 			exit(40);
 		}
 		fprintf(thread_rqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
+	}
+	if(L_flag)
+	{
+		sprintf(tmpname,"Child_%d.log",(int)xx);
+		thread_Lwqfd=fopen(tmpname,"a");
+		if(thread_Lwqfd==0)
+		{
+			printf("Unable to open %s\n",tmpname);
+			exit(40);
+		}
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Read test start: ",now_string);
 	}
 
 	if(r_traj_flag)
@@ -12498,6 +12585,12 @@ thread_read_test(x)
 		printf("\nChild finished %lld\n",xx);
 #endif
 
+	if(L_flag)
+	{
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Read test finished: ",now_string);
+		fclose(thread_Lwqfd);
+	}
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -12530,6 +12623,7 @@ thread_pread_test(x)
 	long long r_traj_ops_completed;
 	int fd;
 	FILE *r_traj_fd,*thread_rqfd;
+	FILE *thread_Lwqfd;
 	long long flags = 0;
 	off64_t traj_offset;
 	off64_t lock_offset=0;
@@ -12546,6 +12640,7 @@ thread_pread_test(x)
 	char *maddr=0;
 	char *wmaddr=0;
 	char tmpname[256];
+	char now_string[30];
 	volatile char *buffer1;
 	int anwser,bind_cpu;
 #ifdef VXFS
@@ -12557,7 +12652,7 @@ thread_pread_test(x)
 	long long *gc=0;
 #endif
 
-	thread_rqfd=r_traj_fd=(FILE *)0;
+	thread_rqfd=thread_Lwqfd=r_traj_fd=(FILE *)0;
 	traj_offset=thread_qtime_stop=thread_qtime_start=0;
 	walltime=cputime=0;
 	anwser=bind_cpu=0;
@@ -12685,6 +12780,18 @@ thread_pread_test(x)
 			exit(40);
 		}
 		fprintf(thread_rqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
+	}
+	if(L_flag)
+	{
+		sprintf(tmpname,"Child_%d.log",(int)xx);
+		thread_Lwqfd=fopen(tmpname,"a");
+		if(thread_Lwqfd==0)
+		{
+			printf("Unable to open %s\n",tmpname);
+			exit(40);
+		}
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Pread test start: ",now_string);
 	}
 
 	if(r_traj_flag)
@@ -12931,6 +13038,13 @@ thread_pread_test(x)
 		printf("\nChild finished %lld\n",xx);
 #endif
 
+	if(L_flag)
+	{
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Pread test finished: ",
+			now_string);
+		fclose(thread_Lwqfd);
+	}
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -12961,6 +13075,7 @@ thread_rread_test(x)
 	struct child_stats *child_stat;
 	int fd;
 	FILE *r_traj_fd,*thread_rrqfd;
+	FILE *thread_Lwqfd;
 	long long r_traj_bytes_completed;
 	double walltime, cputime;
 	long long r_traj_ops_completed;
@@ -12979,6 +13094,7 @@ thread_rread_test(x)
 	char *dummyfile[MAXSTREAMS];           /* name of dummy file     */
 	char *maddr=0;
 	char *wmaddr=0;
+	char now_string[30];
 	volatile char *buffer1;
 	int anwser,bind_cpu;
 	char tmpname[256];
@@ -12994,7 +13110,7 @@ thread_rread_test(x)
 	/* Children only */
 	/*****************/
 	thread_qtime_stop=thread_qtime_start=0;
-	thread_rrqfd=r_traj_fd=(FILE *)0;
+	thread_rrqfd=r_traj_fd=thread_Lwqfd=(FILE *)0;
 	traj_offset=walltime=cputime=0;
 	anwser=bind_cpu=0;
 	r_traj_bytes_completed=r_traj_ops_completed=0;
@@ -13120,6 +13236,18 @@ thread_rread_test(x)
                 }
 		fprintf(thread_rrqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
         }
+	if(L_flag)
+	{
+		sprintf(tmpname,"Child_%d.log",(int)xx);
+		thread_Lwqfd=fopen(tmpname,"a");
+		if(thread_Lwqfd==0)
+		{
+			printf("Unable to open %s\n",tmpname);
+			exit(40);
+		}
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Reread test start: ",now_string);
+	}
 
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = 0;
@@ -13361,6 +13489,12 @@ thread_rread_test(x)
 		printf("\nChild finished %lld\n",xx);
 #endif
 
+	if(L_flag)
+	{
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Reread test finished: ",now_string);
+		fclose(thread_Lwqfd);
+	}
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -13405,11 +13539,13 @@ thread_reverse_read_test(x)
 	char *dummyfile[MAXSTREAMS];           /* name of dummy file     */
 	char *maddr=0;
 	char *wmaddr=0;
+	char now_string[30];
 	volatile char *buffer1;
 	int anwser,bind_cpu;
 	off64_t traj_offset;
 	char tmpname[256];
 	FILE *thread_revqfd=0;
+	FILE *thread_Lwqfd=0;
 #ifdef VXFS
 	int test_foo = 0;
 #endif
@@ -13535,6 +13671,18 @@ thread_reverse_read_test(x)
                 }
 		fprintf(thread_revqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
         }
+	if(L_flag)
+	{
+		sprintf(tmpname,"Child_%d.log",(int)xx);
+		thread_Lwqfd=fopen(tmpname,"a");
+		if(thread_Lwqfd==0)
+		{
+			printf("Unable to open %s\n",tmpname);
+			exit(40);
+		}
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Reverse read start: ",now_string);
+	}
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = 0;
 	child_stat->actual = 0;
@@ -13770,6 +13918,13 @@ thread_reverse_read_test(x)
 		printf("\nChild finished %lld\n",xx);
 #endif
 
+	if(L_flag)
+	{
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Reverse read finished: ",
+			now_string);
+		fclose(thread_Lwqfd);
+	}
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -13818,7 +13973,9 @@ thread_stride_read_test(x)
 	int anwser,bind_cpu;
 	off64_t traj_offset;
 	char tmpname[256];
+	char now_string[30];
 	FILE *thread_strqfd=0;
+	FILE *thread_Lwqfd=0;
 #ifdef VXFS
 	int test_foo = 0;
 #endif
@@ -13944,6 +14101,19 @@ thread_stride_read_test(x)
                 }
 		fprintf(thread_strqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
         }
+	if(L_flag)
+	{
+		sprintf(tmpname,"Child_%d.log",(int)xx);
+		thread_Lwqfd=fopen(tmpname,"a");
+		if(thread_Lwqfd==0)
+		{
+			printf("Unable to open %s\n",tmpname);
+			exit(40);
+		}
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Stride test start: ",
+			now_string);
+	}
 	child_stat = (struct child_stats *)&shmaddr[xx];
 	child_stat->throughput = 0;
 	child_stat->actual = 0;
@@ -14200,6 +14370,13 @@ thread_stride_read_test(x)
 		printf("\nChild finished %lld\n",xx);
 #endif
 
+	if(L_flag)
+	{
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Stride test finished: ",
+			now_string);
+		fclose(thread_Lwqfd);
+	}
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -14313,7 +14490,9 @@ thread_ranread_test(x)
 	off64_t traj_offset;
 	off64_t lock_offset=0;
 	char tmpname[256];
+	char now_string[30];
 	FILE *thread_randrfd=0;
+	FILE *thread_Lwqfd=0;
 #ifdef VXFS
 	int test_foo = 0;
 #endif
@@ -14452,6 +14631,19 @@ thread_ranread_test(x)
                 }
 		fprintf(thread_randrfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
         }
+	if(L_flag)
+	{
+		sprintf(tmpname,"Child_%d.log",(int)xx);
+		thread_Lwqfd=fopen(tmpname,"a");
+		if(thread_Lwqfd==0)
+		{
+			printf("Unable to open %s\n",tmpname);
+			exit(40);
+		}
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Random read start: ",
+			now_string);
+	}
 	child_stat=(struct child_stats *)&shmaddr[xx];
 	child_stat->flag = CHILD_STATE_READY;
         if(distributed && client_iozone)
@@ -14703,6 +14895,12 @@ thread_ranread_test(x)
 		printf("\nChild finished %lld\n",xx);
 #endif
 
+	if(L_flag)
+	{
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Random read finished: ",now_string);
+		fclose(thread_Lwqfd);
+	}
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -14754,7 +14952,9 @@ thread_ranwrite_test( x)
 	off64_t filebytes64;
 	off64_t lock_offset=0;
 	char tmpname[256];
+	char now_string[30];
 	FILE *thread_randwqfd=0;
+	FILE *thread_Lwqfd=0;
 #ifdef VXFS
 	int test_foo = 0;
 #endif
@@ -14933,6 +15133,19 @@ thread_ranwrite_test( x)
 			exit(40);
 		}
 		fprintf(thread_randwqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
+	}
+	if(L_flag)
+	{
+		sprintf(tmpname,"Child_%d.log",(int)xx);
+		thread_Lwqfd=fopen(tmpname,"a");
+		if(thread_Lwqfd==0)
+		{
+			printf("Unable to open %s\n",tmpname);
+			exit(40);
+		}
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Random write start: ",
+			now_string);
 	}
 	if(verify)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
@@ -15229,6 +15442,13 @@ again:
 		fclose(thread_randwqfd);
 	free(dummyfile[xx]);
 
+	if(L_flag)
+	{
+		get_date(now_string);
+		fprintf(thread_Lwqfd,"%-25s %s","Random write finished: ",
+			now_string);
+		fclose(thread_Lwqfd);
+	}
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -15540,7 +15760,7 @@ dump_throughput_cpu()
 		{
 			if (bif_flag)
 				do_float(bif_fd, runtimes[i][j].cpuutil, bif_row, bif_column++);
-			if(!silent) printf("%10.2f ", runtimes[i][j].cpuutil);
+			if(!silent) printf(" %10.2f ", runtimes[i][j].cpuutil);
 		}
 		if(!silent) printf("\n\n");
 		if (bif_flag)
@@ -15621,7 +15841,7 @@ dump_throughput()
 			   {
 				   do_float(bif_fd,(double)report_darray[i][j],bif_row,bif_column++);
 			   }
-			   if(!silent) printf("%10.2f ",report_darray[i][j]);
+			   if(!silent) printf(" %10.2f ",report_darray[i][j]);
 		   }
 		   if(!silent) printf("\n\n");
 		   if(bif_flag)
@@ -17240,6 +17460,7 @@ int send_size;
 	sprintf(outbuf.c_odsync,"%d",send_buffer->c_odsync);
 	sprintf(outbuf.c_diag_v,"%d",send_buffer->c_diag_v);
 	sprintf(outbuf.c_Q_flag,"%d",send_buffer->c_Q_flag);
+	sprintf(outbuf.c_L_flag,"%d",send_buffer->c_L_flag);
 	sprintf(outbuf.c_include_flush,"%d",send_buffer->c_include_flush);
 	sprintf(outbuf.c_OPS_flag,"%d",send_buffer->c_OPS_flag);
 	sprintf(outbuf.c_mmapnsflag,"%d",send_buffer->c_mmapnsflag);
@@ -18113,6 +18334,7 @@ long long numrecs64, reclen;
 	cc.c_advise_flag = advise_flag;
 	cc.c_restf = restf;
 	cc.c_Q_flag = Q_flag;
+	cc.c_L_flag = L_flag;
 	cc.c_xflag = xflag;
 	cc.c_w_traj_flag = w_traj_flag;
 	cc.c_r_traj_flag = r_traj_flag;
@@ -18353,6 +18575,7 @@ become_client()
 	sscanf(cnc->c_advise_flag,"%d",&cc.c_advise_flag);
 	sscanf(cnc->c_restf,"%d",&cc.c_restf);
 	sscanf(cnc->c_Q_flag,"%d",&cc.c_Q_flag);
+	sscanf(cnc->c_L_flag,"%d",&cc.c_L_flag);
 	sscanf(cnc->c_xflag,"%d",&cc.c_xflag);
 	sscanf(cnc->c_include_flush,"%d",&cc.c_include_flush);
 	sscanf(cnc->c_OPS_flag,"%d",&cc.c_OPS_flag);
@@ -18411,6 +18634,7 @@ become_client()
 	advise_flag=cc.c_advise_flag;
 	restf=cc.c_restf;
 	Q_flag = cc.c_Q_flag;
+	L_flag = cc.c_L_flag;
 	xflag = cc.c_xflag;
 	w_traj_flag = cc.c_w_traj_flag;
 	r_traj_flag = cc.c_r_traj_flag;
@@ -19946,3 +20170,14 @@ int client_flag;
 		}
 	}
 }
+
+void
+get_date(char *where)
+{
+	time_t t;
+	char *value;
+	t=time(0);
+	value=ctime(&t);
+	strcpy(where,value);
+}
+
