@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.167 $"
+#define THISVERSION "        Version $Revision: 3.168 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -354,6 +354,10 @@ long long page_size = 4096; /* Used when all else fails */
 #define PVECMAX 16
 struct piovec piov[PVECMAX];
 #endif
+#endif
+
+#if defined(linux)
+#include <errno.h>
 #endif
 
 /*
