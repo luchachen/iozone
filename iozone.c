@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.201 $"
+#define THISVERSION "        Version $Revision: 3.203 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -912,7 +912,7 @@ void store_times(double, double);
 static double cpu_util(double, double);
 void dump_cputimes(void);
 void purge_buffer_cache(void);
-char *alloc_mem(long long);
+char *alloc_mem(long long,int);
 void *(thread_rwrite_test)(void *);
 void *(thread_write_test)(void *);
 void *(thread_read_test)(void*);
@@ -1470,7 +1470,7 @@ char **argv;
         /* on chip data cache. 					*/
         /********************************************************/
 
-     	buffer = (char *) alloc_mem((long long)(MAXBUFFERSIZE + (2 * cache_size)));
+     	buffer = (char *) alloc_mem((long long)(MAXBUFFERSIZE + (2 * cache_size)),(int)0);
 	if(buffer == 0) {
         	perror("Memory allocation failed:");
         	exit(1);
@@ -1695,7 +1695,7 @@ char **argv;
 			fetchon=0;
 			multi_buffer=1;
 			mflag++;
-     			mbuffer = (char *) alloc_mem((long long)MAXBUFFERSIZE);
+     			mbuffer = (char *) alloc_mem((long long)MAXBUFFERSIZE,(int)0);
 			if(mbuffer == 0) {
                         	perror("Memory allocation failed:");
                           	exit(8);
@@ -2236,7 +2236,7 @@ char **argv;
 
 	if(pflag) /* Allocate after cache_size is set */
 	{
-     		pbuffer = (char *) alloc_mem((long long)(3 * cache_size));
+     		pbuffer = (char *) alloc_mem((long long)(3 * cache_size),(int)0);
 		if(pbuffer == 0) {
                        	perror("Memory allocation failed:");
                        	exit(9);
@@ -3000,7 +3000,7 @@ throughput_test()
 
 	if(!haveshm)
 	{
-		shmaddr=(struct child_stats *)alloc_mem((long long)SHMSIZE);
+		shmaddr=(struct child_stats *)alloc_mem((long long)SHMSIZE,(int)1);
 #ifdef _64BIT_ARCH_
 		if((long long)shmaddr==(long long)-1)
 #else
@@ -3131,7 +3131,7 @@ throughput_test()
 #endif
 		if(!barray[xx])
 		{
-			barray[xx]=(char *) alloc_mem((long long)(MAXBUFFERSIZE+cache_size));
+			barray[xx]=(char *) alloc_mem((long long)(MAXBUFFERSIZE+cache_size),(int)0);
 			if(barray[xx] == 0) {
         		   perror("Memory allocation failed:");
         		   exit(26);
@@ -10011,18 +10011,21 @@ void dump_cputimes(void)
 /************************************************************************/
 #ifdef HAVE_ANSIC_C
 char *
-alloc_mem(long long size)
+alloc_mem(long long size, int shared_flag)
 #else
 char *
-alloc_mem(size)
+alloc_mem(size,shared_flag)
 long long size;
+int shared_flag;
 #endif
 {
 	long long size1;
 	char *addr,*dumb;
 	int shmid;
 	int tfd;
+	long long tmp;
 
+	tmp = 0;
 	dumb = (char *)0;
 	tfd=0;
 	size1=l_max(size,page_size);
@@ -10038,6 +10041,11 @@ long long size;
 			addr=(char *)malloc((size_t)size1);
 			return(addr);
 		}
+	}
+	if(!shared_flag)
+	{
+		addr=(char *)malloc((size_t)size1);
+		return(addr);
 	}
 #ifdef SHARED_MEM
 	size1=l_max(size,page_size);
@@ -10087,12 +10095,18 @@ long long size;
 		MAP_ANON|MAP_SHARED, tfd, 0);
 	unlink("mmap.tmp");
 #else
+
+
 #if defined(solaris) 
         char mmapFileName[64];
+	if(distributed)
+		tmp=(long long)getpid();
+	else
+		tmp=(long long)0;
 #ifdef NO_PRINT_LLD
-        sprintf(mmapFileName, "mmap.tmp_%ld", getpid());
+        sprintf(mmapFileName, "mmap.tmp_%ld", tmp);
 #else
-        sprintf(mmapFileName, "mmap.tmp_%lld", getpid());
+        sprintf(mmapFileName, "mmap.tmp_%lld", tmp);
 #endif
         if((tfd = creat(mmapFileName, 0666))<0)
 	{
@@ -10110,10 +10124,14 @@ long long size;
 #else
 #if defined(SCO) || defined(SCO_Unixware_gcc) || defined(Windows)
         char mmapFileName[64];
+	if(distributed)
+		tmp=(long long)getpid();
+	else
+		tmp=(long long)0;
 #ifdef NO_PRINT_LLD
-        sprintf(mmapFileName, "mmap.tmp_%ld", getpid());
+        sprintf(mmapFileName, "mmap.tmp_%ld", tmp);
 #else
-        sprintf(mmapFileName, "mmap.tmp_%lld", getpid());
+        sprintf(mmapFileName, "mmap.tmp_%lld", tmp);
 #endif
         if((tfd = creat(mmapFileName, 0666))<0)
         {
