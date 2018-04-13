@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.149 $"
+#define THISVERSION "        Version $Revision: 3.151 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -345,9 +345,11 @@ long long page_size = 4096; /* Used when all else fails */
 #endif
 
 #ifdef HAVE_PREAD
+#ifdef HAVE_PREADV
 #include <sys/puio.h>
 #define PVECMAX 16
 struct piovec piov[PVECMAX];
+#endif
 #endif
 
 /*
@@ -684,10 +686,17 @@ struct master_neutral_command {
 #ifdef NO_PRINT_LLD
 #ifdef HAVE_PREAD
 #include <sys/times.h>
+#if defined(HAVE_PREAD) && defined(HAVE_PREADV)
 #define CONTROL_STRING1 "%16ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld%9ld%10ld%10ld%9ld\n"
 #define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s%8s%9s%7s%10s%10s%10s%9s%9s\n"
 #define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s\n"
 #define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
+#else
+#define CONTROL_STRING1 "%16ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld\n"
+#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s%8s%9s%7s%10s\n"
+#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s\n"
+#define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
+#endif
 #else
 #define CONTROL_STRING1 "%16ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%9ld%9ld\n"
 #define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s\n"
@@ -699,10 +708,17 @@ struct master_neutral_command {
 #ifndef NO_PRINT_LLD
 #ifdef HAVE_PREAD
 #include <sys/times.h>
+#if defined(HAVE_PREAD) && defined(HAVE_PREADV)
 #define CONTROL_STRING1 "%16lld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld%9ld%10ld%10ld%9ld\n"
 #define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s%8s%9s%7s%10s%10s%10s%9s%9s\n"
 #define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s\n"
 #define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
+#else
+#define CONTROL_STRING1 "%16lld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%9ld%9ld%8ld%10ld%9ld%10ld\n"
+#define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s%8s%9s%7s%10s\n"
+#define CONTROL_STRING3 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s\n"
+#define CONTROL_STRING4 "%16s%8s%8s%8s%8s%10s\n"
+#endif
 #else
 #define CONTROL_STRING1 "%16lld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%8ld%9ld%9ld\n"
 #define CONTROL_STRING2 "%16s%8s%8s%8s%8s%10s%8s%8s%8s%8s%8s%9s%9s%8s%9s\n"
@@ -819,9 +835,11 @@ void rewriterec_perf_test();	/* rewrite record test		  */
 void read_stride_perf_test();	/* read with stride test	  */
 #ifdef HAVE_PREAD
 void pread_perf_test();		/* pread/re-pread test		  */
-void preadv_perf_test();	/* preadv/re-preadv test	  */
 void pwrite_perf_test();	/* pwrite/re-pwrite test	  */
+#ifdef HAVE_PREADV
+void preadv_perf_test();	/* preadv/re-preadv test	  */
 void pwritev_perf_test();	/* pwritev/re-pwritev test	  */
+#endif /* HAVE_PREADV */
 #endif /* HAVE_PREAD */
 void store_dvalue();		/* Store doubles array 		  */
 void dump_excel();
@@ -979,9 +997,12 @@ void (*func[])() = {
 #ifdef HAVE_PREAD
 			,
 			pwrite_perf_test,
-			pread_perf_test,
+			pread_perf_test
+#ifdef HAVE_PREADV
+			,
 			pwritev_perf_test,
 			preadv_perf_test
+#endif /* HAVE_PREADV */
 #endif /* HAVE_PREAD */
 	};
 
@@ -2548,10 +2569,14 @@ long long reclength;
 	long long num_tests,test_num,i,j;
 	long long data1[MAXTESTS], data2[MAXTESTS];
 	num_tests = sizeof(func)/sizeof(char *);
-#ifdef HAVE_PREAD
+#if defined(HAVE_PREAD) 
 	if(!Eflag)
 	{
+#if defined(HAVE_PREAD) && defined(HAVE_PREADV)
 		num_tests -= 4;
+#else
+		num_tests -= 2;
+#endif
 		if(mmapflag || async_flag)
 		{
 			num_tests -= 2;
@@ -2560,7 +2585,11 @@ long long reclength;
 	else
 	{
 		if(mmapflag || async_flag)
+#if defined(HAVE_PREAD) && defined(HAVE_PREADV)
 			num_tests -= 6;
+#else
+			num_tests -= 4;
+#endif
 	}
 #else
 	if(mmapflag || async_flag)
@@ -7995,7 +8024,7 @@ long long *data1, *data2;
 	unsigned long long preadrate[2];
 	off64_t filebytes64;
 	int fd,open_flags,test_foo;
-	char *nbuff
+	char *nbuff;
 
 	test_foo=0;
 	nbuff=mainbuffer;
@@ -8016,6 +8045,7 @@ long long *data1, *data2;
 #endif
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
+
 	fd = 0;
 	for( j=0; j<2; j++ ) 		/* Pread and Re-Pread */
 	{
@@ -8146,6 +8176,7 @@ long long *data1, *data2;
 #endif
 }
 
+#ifdef HAVE_PREADV
 /************************************************************************/
 /* pwritev_perf_test				        		*/
 /* pwritev and re-pwritev test						*/
@@ -8370,8 +8401,10 @@ long long *data1,*data2;
 	if(!silent) fflush(stdout);
 #endif
 }
+#endif
 
 
+#ifdef HAVE_PREADV
 /**************************************************************************/
 /* create_list() 							  */
 /* Creates a list of PVECMAX entries that are unique (non over lapping ). */
@@ -8433,6 +8466,9 @@ again:
 		}
 	}
 }
+#endif
+
+#ifdef HAVE_PREADV
 /************************************************************************/
 /* preadv_perf_test				        		*/
 /* preadv and re-preadv test						*/
@@ -8616,6 +8652,7 @@ long long *data1,*data2;
 	if(!silent) fflush(stdout);
 #endif
 }
+#endif
 
 /************************************************************************/
 /* print_header()							*/
@@ -8651,11 +8688,13 @@ void print_header()
 		" ",
 		" ",
 		" ",
-		" ",
-		" ",
+		" "
+#ifdef HAVE_PREADV
+		," ",
 		" ",
 		" "
 		" "
+#endif
 #endif
 		);
     	if(!silent) printf(CONTROL_STRING2,
@@ -8678,11 +8717,13 @@ void print_header()
 		,"pwrite",
 		"repwrite",
 		"pread",
-		"repread",
-		"pwritev",
+		"repread"
+#ifdef HAVE_PREADV
+		,"pwritev",
 		"repwritev",
 		"preadv",
 		"repreadv"
+#endif
 #endif
 		);
 	}else 
@@ -9035,6 +9076,7 @@ void dump_excel()
 		 	dump_report(18); 
 		}
 
+#ifdef HAVE_PREADV
 		if ((!include_tflag) || (include_mask & (long long)PWRITEV_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd,"Pwritev Report",bif_row++,bif_column);
@@ -9056,6 +9098,7 @@ void dump_excel()
  			if(!silent) printf("\n%cRe-Preadv report%c\n",042,042);
  			dump_report(22); 
 		}
+#endif
 	}
 #endif
 	if (cpuutilflag)
@@ -9254,6 +9297,7 @@ void dump_cputimes(void)
 		 	dump_times(18); 
 		}
 
+#ifdef HAVE_PREADV
 		if ((!include_tflag) || (include_mask & (long long)PWRITEV_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd, "Pwritev CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
@@ -9275,6 +9319,7 @@ void dump_cputimes(void)
 			if(!silent) printf("\n%cRe-Preadv CPU utilization report (Zero values should be ignored)%c\n",042,042);
 			dump_times(22); 
 		}
+#endif
 	}
 #endif
 }

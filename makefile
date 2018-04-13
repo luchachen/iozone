@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.65 $
+# Version $Revision: 1.66 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -223,7 +223,7 @@ IRIX:	iozone_IRIX.o libasync.o libbif.o
 #
 sppux:	iozone_sppux.o  libbif.o
 	/opt/ansic/bin/cc  -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
-	-DHAVE_ANSIC_C -DHAVE_PREAD iozone_sppux.o  libbif.o \
+	-DHAVE_ANSIC_C -DHAVE_PREAD -DHAVE_PREADV iozone_sppux.o  libbif.o \
 	-Wl,+parallel -lcnx_syscall -lpthread -lail -o iozone
 
 #
@@ -232,7 +232,7 @@ sppux:	iozone_sppux.o  libbif.o
 #
 sppux-10.1:	iozone_sppux-10.1.o libbif.o
 	/opt/ansic/bin/cc -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
-	-DHAVE_ANSIC_C -DHAVE_PREAD iozone_sppux-10.1.o libbif.o \
+	-DHAVE_ANSIC_C -DHAVE_PREAD -DHAVE_PREADV iozone_sppux-10.1.o libbif.o \
 	 -lcnx_syscall  -Wl,+parallel -lpthread -lail -o iozone
 
 #
@@ -240,7 +240,7 @@ sppux-10.1:	iozone_sppux-10.1.o libbif.o
 # For Newer SPP-UX machines with 10.01 compatibility, and no ansi 'C' compiler.
 #
 sppux_no_ansi-10.1:	iozone_sppux_no-10.1.o libbif.o
-	/usr/ccs/bin/cc  -O -Dunix -D_HPUX_SOURCE -DHAVE_PREAD -D__convex_spp \
+	/usr/ccs/bin/cc  -O -Dunix -D_HPUX_SOURCE -DHAVE_PREAD -DHAVE_PREADV -D__convex_spp \
 		iozone_sppux_no-10.1.o libbif.o \
 		-Wl,+parallel -lcnx_syscall  \
 		-lpthread -lail -o iozone
@@ -564,7 +564,7 @@ iozone_linux.o:	iozone.c libbif.c libasync.c
 	@echo ""
 	@echo "Building iozone for Linux"
 	@echo ""
-	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
+	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DHAVE_PREAD \
 		-DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE iozone.c \
 		-DNAME='"linux"' -o iozone_linux.o
 	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
@@ -704,19 +704,19 @@ iozone_sppux.o:	iozone.c libbif.c
 	@echo ""
 	/opt/ansic/bin/cc -c  -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
 		-DNAME='"sppux"' -Wl,+parallel -DHAVE_ANSIC_C -DHAVE_PREAD \
-		iozone.c -o iozone_sppux.o
+		-DHAVE_PREADV iozone.c -o iozone_sppux.o
 	/opt/ansic/bin/cc -c  -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
-		-Wl,+parallel -DHAVE_ANSIC_C -DHAVE_PREAD -DBIG_ENDIAN libbif.c -o libbif.o
+		-Wl,+parallel -DHAVE_ANSIC_C -DHAVE_PREAD -DHAVE_PREADV -DBIG_ENDIAN libbif.c -o libbif.o
 
 iozone_sppux-10.1.o:	iozone.c libbif.c
 	@echo ""
 	@echo "Building iozone for SPP-UX using HP ansic compiler"
 	@echo ""
 	/opt/ansic/bin/cc -c -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
-		-DHAVE_ANSIC_C -DHAVE_PREAD iozone.c \
+		-DHAVE_ANSIC_C -DHAVE_PREAD -DHAVE_PREADV iozone.c \
 		 -DNAME='"sppux-10.1"' -Wl,+parallel -o iozone_sppux-10.1.o
 	/opt/ansic/bin/cc -c -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
-		-DHAVE_ANSIC_C -DHAVE_PREAD -DBIG_ENDIAN libbif.c \
+		-DHAVE_ANSIC_C -DHAVE_PREAD -DHAVE_PREADV -DBIG_ENDIAN libbif.c \
 		 -Wl,+parallel -o libbif.o
 
 iozone_sppux_no-10.1.o:	iozone.c libbif.c
@@ -725,9 +725,9 @@ iozone_sppux_no-10.1.o:	iozone.c libbif.c
 	@echo ""
 	/usr/ccs/bin/cc -c -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
 		-DNAME='"sppux_no_ansi_10.1"' -Wl,+parallel -DHAVE_PREAD \
-		iozone.c -o iozone_sppux_no-10.1.o
+		-DHAVE_PREADV iozone.c -o iozone_sppux_no-10.1.o
 	/usr/ccs/bin/cc -c -O -Dunix -D_HPUX_SOURCE -D__convex_spp \
-		-Wl,+parallel -DHAVE_PREAD -DBIG_ENDIAN libbif.c -o libbif.o
+		-Wl,+parallel -DHAVE_PREAD -DHAVE_PREADV -DBIG_ENDIAN libbif.c -o libbif.o
 
 iozone_convex.o:	iozone.c libbif.c
 	@echo ""
