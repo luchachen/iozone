@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.254 $"
+#define THISVERSION "        Version $Revision: 3.257 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -186,6 +186,7 @@ char *help[] = {
 "           -Y filename  Read  telemetry file. Contains lines with (offset reclen compute_time) in ascii",
 "           -z  Used in conjunction with -a to test all possible record sizes",
 "           -Z  Enable mixing of mmap I/O and file I/O",
+"           -+K Sony special. Manual control of test 8.",
 "           -+m  Cluster_filename   Enable Cluster testing",
 "           -+d  File I/O diagnostic mode. (To troubleshoot a broken file I/O subsystem)",
 "           -+u  Enable CPU utilization output (Experimental)",
@@ -468,6 +469,7 @@ struct client_command {
 	int c_xflag;
 	int c_MS_flag;
 	int c_mmap_mix;
+	int c_Kplus_flag;
 	int c_stop_flag;
 	int c_w_traj_flag;
 	int c_r_traj_flag;
@@ -480,6 +482,7 @@ struct client_command {
 	int c_no_unlink;
 	int c_file_lock;
 	int c_rec_lock;
+	int c_Kplus_readers;
 	int c_multiplier;
 	int c_share_file;
 	int c_pattern;
@@ -553,6 +556,7 @@ struct client_neutral_command {
 	char c_xflag[2];
 	char c_MS_flag[2];
 	char c_mmap_mix[2];
+	char c_Kplus_flag[2];
 	char c_w_traj_flag[2];		/* small int */
 	char c_r_traj_flag[2];		/* small int */
 	char c_direct_flag[2]; 		/* small int */
@@ -566,6 +570,7 @@ struct client_neutral_command {
 	char c_share_file[10];		/* small int */
 	char c_file_lock[10]; 		/* small int */
 	char c_rec_lock[10]; 		/* small int */
+	char c_Kplus_readers[10];	/* small int */
 	char c_client_number[20]; 	/* int */
 	char c_command[20]; 		/* int */
 	char c_testnum[20]; 		/* int */
@@ -1343,7 +1348,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 17;
+int proto_version = 18;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1362,9 +1367,10 @@ struct child_ident {
 	int master_socket_num;
 	int master_async_socket_num;
 }child_idents[MAXSTREAMS];
+int Kplus_readers;
 char write_traj_filename [MAXNAMESIZE];     /* name of write telemetry file */
 char read_traj_filename [MAXNAMESIZE];    /* name of read telemetry file  */
-char oflag,jflag,k_flag,h_flag,mflag,pflag,unbuffered;
+char oflag,jflag,k_flag,h_flag,mflag,pflag,unbuffered,Kplus_flag;
 char noretest;
 char async_flag,stride_flag,mmapflag,mmapasflag,mmapssflag,mmapnsflag,mmap_mix;
 char verify = 1;
@@ -2339,6 +2345,19 @@ char **argv;
 					sprintf(splash[splash_line++],"\tUnbuffered Windows API usage. >>> Very Experimental <<<\n");
 					break;
 #endif
+				case 'K':  /* Sony special for manual control of test 8 */
+					subarg=argv[optind++];
+					if(subarg==(char *)0)
+					{
+					     printf("-+K takes an operand !!\n");
+					     exit(204);
+					}
+					Kplus_readers = (int)atoi(subarg);
+					if(Kplus_readers <=0)
+						Kplus_readers = 1;
+					Kplus_flag=1;
+					sprintf(splash[splash_line++],"\tManual control of test 8. >>> Very Experimental. Sony special <<<\n");
+					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
 					exit(0);
@@ -14893,8 +14912,7 @@ thread_mix_test(x)
 #endif
 {
 	int selector;
-	int slots[1000];
-	int i,which;
+	int num_readers;
 	long xx;
 
 #ifdef NO_THREADS
@@ -14911,24 +14929,27 @@ thread_mix_test(x)
 #endif
 	if(pct_read!=0)
 	{
-		srand((unsigned int)((xx+1)*100));
-		if(cdebug) printf("Child: %d Pct read %d \n",(int)xx,pct_read);
-		for(i=0;i<1000;i++)
-		{
-			if(i<(pct_read*10))
-				slots[i]=0;
-			else
-				slots[i]=1;
-		}
-		which=rand()%1000;
-		if(cdebug) printf("Child: %d Pct which %d\n",(int)xx, which);
-		selector=slots[which];
+ 		num_readers = (pct_read * num_child)/100;
+                if(xx < num_readers)
+                        selector=0;
+                else
+                        selector=1;
 	}
 	else
 	{
+	   if(Kplus_flag)
+	   {
+		if(xx+1 <= Kplus_readers)
+			selector=0;
+		else
+			selector=1;
+	   }
+	   else
+	   {
 		/* Simple round robin */
 		selector= ((int)xx) % 2;
-	}		
+	   }		
+	}
 	if(selector==0)
 	{
 		if(cdebug || mdebug) printf("Mix read %d\n",selector);
@@ -18036,6 +18057,7 @@ int send_size;
 	sprintf(outbuf.c_xflag,"%d",send_buffer->c_xflag);
 	sprintf(outbuf.c_MS_flag,"%d",send_buffer->c_MS_flag);
 	sprintf(outbuf.c_mmap_mix,"%d",send_buffer->c_mmap_mix);
+	sprintf(outbuf.c_Kplus_flag,"%d",send_buffer->c_Kplus_flag);
 	sprintf(outbuf.c_w_traj_flag,"%d",send_buffer->c_w_traj_flag);
 	sprintf(outbuf.c_r_traj_flag,"%d",send_buffer->c_r_traj_flag);
 	sprintf(outbuf.c_direct_flag,"%d",send_buffer->c_direct_flag);
@@ -18047,6 +18069,7 @@ int send_size;
 	sprintf(outbuf.c_no_unlink,"%d",send_buffer->c_no_unlink);
 	sprintf(outbuf.c_file_lock,"%d",send_buffer->c_file_lock);
 	sprintf(outbuf.c_rec_lock,"%d",send_buffer->c_rec_lock);
+	sprintf(outbuf.c_Kplus_readers,"%d",send_buffer->c_Kplus_readers);
 	sprintf(outbuf.c_multiplier,"%d",send_buffer->c_multiplier);
 	sprintf(outbuf.c_share_file,"%d",send_buffer->c_share_file);
 	sprintf(outbuf.c_pattern,"%d",send_buffer->c_pattern);
@@ -18892,6 +18915,7 @@ long long numrecs64, reclen;
 	cc.c_diag_v = diag_v;
 	cc.c_file_lock = file_lock;
 	cc.c_rec_lock = rlocking;
+	cc.c_Kplus_readers = Kplus_readers;
 	cc.c_multiplier = multiplier;
 	cc.c_share_file = share_file;
 	cc.c_pattern = pattern;
@@ -18927,6 +18951,7 @@ long long numrecs64, reclen;
 	cc.c_depth = depth;
 	cc.c_MS_flag = MS_flag;
 	cc.c_mmap_mix = mmap_mix;
+	cc.c_Kplus_flag = Kplus_flag;
 
 
 	if(mdebug)
@@ -19133,6 +19158,7 @@ become_client()
 	sscanf(cnc->c_diag_v,"%d",&cc.c_diag_v);
 	sscanf(cnc->c_file_lock,"%d",&cc.c_file_lock);
 	sscanf(cnc->c_rec_lock,"%d",&cc.c_rec_lock);
+	sscanf(cnc->c_Kplus_readers,"%d",&cc.c_Kplus_readers);
 	sscanf(cnc->c_multiplier,"%d",&cc.c_multiplier);
 	sscanf(cnc->c_share_file,"%d",&cc.c_share_file);
 	sscanf(cnc->c_pattern,"%d",&cc.c_pattern);
@@ -19163,6 +19189,7 @@ become_client()
 	sscanf(cnc->c_compute_flag,"%d",&cc.c_compute_flag);
 	sscanf(cnc->c_MS_flag,"%d",&cc.c_MS_flag);
 	sscanf(cnc->c_mmap_mix,"%d",&cc.c_mmap_mix);
+	sscanf(cnc->c_Kplus_flag,"%d",&cc.c_Kplus_flag);
 	sscanf(cnc->c_compute_time,"%f",&cc.c_compute_time);
 
 	strcpy(write_traj_filename,cc.c_write_traj_filename);
@@ -19195,6 +19222,7 @@ become_client()
 		sverify = cc.c_sverify;
 	file_lock = cc.c_file_lock;
 	rlocking = cc.c_rec_lock;
+	Kplus_readers = cc.c_Kplus_readers;
 	multiplier = cc.c_multiplier;
 	share_file = cc.c_share_file;
 	pattern = cc.c_pattern;
@@ -19224,6 +19252,7 @@ become_client()
 	compute_flag = cc.c_compute_flag;
 	MS_flag = cc.c_MS_flag;
 	mmap_mix = cc.c_mmap_mix;
+	Kplus_flag = cc.c_Kplus_flag;
 	delay = cc.c_delay;
 	stride = cc.c_stride;
 	rest_val = cc.c_rest_val;
