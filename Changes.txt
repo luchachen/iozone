@@ -2318,3 +2318,15 @@ Patch for Mac printf's
 Revision 3.365
 Fix Josh's introduction of new Linux warnings.
 =============================================================================
+Revision 3.366
+Take sleep(1) out put path, deal with it in error/retry path
+=============================================================================
+Revision 3.367
+Add -+z latency histogram logging.
+=============================================================================
+Revision 3.368
+Format change for the -+z latency histogram logging.
+=============================================================================
+Revision 3.369
+Added -+O Op_rate control.
+=============================================================================

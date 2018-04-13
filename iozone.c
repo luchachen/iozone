@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.365 $"
+#define THISVERSION "        Version $Revision: 3.369 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -240,6 +240,7 @@ char *help[] = {
 "           -+C ## Percent of dedup-able within & not across files in buffers.",
 "           -+H Hostname    Hostname of the PIT server.",
 "           -+P Service     Service  of the PIT server.",
+"           -+z Enable latency histogram logging.",
 "" };
 
 char *head1[] = {
@@ -517,6 +518,9 @@ struct client_command {
 	int c_dedup_interior;
 	int c_dedup_compress;
 	int c_dedup_mseed;
+	int c_hist_summary;
+	int c_op_rate;
+	int c_op_rate_flag;
 	int c_Q_flag;
 	int c_L_flag;
 	int c_OPS_flag;
@@ -613,6 +617,9 @@ struct client_neutral_command {
 	char c_dedup_interior[4];
 	char c_dedup_compress[4];
 	char c_dedup_mseed[4];
+	char c_hist_summary[4];
+	char c_op_rate[4];
+	char c_op_rate_flag[2];
 	char c_Q_flag[2];
 	char c_L_flag[2];
 	char c_OPS_flag[2];
@@ -1011,6 +1018,7 @@ char *inet_ntoa();
 int system();
 #endif
 void my_nap();
+void my_unap();
 int thread_exit();
 #ifdef ASYNC_IO
 size_t async_write();
@@ -1085,6 +1093,8 @@ off64_t get_next_record_size(off64_t);
 void add_record_size(off64_t);
 void init_record_sizes( off64_t,  off64_t);
 void del_record_sizes( void );
+void hist_insert(double );
+void dump_hist(char *,int );
 void do_speed_check(int);
 #else
 void do_speed_check();
@@ -1094,6 +1104,7 @@ char *inet_ntoa();
 int system();
 #endif
 void my_nap();
+void my_unap();
 int thread_exit();
 void close_xls();
 void do_label();
@@ -1144,6 +1155,8 @@ void add_record_size();
 void dump_cputimes();
 static double cpu_util();
 void del_record_sizes();
+void hist_insert();
+void dump_hist();
 #endif
 
 #ifdef _LARGEFILE64_SOURCE
@@ -1272,6 +1285,9 @@ char master_iozone, client_iozone,distributed;
 int bif_fd,s_count;
 int bif_row,bif_column;
 int dedup_mseed = 1;
+int hist_summary;
+int op_rate;
+int op_rate_flag;
 char aflag, Eflag, hflag, Rflag, rflag, sflag;
 char diag_v,sent_stop,dedup,dedup_interior,dedup_compress;
 char *dedup_ibuf;
@@ -1631,7 +1647,7 @@ char **argv;
     	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million, Gavin Brebner,\n");
     	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg, Benny Halevy, Dave Boone,\n");
     	sprintf(splash[splash_line++],"\t             Erik Habbinga, Kris Strecker, Walter Wong, Joshua Root,\n");
-    	sprintf(splash[splash_line++],"\t             Fabrice Bacchella, Zhenghua Xue, Qin Li.\n\n");
+    	sprintf(splash[splash_line++],"\t             Fabrice Bacchella, Zhenghua Xue, Qin Li, Darren Sawyer.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
 	argvsave=argv;
@@ -2627,6 +2643,23 @@ char **argv;
 					}
 					strcpy(pit_service,subarg);
 					sprintf(splash[splash_line++],"\tPIT_port %s\n",pit_service);
+					break;
+				case 'z':  /* Enable hist summary*/
+					hist_summary=1;
+					sprintf(splash[splash_line++],"\tHistogram summary enabled.\n");
+					break;
+				case 'O':  /* Argument is the Op rate */
+					subarg=argv[optind++];
+					if(subarg==(char *)0)
+					{
+					     printf("-+O takes an operand !!\n");
+					     exit(200);
+					}
+					op_rate = atoi(subarg);
+					if(op_rate <= 0)
+						op_rate = 1;
+					op_rate_flag = 1;
+					sprintf(splash[splash_line++],"\tRate control active %d Ops/sec .\n",op_rate);
 					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
@@ -6734,6 +6767,7 @@ long long *data2;
 	double writetime[2];
 	double walltime[2], cputime[2];
 	double qtime_start,qtime_stop;
+	double hist_time;
 	double compute_val = (double)0;
 #ifdef unix
 	double qtime_u_start,qtime_u_stop;
@@ -6768,7 +6802,7 @@ long long *data2;
 	nbuff=wmaddr=free_addr=0;
 	traj_offset=0;
 	test_foo=0;
-	qtime_start=qtime_stop=0;
+	hist_time=qtime_start=qtime_stop=0;
 	maddr=0;
 	pbuff=mainbuffer;
 	if(w_traj_flag)
@@ -7078,7 +7112,7 @@ long long *data2;
 			}
 			if(purge)
 				purgeit(pbuff,reclen);
-			if(Q_flag)
+			if(Q_flag || hist_summary)
 			{
 				qtime_start=time_so_far();
 			}
@@ -7132,6 +7166,12 @@ long long *data2;
 			    }
 #endif
 			  }
+			}
+			if(hist_summary)
+			{
+				qtime_stop=time_so_far();
+				hist_time =(qtime_stop-qtime_start-time_res);
+				hist_insert(hist_time);
 			}
 			if(Q_flag)
 			{
@@ -7769,6 +7809,7 @@ long long *data1,*data2;
 	int test_foo,ltest;
 	long wval;
 	double qtime_start,qtime_stop;
+	double hist_time;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 
@@ -7779,7 +7820,7 @@ long long *data1,*data2;
 	qtime_u_start=qtime_u_stop=0;
 	qtime_s_start=qtime_s_stop=0;
 #endif
-	qtime_start=qtime_stop=0;
+	hist_time=qtime_start=qtime_stop=0;
 	maddr=0;
 	traj_offset=0;
 	test_foo=0;
@@ -7943,7 +7984,7 @@ long long *data1,*data2;
 			fetchit(nbuff,reclen);
 		starttime2 = time_so_far();
 #ifdef unix
-		if(Q_flag)
+		if(Q_flag || hist_summary)
 		{
 			qtime_u_start=utime_so_far();
 			qtime_s_start=stime_so_far();
@@ -8007,7 +8048,7 @@ long long *data1,*data2;
                         }
 			if(purge)
 				purgeit(nbuff,reclen);
-			if(Q_flag)
+			if(Q_flag || hist_summary)
 				qtime_start=time_so_far();
 			if(mmapflag)
 			{
@@ -8077,6 +8118,12 @@ long long *data1,*data2;
 			if(async_flag && no_copy_flag)
 				async_release(gc);
 			buffer1=0;
+			if(hist_summary)
+			{
+				qtime_stop=time_so_far();
+				hist_time =(qtime_stop-qtime_start-time_res);
+				hist_insert(hist_time);
+			}
 			if(Q_flag)
 			{
 				qtime_stop=time_so_far();
@@ -11774,6 +11821,9 @@ thread_write_test( x)
 	double compute_val = (double)0;
 	float delay = (float)0;
 	double thread_qtime_stop,thread_qtime_start;
+	double hist_time;
+	double desired_op_rate_time;
+	double actual_rate;
 	off64_t traj_offset;
 	off64_t lock_offset=0;
 	off64_t save_offset=0;
@@ -11810,7 +11860,7 @@ thread_write_test( x)
 	if(compute_flag)
 		delay=compute_time;
 	nbuff=maddr=wmaddr=free_addr=0;
-	thread_qtime_stop=thread_qtime_start=0;
+	hist_time=thread_qtime_stop=thread_qtime_start=0;
 	thread_wqfd=w_traj_fd=thread_Lwqfd=(FILE *)0;
 	traj_offset=walltime=cputime=0;
 	anwser=bind_cpu=0;
@@ -12165,7 +12215,7 @@ thread_write_test( x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
-		if(Q_flag)
+		if(Q_flag || hist_summary || op_rate_flag)
 		{
 			thread_qtime_start=time_so_far();
 		}
@@ -12271,6 +12321,24 @@ again:
 		    	exit(127);
 		      }
 		    }
+		}
+		if(hist_summary)
+		{
+			thread_qtime_stop=time_so_far();
+			hist_time =(thread_qtime_stop-thread_qtime_start);
+			hist_insert(hist_time);
+		}
+		if(op_rate_flag)
+		{
+			thread_qtime_stop=time_so_far();
+			desired_op_rate_time = ((double)1.0/(double)op_rate);
+			actual_rate = (double)(thread_qtime_stop-thread_qtime_start);
+/*
+printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_time,
+	actual_rate, (desired_op_rate_time-actual_rate));
+*/
+			if( actual_rate < desired_op_rate_time)
+			      my_unap((unsigned long long)((desired_op_rate_time-actual_rate)*1000000.0 ));
 		}
 		if(Q_flag)
 		{
@@ -12419,6 +12487,8 @@ again:
 		fprintf(thread_Lwqfd,"%-25s %s","Write test finished: ",now_string);
 		fclose(thread_Lwqfd);
 	}
+	if(hist_summary)
+	   dump_hist("write",(int)xx);
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -12452,6 +12522,9 @@ thread_pwrite_test( x)
 	double compute_val = (double)0;
 	float delay = (float)0;
 	double thread_qtime_stop,thread_qtime_start;
+	double hist_time;
+	double desired_op_rate_time;
+	double actual_rate;
 	off64_t traj_offset;
 	off64_t lock_offset=0;
 	long long flags,traj_size;
@@ -12487,7 +12560,7 @@ thread_pwrite_test( x)
 	if(compute_flag)
 		delay=compute_time;
 	nbuff=maddr=wmaddr=free_addr=0;
-	thread_qtime_stop=thread_qtime_start=0;
+	hist_time=thread_qtime_stop=thread_qtime_start=0;
 	thread_wqfd=w_traj_fd=thread_Lwqfd=(FILE *)0;
 	traj_offset=walltime=cputime=0;
 	anwser=bind_cpu=0;
@@ -12791,7 +12864,7 @@ thread_pwrite_test( x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
-		if(Q_flag)
+		if(Q_flag || hist_summary || op_rate_flag)
 		{
 			thread_qtime_start=time_so_far();
 		}
@@ -12891,6 +12964,24 @@ again:
 		{
 			mylockr((int) fd, (int) 0, (int)0,
 			  lock_offset, reclen);
+		}
+		if(hist_summary)
+		{
+			thread_qtime_stop=time_so_far();
+			hist_time =(thread_qtime_stop-thread_qtime_start-time_res);
+			hist_insert(hist_time);
+		}
+		if(op_rate_flag)
+		{
+			thread_qtime_stop=time_so_far();
+			desired_op_rate_time = ((double)1.0/(double)op_rate);
+			actual_rate = (double)(thread_qtime_stop-thread_qtime_start);
+/*
+printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_time,
+	actual_rate, (desired_op_rate_time-actual_rate));
+*/
+			if( actual_rate < desired_op_rate_time)
+				my_unap((unsigned long long) ((desired_op_rate_time-actual_rate)*1000000.0 ));
 		}
 		if(Q_flag)
 		{
@@ -13024,6 +13115,8 @@ again:
 		fprintf(thread_Lwqfd,"%-25s %s","Pwrite test finished: ",now_string);
 		fclose(thread_Lwqfd);
 	}
+	if(hist_summary)
+	   dump_hist("Pwrite",(int)xx);
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -13058,6 +13151,9 @@ thread_rwrite_test(x)
 	double walltime, cputime;
 	float delay = (float)0;
 	double thread_qtime_stop,thread_qtime_start;
+	double hist_time;
+	double desired_op_rate_time;
+	double actual_rate;
 	off64_t traj_offset;
 	off64_t lock_offset=0;
 	long long w_traj_bytes_completed;
@@ -13092,7 +13188,7 @@ thread_rwrite_test(x)
 		delay=compute_time;
 	wmaddr=nbuff=maddr=free_addr=0;
 	thread_rwqfd=w_traj_fd=thread_Lwqfd=(FILE *)0;
-	traj_offset=thread_qtime_stop=thread_qtime_start=0;
+	hist_time=traj_offset=thread_qtime_stop=thread_qtime_start=0;
 	walltime=cputime=0;
 	anwser=bind_cpu=0;
 	w_traj_bytes_completed=w_traj_ops_completed=0;
@@ -13374,7 +13470,7 @@ thread_rwrite_test(x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
-		if(Q_flag)
+		if(Q_flag || hist_summary || op_rate_flag)
 		{
 			thread_qtime_start=time_so_far();
 		}
@@ -13451,6 +13547,24 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 		{
 			re_written_so_far-=reclen/1024;
 			w_traj_bytes_completed-=reclen;
+		}
+		if(hist_summary)
+		{
+			thread_qtime_stop=time_so_far();
+			hist_time =(thread_qtime_stop-thread_qtime_start-time_res);
+			hist_insert(hist_time);
+		}
+		if(op_rate_flag)
+		{
+			thread_qtime_stop=time_so_far();
+			desired_op_rate_time = ((double)1.0/(double)op_rate);
+			actual_rate = (double)(thread_qtime_stop-thread_qtime_start);
+/*
+printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_time,
+	actual_rate, (desired_op_rate_time-actual_rate));
+*/
+			if( actual_rate < desired_op_rate_time)
+				my_unap((unsigned long long) ((desired_op_rate_time-actual_rate)*1000000.0 ));
 		}
 		if(Q_flag)
 		{
@@ -13578,6 +13692,8 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 		fprintf(thread_Lwqfd,"%-25s %s","Rewrite test finished: ",now_string);
 		fclose(thread_Lwqfd);
 	}
+	if(hist_summary)
+	   dump_hist("Rewrite",(int)xx);
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -13617,6 +13733,9 @@ thread_read_test(x)
 	float delay = 0;
 	double temp_time;
 	double thread_qtime_start,thread_qtime_stop;
+	double hist_time;
+	double desired_op_rate_time;
+	double actual_rate;
 	double compute_val = (double)0;
 	off64_t written_so_far, read_so_far, re_written_so_far,re_read_so_far;
 	long long recs_per_buffer,traj_size;
@@ -13642,7 +13761,7 @@ thread_read_test(x)
 	if(compute_flag)
 		delay=compute_time;
 	thread_rqfd=thread_Lwqfd=r_traj_fd=(FILE *)0;
-	traj_offset=thread_qtime_stop=thread_qtime_start=0;
+	hist_time=traj_offset=thread_qtime_stop=thread_qtime_start=0;
 	walltime=cputime=0;
 	anwser=bind_cpu=0;
 	r_traj_bytes_completed=r_traj_ops_completed=0;
@@ -13920,7 +14039,7 @@ thread_read_test(x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
-		if(Q_flag)
+		if(Q_flag || hist_summary || op_rate_flag)
                 {
                         thread_qtime_start=time_so_far();
                 }
@@ -14011,6 +14130,24 @@ thread_read_test(x)
 		{
 			read_so_far-=reclen/1024;
 			r_traj_bytes_completed-=reclen;
+		}
+		if(hist_summary)
+		{
+			thread_qtime_stop=time_so_far();
+			hist_time =(thread_qtime_stop-thread_qtime_start-time_res);
+			hist_insert(hist_time);
+		}
+		if(op_rate_flag)
+		{
+			thread_qtime_stop=time_so_far();
+			desired_op_rate_time = ((double)1.0/(double)op_rate);
+			actual_rate = (double)(thread_qtime_stop-thread_qtime_start);
+/*
+printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_time,
+	actual_rate, (desired_op_rate_time-actual_rate));
+*/
+			if( actual_rate < desired_op_rate_time)
+				my_unap((unsigned long long) ((desired_op_rate_time-actual_rate)*1000000.0 ));
 		}
                 if(Q_flag)
                 {
@@ -14136,6 +14273,8 @@ thread_read_test(x)
 		fprintf(thread_Lwqfd,"%-25s %s","Read test finished: ",now_string);
 		fclose(thread_Lwqfd);
 	}
+	if(hist_summary)
+	   dump_hist("Read",(int)xx);
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -14176,6 +14315,9 @@ thread_pread_test(x)
 	float delay = 0;
 	double temp_time;
 	double thread_qtime_start,thread_qtime_stop;
+	double hist_time;
+	double desired_op_rate_time;
+	double actual_rate;
 	double compute_val = (double)0;
 	off64_t written_so_far, read_so_far, re_written_so_far,re_read_so_far;
 	long long recs_per_buffer,traj_size;
@@ -14200,7 +14342,7 @@ thread_pread_test(x)
 	if(compute_flag)
 		delay=compute_time;
 	thread_rqfd=thread_Lwqfd=r_traj_fd=(FILE *)0;
-	traj_offset=thread_qtime_stop=thread_qtime_start=0;
+	hist_time=traj_offset=thread_qtime_stop=thread_qtime_start=0;
 	walltime=cputime=0;
 	anwser=bind_cpu=0;
 	r_traj_bytes_completed=r_traj_ops_completed=0;
@@ -14434,7 +14576,7 @@ thread_pread_test(x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
-		if(Q_flag)
+		if(Q_flag || hist_summary || op_rate_flag)
                 {
                         thread_qtime_start=time_so_far();
                 }
@@ -14517,6 +14659,24 @@ thread_pread_test(x)
 		{
 			read_so_far-=reclen/1024;
 			r_traj_bytes_completed-=reclen;
+		}
+		if(hist_summary)
+		{
+			thread_qtime_stop=time_so_far();
+			hist_time =(thread_qtime_stop-thread_qtime_start-time_res);
+			hist_insert(hist_time);
+		}
+		if(op_rate_flag)
+		{
+			thread_qtime_stop=time_so_far();
+			desired_op_rate_time = ((double)1.0/(double)op_rate);
+			actual_rate = (double)(thread_qtime_stop-thread_qtime_start);
+/*
+printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_time,
+	actual_rate, (desired_op_rate_time-actual_rate));
+*/
+			if( actual_rate < desired_op_rate_time)
+				my_unap((unsigned long long) ((desired_op_rate_time-actual_rate)*1000000.0 ));
 		}
                 if(Q_flag)
                 {
@@ -14633,6 +14793,8 @@ thread_pread_test(x)
 			now_string);
 		fclose(thread_Lwqfd);
 	}
+	if(hist_summary)
+	   dump_hist("Pread",(int)xx);
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -14674,6 +14836,9 @@ thread_rread_test(x)
 	float delay = 0;
 	double temp_time;
 	double thread_qtime_start,thread_qtime_stop;
+	double hist_time;
+	double desired_op_rate_time;
+	double actual_rate;
 	double compute_val = (double)0;
 	long long recs_per_buffer,traj_size;
 	off64_t i;
@@ -14700,7 +14865,7 @@ thread_rread_test(x)
 	/*****************/
 	if(compute_flag)
 		delay=compute_time;
-	thread_qtime_stop=thread_qtime_start=0;
+	hist_time=thread_qtime_stop=thread_qtime_start=0;
 	thread_rrqfd=r_traj_fd=thread_Lwqfd=(FILE *)0;
 	traj_offset=walltime=cputime=0;
 	anwser=bind_cpu=0;
@@ -14975,7 +15140,7 @@ thread_rread_test(x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
-                if(Q_flag)
+                if(Q_flag || hist_summary || op_rate_flag)
                 {
                         thread_qtime_start=time_so_far();
                 }
@@ -15066,6 +15231,24 @@ thread_rread_test(x)
 		{
 			re_read_so_far-=reclen/1024;
 			r_traj_bytes_completed-=reclen;
+		}
+		if(hist_summary)
+		{
+			thread_qtime_stop=time_so_far();
+			hist_time =(thread_qtime_stop-thread_qtime_start-time_res);
+			hist_insert(hist_time);
+		}
+		if(op_rate_flag)
+		{
+			thread_qtime_stop=time_so_far();
+			desired_op_rate_time = ((double)1.0/(double)op_rate);
+			actual_rate = (double)(thread_qtime_stop-thread_qtime_start);
+/*
+printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_time,
+	actual_rate, (desired_op_rate_time-actual_rate));
+*/
+			if( actual_rate < desired_op_rate_time)
+				my_unap((unsigned long long) ((desired_op_rate_time-actual_rate)*1000000.0 ));
 		}
                 if(Q_flag)
                 {
@@ -15189,6 +15372,8 @@ thread_rread_test(x)
 		fprintf(thread_Lwqfd,"%-25s %s","Reread test finished: ",now_string);
 		fclose(thread_Lwqfd);
 	}
+	if(hist_summary)
+	   dump_hist("Reread",(int)xx);
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -15221,6 +15406,9 @@ thread_reverse_read_test(x)
 	long long flags = 0;
 	double walltime, cputime;
 	double thread_qtime_stop,thread_qtime_start;
+	double hist_time;
+	double desired_op_rate_time;
+	double actual_rate;
 	double starttime2 = 0;
 	float delay = 0;
 	double temp_time;
@@ -15253,7 +15441,7 @@ thread_reverse_read_test(x)
 	/*****************/
 	if(compute_flag)
 		delay=compute_time;
-	thread_qtime_stop=thread_qtime_start=0;
+	hist_time=thread_qtime_stop=thread_qtime_start=0;
 	traj_offset=walltime=cputime=0;
 	anwser=bind_cpu=0;
 	written_so_far=read_so_far=reverse_read=re_read_so_far=0;
@@ -15508,7 +15696,7 @@ thread_reverse_read_test(x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
-                if(Q_flag)
+                if(Q_flag || hist_summary || op_rate_flag)
                 {
                         thread_qtime_start=time_so_far();
                 }
@@ -15598,6 +15786,24 @@ thread_reverse_read_test(x)
 		if(*stop_flag)
 		{
 			reverse_read -=reclen/1024;
+		}
+		if(hist_summary)
+		{
+			thread_qtime_stop=time_so_far();
+			hist_time =(thread_qtime_stop-thread_qtime_start-time_res);
+			hist_insert(hist_time);
+		}
+		if(op_rate_flag)
+		{
+			thread_qtime_stop=time_so_far();
+			desired_op_rate_time = ((double)1.0/(double)op_rate);
+			actual_rate = (double)(thread_qtime_stop-thread_qtime_start);
+/*
+printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_time,
+	actual_rate, (desired_op_rate_time-actual_rate));
+*/
+			if( actual_rate < desired_op_rate_time)
+				my_unap((unsigned long long) ((desired_op_rate_time-actual_rate)*1000000.0 ));
 		}
                 if(Q_flag)
                 {
@@ -15699,6 +15905,8 @@ thread_reverse_read_test(x)
 			now_string);
 		fclose(thread_Lwqfd);
 	}
+	if(hist_summary)
+	   dump_hist("Read Backwards",(int)xx);
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -15729,6 +15937,9 @@ thread_stride_read_test(x)
 	int fd;
 	long long flags = 0;
 	double thread_qtime_stop,thread_qtime_start;
+	double hist_time;
+	double desired_op_rate_time;
+	double actual_rate;
 	double starttime2 = 0;
 	float delay = 0;
 	double compute_val = (double)0;
@@ -15763,7 +15974,7 @@ thread_stride_read_test(x)
 	/*****************/
 	if(compute_flag)
 		delay=compute_time;
-	thread_qtime_stop=thread_qtime_start=0;
+	hist_time=thread_qtime_stop=thread_qtime_start=0;
 	traj_offset=walltime=cputime=0;
 	anwser=bind_cpu=0;
 	written_so_far=read_so_far=stride_read=re_read_so_far=0;
@@ -15990,7 +16201,7 @@ thread_stride_read_test(x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
-                if(Q_flag)
+                if(Q_flag || hist_summary || op_rate_flag)
                 {
                         thread_qtime_start=time_so_far();
                 }
@@ -16118,6 +16329,24 @@ thread_stride_read_test(x)
 		{
 			stride_read -=reclen/1024;
 		}
+		if(hist_summary)
+		{
+			thread_qtime_stop=time_so_far();
+			hist_time =(thread_qtime_stop-thread_qtime_start-time_res);
+			hist_insert(hist_time);
+		}
+		if(op_rate_flag)
+		{
+			thread_qtime_stop=time_so_far();
+			desired_op_rate_time = ((double)1.0/(double)op_rate);
+			actual_rate = (double)(thread_qtime_stop-thread_qtime_start);
+/*
+printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_time,
+	actual_rate, (desired_op_rate_time-actual_rate));
+*/
+			if( actual_rate < desired_op_rate_time)
+				my_unap((unsigned long long) ((desired_op_rate_time-actual_rate)*1000000.0 ));
+		}
                 if(Q_flag)
                 {
                         thread_qtime_stop=time_so_far();
@@ -16220,6 +16449,8 @@ thread_stride_read_test(x)
 			now_string);
 		fclose(thread_Lwqfd);
 	}
+	if(hist_summary)
+	   dump_hist("Stride Read",(int)xx);
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -16318,6 +16549,9 @@ thread_ranread_test(x)
 	int fd;
 	long long flags = 0;
 	double thread_qtime_stop,thread_qtime_start;
+	double hist_time;
+	double desired_op_rate_time;
+	double actual_rate;
 	double starttime1 = 0;
 	float delay = 0;
 	double temp_time;
@@ -16409,7 +16643,7 @@ thread_ranread_test(x)
 	}
 	if(compute_flag)
 		delay=compute_time;
-	thread_qtime_stop=thread_qtime_start=0;
+	hist_time=thread_qtime_stop=thread_qtime_start=0;
 	traj_offset=walltime=cputime=0;
 	anwser=bind_cpu=0;
 	written_so_far=ranread_so_far=re_written_so_far=re_read_so_far=0;
@@ -16688,7 +16922,7 @@ thread_ranread_test(x)
 			mylockr((int) fd, (int) 1, (int)1,
 			  lock_offset, reclen);
 		}
-		if(Q_flag)
+		if(Q_flag || hist_summary || op_rate_flag)
 		{
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
                         thread_qtime_start=time_so_far();
@@ -16776,6 +17010,24 @@ thread_ranread_test(x)
 		if(*stop_flag)
 		{
 			ranread_so_far-=reclen/1024;
+		}
+		if(hist_summary)
+		{
+			thread_qtime_stop=time_so_far();
+			hist_time =(thread_qtime_stop-thread_qtime_start-time_res);
+			hist_insert(hist_time);
+		}
+		if(op_rate_flag)
+		{
+			thread_qtime_stop=time_so_far();
+			desired_op_rate_time = ((double)1.0/(double)op_rate);
+			actual_rate = (double)(thread_qtime_stop-thread_qtime_start);
+/*
+printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_time,
+	actual_rate, (desired_op_rate_time-actual_rate));
+*/
+			if( actual_rate < desired_op_rate_time)
+				my_unap((unsigned long long) ((desired_op_rate_time-actual_rate)*1000000.0 ));
 		}
                 if(Q_flag)
                 {
@@ -16882,6 +17134,8 @@ thread_ranread_test(x)
 	}
 	if(recnum)
 		free(recnum);
+	if(hist_summary)
+	   dump_hist("Random Read",(int)xx);
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -16914,6 +17168,9 @@ thread_ranwrite_test( x)
 	double compute_val = (double)0;
 	float delay = (double)0;
 	double thread_qtime_stop,thread_qtime_start;
+	double hist_time;
+	double desired_op_rate_time;
+	double actual_rate;
 	off64_t traj_offset;
 	off64_t current_offset=0;
 	long long flags;
@@ -16957,7 +17214,7 @@ thread_ranwrite_test( x)
 
 	if(compute_flag)
 		delay=compute_time;
-	thread_qtime_stop=thread_qtime_start=0;
+	hist_time=thread_qtime_stop=thread_qtime_start=0;
 	traj_offset=walltime=cputime=0;
 	anwser=bind_cpu=0;
 	filebytes64 = numrecs64*reclen;
@@ -17273,7 +17530,7 @@ thread_ranwrite_test( x)
 			exit(158);
 		  };
 		}
-		if(Q_flag)
+		if(Q_flag || hist_summary || op_rate_flag)
 		{
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
                         thread_qtime_start=time_so_far();
@@ -17319,7 +17576,7 @@ thread_ranwrite_test( x)
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
-		if(Q_flag)
+		if(Q_flag || hist_summary)
 		{
 			thread_qtime_start=time_so_far();
 		}
@@ -17418,6 +17675,24 @@ again:
 		{
 			mylockr((int) fd, (int) 0, (int)0,
 			  lock_offset, reclen);
+		}
+		if(hist_summary)
+		{
+			thread_qtime_stop=time_so_far();
+			hist_time =(thread_qtime_stop-thread_qtime_start-time_res);
+			hist_insert(hist_time);
+		}
+		if(op_rate_flag)
+		{
+			thread_qtime_stop=time_so_far();
+			desired_op_rate_time = ((double)1.0/(double)op_rate);
+			actual_rate = (double)(thread_qtime_stop-thread_qtime_start);
+/*
+printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_time,
+	actual_rate, (desired_op_rate_time-actual_rate));
+*/
+			if( actual_rate < desired_op_rate_time)
+				my_unap((unsigned long long) ((desired_op_rate_time-actual_rate)*1000000.0 ));
 		}
 		if(Q_flag)
 		{
@@ -17543,6 +17818,8 @@ again:
 	}
 	if(recnum)
 		free(recnum);
+	if(hist_summary)
+	   dump_hist("Random Write",(int)xx);
 	if(distributed && client_iozone)
 		return(0);
 #ifdef NO_THREADS
@@ -18280,6 +18557,43 @@ int ntime;
 	nap_time.tv_sec=seconds;
         nap_time.tv_usec=microsecs;
         select(0,0,0,0,&nap_time);
+}
+/************************************************************************/
+/* Nap in microseconds.							*/
+/************************************************************************/
+int nap_once;
+double nap_res;
+#ifdef HAVE_ANSIC_C
+void
+my_unap( unsigned long long microsecs )
+#else
+void
+my_unap( microsecs )
+unsigned long long microsecs;
+#endif
+{
+	struct timeval nap_time;
+	int seconds;
+	double timein, timeout;
+
+	seconds = (int)(microsecs/1000000.0); /* Now in seconds */
+	nap_time.tv_sec=seconds;
+        nap_time.tv_usec=(int)microsecs;
+
+	timein=time_so_far1();
+	while(1)
+	{
+		timeout=time_so_far1();
+		/*printf("Sleep for %lld Curtime %g\n",microsecs,timeout-timein);*/
+		if(timeout-timein > microsecs)
+		   break;
+	}
+
+/*
+        select(0,0,0,0,&nap_time);
+*/
+
+
 }
 
 /************************************************************************/
@@ -19457,7 +19771,12 @@ start_master_listen()
 	sockerr = setsockopt (s, SOL_SOCKET, SO_RCVBUF, (char *)
 		&recv_buf_size, sizeof(int));
 	if ( sockerr == -1 ) {
-		perror("Error in setsockopt\n");
+		perror("Error in setsockopt 1\n");
+	}
+	sockerr = setsockopt (s, SOL_SOCKET, SO_REUSEADDR, (char *)
+		&recv_buf_size, sizeof(int));
+	if ( sockerr == -1 ) {
+		perror("Error in setsockopt 2\n");
 	}
 	tmp_port=HOST_LIST_PORT;
         bzero(&addr, sizeof(struct sockaddr_in));
@@ -19736,6 +20055,9 @@ int send_size;
 	sprintf(outbuf.c_dedup_interior,"%d",send_buffer->c_dedup_interior);
 	sprintf(outbuf.c_dedup_compress,"%d",send_buffer->c_dedup_compress);
 	sprintf(outbuf.c_dedup_mseed,"%d",send_buffer->c_dedup_mseed);
+	sprintf(outbuf.c_hist_summary,"%d",send_buffer->c_hist_summary);
+	sprintf(outbuf.c_op_rate,"%d",send_buffer->c_op_rate);
+	sprintf(outbuf.c_op_rate_flag,"%d",send_buffer->c_op_rate_flag);
 	sprintf(outbuf.c_Q_flag,"%d",send_buffer->c_Q_flag);
 	sprintf(outbuf.c_L_flag,"%d",send_buffer->c_L_flag);
 	sprintf(outbuf.c_include_flush,"%d",send_buffer->c_include_flush);
@@ -19907,7 +20229,12 @@ int size_of_message;
 	sockerr = setsockopt (s, SOL_SOCKET, SO_RCVBUF, (char *)
 		&recv_buf_size, sizeof(int));
 	if ( sockerr == -1 ) {
-		perror("Error in setsockopt\n");
+		perror("Error in setsockopt 3\n");
+	}
+	sockerr = setsockopt (s, SOL_SOCKET, SO_REUSEADDR, (char *)
+		&recv_buf_size, sizeof(int));
+	if ( sockerr == -1 ) {
+		perror("Error in setsockopt 4\n");
 	}
         bzero(&child_sync_sock, sizeof(struct sockaddr_in));
 	tmp_port=CHILD_LIST_PORT+chid;
@@ -20072,7 +20399,12 @@ int size_of_message;
 	sockerr = setsockopt (s, SOL_SOCKET, SO_RCVBUF, (char *)
 		&recv_buf_size, sizeof(int));
 	if ( sockerr == -1 ) {
-		perror("Error in setsockopt\n");
+		perror("Error in setsockopt 5\n");
+	}
+	sockerr = setsockopt (s, SOL_SOCKET, SO_REUSEADDR, (char *)
+		&recv_buf_size, sizeof(int));
+	if ( sockerr == -1 ) {
+		perror("Error in setsockopt 6\n");
 	}
         bzero(&child_async_sock, sizeof(struct sockaddr_in));
 	tmp_port=CHILD_ALIST_PORT;
@@ -20285,9 +20617,10 @@ struct in_addr my_s_addr;
 	/* Silly, fragile socket code... Sleep 1 sec here
  	 * or some accept()/connect() pairs will hang 
 	 * and fail. gosh, ain't a standard API fun !!
-	 */
 	sleep(1);
+	 */
 
+over:
         raddr.sin_family = AF_INET;
         raddr.sin_port = htons(port);
         raddr.sin_addr.s_addr = my_s_addr.s_addr;
@@ -20335,7 +20668,10 @@ again:
 			goto again;
 		}
                 perror("Master: async connect failed\n");
-                exit(25);
+                close(master_socket_val);
+                sleep(1);
+                ecount=0;
+                goto over;
         }
 	if(mdebug ==1)
 	{
@@ -20525,6 +20861,9 @@ long long numrecs64, reclen;
 	cc.c_dedup_interior = dedup_interior;
 	cc.c_dedup_compress = dedup_compress;
 	cc.c_dedup_mseed = dedup_mseed;
+	cc.c_hist_summary = hist_summary;
+	cc.c_op_rate = op_rate;
+	cc.c_op_rate_flag = op_rate_flag;
 	cc.c_file_lock = file_lock;
 	cc.c_rec_lock = rlocking;
 	cc.c_Kplus_readers = Kplus_readers;
@@ -20775,6 +21114,9 @@ become_client()
 	sscanf(cnc->c_dedup_interior,"%d",&cc.c_dedup_interior);
 	sscanf(cnc->c_dedup_compress,"%d",&cc.c_dedup_compress);
 	sscanf(cnc->c_dedup_mseed,"%d",&cc.c_dedup_mseed);
+	sscanf(cnc->c_hist_summary,"%d",&cc.c_hist_summary);
+	sscanf(cnc->c_op_rate,"%d",&cc.c_op_rate);
+	sscanf(cnc->c_op_rate_flag,"%d",&cc.c_op_rate_flag);
 	sscanf(cnc->c_file_lock,"%d",&cc.c_file_lock);
 	sscanf(cnc->c_rec_lock,"%d",&cc.c_rec_lock);
 	sscanf(cnc->c_Kplus_readers,"%d",&cc.c_Kplus_readers);
@@ -20850,6 +21192,9 @@ become_client()
 	dedup_interior = cc.c_dedup_interior;
 	dedup_compress = cc.c_dedup_compress;
 	dedup_mseed = cc.c_dedup_mseed;
+	hist_summary = cc.c_hist_summary;
+	op_rate = cc.c_op_rate;
+	op_rate_flag = cc.c_op_rate_flag;
 	if(diag_v)
 		sverify = 0;
 	else
@@ -20915,6 +21260,10 @@ become_client()
 		r_traj_size();
 
 	get_resolution(); 		/* Get my clock resolution */
+	if(hist_summary)
+	{
+		printf("Child got HISTORY flag\n");
+	}
 
 	/* 7. Run the test */
 	switch(testnum) {
@@ -22079,7 +22428,12 @@ int size_of_message;
 	sockerr = setsockopt (s, SOL_SOCKET, SO_RCVBUF, (char *)
 		&recv_buf_size, sizeof(int));
 	if ( sockerr == -1 ) {
-		perror("Error in setsockopt\n");
+		perror("Error in setsockopt 7\n");
+	}
+	sockerr = setsockopt (s, SOL_SOCKET, SO_REUSEADDR, (char *)
+		&recv_buf_size, sizeof(int));
+	if ( sockerr == -1 ) {
+		perror("Error in setsockopt 8\n");
 	}
         bzero(&sp_child_sync_sock, sizeof(struct sockaddr_in));
 	tmp_port=sp_child_listen_port;
@@ -22301,7 +22655,12 @@ int sp_master_listen_port;
 	sockerr = setsockopt (s, SOL_SOCKET, SO_RCVBUF, (char *)
 		&recv_buf_size, sizeof(int));
 	if ( sockerr == -1 ) {
-		perror("Error in setsockopt\n");
+		perror("Error in setsockopt 9\n");
+	}
+	sockerr = setsockopt (s, SOL_SOCKET, SO_REUSEADDR, (char *)
+		&recv_buf_size, sizeof(int));
+	if ( sockerr == -1 ) {
+		perror("Error in setsockopt 10\n");
 	}
         bzero(&sp_master_sync_sock, sizeof(struct sockaddr_in));
 	tmp_port=sp_master_listen_port;
@@ -23131,4 +23490,210 @@ sync()
 {
 }
 #endif
+
+
+#define BUCKETS 40
+long long buckets[BUCKETS];
+long long bucket_val[BUCKETS] =
+	{ 20,40,60,80,100,
+	200,400,600,800,1000,
+	2000,4000,6000,8000,10000,
+	12000,14000,16000,18000,20000,
+	40000,60000,80000,100000,
+	200000,400000,600000,800000,1000000,
+	2000000,4000000,6000000,8000000,10000000,
+	20000000,30000000,60000000,90000000,120000000,120000001};
+/*
+ * Buckets: (Based on a Netapp internal consensus)
+ *     0       1       2       3      4 
+ *  <=20us  <=40us  <=60us  <=80us  <=100us
+ * 
+ *    5        6       7       8       9
+ * <=200us  <=400us <=600us <=88us  <=1ms
+ * 
+ *   10       11      12      13      14
+ * <=2ms    <=4ms   <=6ms   <=8ms   <=10ms
+ * 
+ *   15       16      17      18      19
+ * <=12ms   <=14ms  <=16ms  <=18ms  <=20ms
+ *
+ *   20       21      22      23      24
+ * <=20ms   <=40ms  <=60ms  <=80ms  <=100ms
+ * 
+ *   25       26      27      28      29
+ * <=200ms  <=400ms <=600ms <=800ms <=1s
+ * 
+ *   30       31      32      33      34
+ * <=2s     <=4s    <=6s    <=8s    <=10s
+ *
+ *   35       36      37      38      39
+ * <=20s    <=30s   <=60    <=90s    >90
+ */
+	
+/*
+	fp=fopen("/tmp/iozone_latency_summary.txt","a");
+	dump_hist(fp);
+*/
+
+void
+hist_insert(double my_value)
+{
+	int k;
+	long long value;
+	
+	/* Convert to micro-seconds */
+	value = (long long)(my_value * 1000000);
+	for(k=0;k<BUCKETS;k++)
+	{
+	   if(k < (BUCKETS-1)) 
+	   {
+	     if(value <= bucket_val[k])
+	     {
+		buckets[k]++;
+		break;
+	     }
+	   }
+	   else
+	   {
+	     if(value > bucket_val[k])
+	     {
+		buckets[k]++;
+		break;
+	     }
+	   }
+	}
+}
+
+void
+dump_hist(char *what,int id)
+{
+   FILE *fp;
+
+   char name[256];
+ 
+   sprintf(name,"%s_child_%d.txt","Iozone_histogram",id);
+
+   fp = fopen(name,"a");
+
+#ifndef NO_PRINT_LLD
+   fprintf(fp,"Child: %d Op: %s\n",id,what);
+   fprintf(fp,"Band 1:   ");
+   fprintf(fp," 20us:%-7.1lld ",buckets[0]);
+   fprintf(fp," 40us:%-7.1lld ",buckets[1]);
+   fprintf(fp," 60us:%-7.1lld ",buckets[2]);
+   fprintf(fp," 80us:%-7.1lld ",buckets[3]);
+   fprintf(fp,"100us:%-7.1lld \n",buckets[4]);
+
+   fprintf(fp,"Band 2:   ");
+   fprintf(fp,"200us:%-7.1lld ",buckets[5]);
+   fprintf(fp,"400us:%-7.1lld ",buckets[6]);
+   fprintf(fp,"600us:%-7.1lld ",buckets[7]);
+   fprintf(fp,"800us:%-7.1lld ",buckets[8]);
+   fprintf(fp,"  1ms:%-7.1lld \n",buckets[9]);
+
+   fprintf(fp,"Band 3:   ");
+   fprintf(fp,"  2ms:%-7.1lld ",buckets[10]);
+   fprintf(fp,"  4ms:%-7.1lld ",buckets[11]);
+   fprintf(fp,"  6ms:%-7.1lld ",buckets[12]);
+   fprintf(fp,"  8ms:%-7.1lld ",buckets[13]);
+   fprintf(fp," 10ms:%-7.1lld \n",buckets[14]);
+
+   fprintf(fp,"Band 4:   ");
+   fprintf(fp," 12ms:%-7.1lld ",buckets[15]);
+   fprintf(fp," 14ms:%-7.1lld ",buckets[16]);
+   fprintf(fp," 16ms:%-7.1lld ",buckets[17]);
+   fprintf(fp," 18ms:%-7.1lld ",buckets[18]);
+   fprintf(fp," 20ms:%-7.1lld \n",buckets[19]);
+
+   fprintf(fp,"Band 5:   ");
+   fprintf(fp," 40ms:%-7.1lld ",buckets[20]);
+   fprintf(fp," 60ms:%-7.1lld ",buckets[21]);
+   fprintf(fp," 80ms:%-7.1lld ",buckets[22]);
+   fprintf(fp,"100ms:%-7.1lld \n",buckets[23]);
+
+   fprintf(fp,"Band 6:   ");
+   fprintf(fp,"200ms:%-7.1lld ",buckets[24]);
+   fprintf(fp,"400ms:%-7.1lld ",buckets[25]);
+   fprintf(fp,"600ms:%-7.1lld ",buckets[26]);
+   fprintf(fp,"800ms:%-7.1lld ",buckets[27]);
+   fprintf(fp,"   1s:%-7.1lld \n",buckets[28]);
+
+   fprintf(fp,"Band 7:   ");
+   fprintf(fp,"   2s:%-7.1lld ",buckets[29]);
+   fprintf(fp,"   4s:%-7.1lld ",buckets[30]);
+   fprintf(fp,"   6s:%-7.1lld ",buckets[31]);
+   fprintf(fp,"   8s:%-7.1lld ",buckets[32]);
+   fprintf(fp,"  10s:%-7.1lld \n",buckets[33]);
+
+   fprintf(fp,"Band 8:   ");
+   fprintf(fp,"  20s:%-7.1lld ",buckets[34]);
+   fprintf(fp,"  40s:%-7.1lld ",buckets[35]);
+   fprintf(fp,"  60s:%-7.1lld ",buckets[36]);
+   fprintf(fp,"  80s:%-7.1lld ",buckets[37]);
+   fprintf(fp," 120s:%-7.1lld \n",buckets[38]);
+
+   fprintf(fp,"Band 9:   ");
+   fprintf(fp,"120+s:%-7.1lld \n\n",buckets[39]);
+#else
+   fprintf(fp,"Child: %d Op: %s\n",id,what);
+   fprintf(fp,"Band 1:   ");
+   fprintf(fp," 20us:%-7.1ld ",buckets[0]);
+   fprintf(fp," 40us:%-7.1ld ",buckets[1]);
+   fprintf(fp," 60us:%-7.1ld ",buckets[2]);
+   fprintf(fp," 80us:%-7.1ld ",buckets[3]);
+   fprintf(fp,"100us:%-7.1ld \n",buckets[4]);
+
+   fprintf(fp,"Band 2:   ");
+   fprintf(fp,"200us:%-7.1ld ",buckets[5]);
+   fprintf(fp,"400us:%-7.1ld ",buckets[6]);
+   fprintf(fp,"600us:%-7.1ld ",buckets[7]);
+   fprintf(fp,"800us:%-7.1ld ",buckets[8]);
+   fprintf(fp,"  1ms:%-7.1ld \n",buckets[9]);
+
+   fprintf(fp,"Band 3:   ");
+   fprintf(fp,"  2ms:%-7.1ld ",buckets[10]);
+   fprintf(fp,"  4ms:%-7.1ld ",buckets[11]);
+   fprintf(fp,"  6ms:%-7.1ld ",buckets[12]);
+   fprintf(fp,"  8ms:%-7.1ld ",buckets[13]);
+   fprintf(fp," 10ms:%-7.1ld \n",buckets[14]);
+
+   fprintf(fp,"Band 4:   ");
+   fprintf(fp," 12ms:%-7.1ld ",buckets[15]);
+   fprintf(fp," 14ms:%-7.1ld ",buckets[16]);
+   fprintf(fp," 16ms:%-7.1ld ",buckets[17]);
+   fprintf(fp," 18ms:%-7.1ld ",buckets[18]);
+   fprintf(fp," 20ms:%-7.1ld \n",buckets[19]);
+
+   fprintf(fp,"Band 5:   ");
+   fprintf(fp," 40ms:%-7.1ld ",buckets[20]);
+   fprintf(fp," 60ms:%-7.1ld ",buckets[21]);
+   fprintf(fp," 80ms:%-7.1ld ",buckets[22]);
+   fprintf(fp,"100ms:%-7.1ld \n",buckets[23]);
+
+   fprintf(fp,"Band 6:   ");
+   fprintf(fp,"200ms:%-7.1ld ",buckets[24]);
+   fprintf(fp,"400ms:%-7.1ld ",buckets[25]);
+   fprintf(fp,"600ms:%-7.1ld ",buckets[26]);
+   fprintf(fp,"800ms:%-7.1ld ",buckets[27]);
+   fprintf(fp,"   1s:%-7.1ld \n",buckets[28]);
+
+   fprintf(fp,"Band 7:   ");
+   fprintf(fp,"   2s:%-7.1ld ",buckets[29]);
+   fprintf(fp,"   4s:%-7.1ld ",buckets[30]);
+   fprintf(fp,"   6s:%-7.1ld ",buckets[31]);
+   fprintf(fp,"   8s:%-7.1ld ",buckets[32]);
+   fprintf(fp,"  10s:%-7.1ld \n",buckets[33]);
+
+   fprintf(fp,"Band 8:   ");
+   fprintf(fp,"  20s:%-7.1ld ",buckets[34]);
+   fprintf(fp,"  40s:%-7.1ld ",buckets[35]);
+   fprintf(fp,"  60s:%-7.1ld ",buckets[36]);
+   fprintf(fp,"  80s:%-7.1ld ",buckets[37]);
+   fprintf(fp," 120s:%-7.1ld \n",buckets[38]);
+
+   fprintf(fp,"Band 9:   ");
+   fprintf(fp,"120+s:%-7.1ld \n\n",buckets[39]);
+#endif
+   fclose(fp);
+}
 
