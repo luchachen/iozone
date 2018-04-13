@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.87 $"
+#define THISVERSION "        Version $Revision: 3.88 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -61,6 +61,7 @@
 int errno;
 #else
 extern  int errno;
+extern  int h_errno;
 #endif
 
 
@@ -2808,8 +2809,10 @@ waitout:
 	sleep(2);
 	*stop_flag=0;
 	if(distributed && master_iozone)
+	{
 		stop_master_listen(master_listen_socket);
-
+		cleanup_comm();
+	}
 
 	/**********************************************************/
 	/* Re-write throughput performance test. ******************/
@@ -3026,7 +3029,10 @@ jump3:
 	/*************** End of rewrite throughput ****************/
 	/**********************************************************/
 	if(distributed && master_iozone)
+	{
 		stop_master_listen(master_listen_socket);
+		cleanup_comm();
+	}
 	sync();
 	sleep(2);
 next0:
@@ -3236,7 +3242,10 @@ jumpend:
 	/*************** End of readers throughput ****************/
 	/**********************************************************/
 	if(distributed && master_iozone)
+	{
 		stop_master_listen(master_listen_socket);
+		cleanup_comm();
+	}
 	sync();
 	sleep(2);
 
@@ -3448,7 +3457,10 @@ jumpend2:
 	/*************** End of re-readers throughput ****************/
 	/**********************************************************/
         if(distributed && master_iozone)
+	{
                 stop_master_listen(master_listen_socket);
+		cleanup_comm();
+	}
 
 next1:
 	if(include_tflag)
@@ -3658,7 +3670,10 @@ next1:
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 		}
         if(distributed && master_iozone)
+	{
                 stop_master_listen(master_listen_socket);
+		cleanup_comm();
+	}
 next2:
 	if(include_tflag)
 		if(!(include_mask & STRIDE_READ_MASK))
@@ -3866,7 +3881,10 @@ next2:
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 		}
         if(distributed && master_iozone)
+	{
                 stop_master_listen(master_listen_socket);
+		cleanup_comm();
+	}
 	/**************************************************************/
 	/*** random reader throughput tests ***************************/
 	/**************************************************************/
@@ -4074,7 +4092,10 @@ next3:
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 		}
         if(distributed && master_iozone)
+	{
                 stop_master_listen(master_listen_socket);
+		cleanup_comm();
+	}
 next4:
 	/**************************************************************/
 	/*** random writer throughput tests  **************************/
@@ -4282,7 +4303,10 @@ next4:
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
 		}
         if(distributed && master_iozone)
+	{
                 stop_master_listen(master_listen_socket);
+		cleanup_comm();
+	}
 next5:
 	sleep(2); /* You need this. If you stop and restart the 
 		     master_listen it will fail on Linux */
@@ -4393,7 +4417,10 @@ next5:
 			child_stat->flag = CHILD_STATE_HOLD;
 		}
 		if(distributed && master_iozone)
+		{
 			stop_master_listen(master_listen_socket);
+			cleanup_comm();
+		}
 	}
 	/********************************************************/
 	/* End of cleanup					*/
@@ -14071,7 +14098,7 @@ int send_size;
 	int rc,tsize;
 	struct sockaddr_in addr,raddr;
 	struct hostent *he;
-	int port, linger;
+	int port;
 	struct in_addr *ip;
 
 	if(cdebug>=1)
@@ -14108,7 +14135,7 @@ int send_size;
 	int rc,tsize;
 	struct sockaddr_in addr,raddr;
 	struct hostent *he;
-	int port, linger;
+	int port;
 	struct in_addr *ip;
 
 	if(mdebug >= 1)
@@ -14136,7 +14163,7 @@ char *controlling_host_name;
 	int rc,child_socket_val,tsize;
 	struct sockaddr_in addr,raddr;
 	struct hostent *he;
-	int port, linger;
+	int port;
 	struct in_addr *ip;
 
         he = gethostbyname(controlling_host_name);
@@ -14483,24 +14510,25 @@ int sock, size_of_message;
  */
 #ifdef HAVE_ANSIC_C
 int
-start_master_send(char *child_host_name, int child_port)
+start_master_send(char *child_host_name, int child_port, in_addr_t *my_s_addr)
 #else
 int
-start_master_send(child_host_name, child_port)
+start_master_send(child_host_name, child_port, my_s_addr)
 char *child_host_name; 
 int child_port;
+in_addr_t *my_s_addr;
 #endif
 {
 	int rc,master_socket_val,tsize;
 	struct sockaddr_in addr,raddr;
 	struct hostent *he;
-	int port, linger;
+	int port;
 	struct in_addr *ip;
 
         he = gethostbyname(child_host_name);
         if (he == NULL)
         {
-                printf("Master: Bad hostname %s\n",child_host_name);
+                printf("Master: Bad hostname >%s<\n",child_host_name);
 		fflush(stdout);
                 exit(22);
         }
@@ -14518,6 +14546,7 @@ int child_port;
 	}
 
 	port=child_port;
+	*my_s_addr = ip->s_addr;
 	/*port=CHILD_LIST_PORT;*/
 
         raddr.sin_family = AF_INET;
@@ -14575,45 +14604,29 @@ int child_port;
  */
 #ifdef HAVE_ANSIC_C
 int
-start_master_send_async(char *child_host_name, int child_port)
+start_master_send_async(char *child_host_name, int child_port, in_addr_t my_s_addr)
 #else
 int
-start_master_send_async(child_host_name, child_port)
+start_master_send_async(child_host_name, child_port, my_s_addr)
 char *child_host_name; 
 int child_port;
+in_addr_t my_s_addr;
 #endif
 {
 	int rc,master_socket_val,tsize;
 	struct sockaddr_in addr,raddr;
-	struct hostent *he;
-	int port, linger;
+	int dummy;
+	int port;
 	struct in_addr *ip;
-
-        he = gethostbyname(child_host_name);
-        if (he == NULL)
-        {
-                printf("Master: Bad hostname %s\n",child_host_name);
-		fflush(stdout);
-                exit(22);
-        }
-	if(mdebug ==1)
-	{
-	        printf("Master: start master async send: %s\n", he->h_name);
-		fflush(stdout);
-	}
-        ip = (struct in_addr *)he->h_addr_list[0];
-	if(mdebug ==1)
-	{
-        	printf("Master: child name: %s\n", (char *)inet_ntoa(ip->s_addr));
-        	printf("Master: child Port: %d\n", child_port);
-		fflush(stdout);
-	}
+	int dummy1;
+	struct hostent *ho;
+	int dummy2;
 
 	port=child_port;
 
         raddr.sin_family = AF_INET;
         raddr.sin_port = port;
-        raddr.sin_addr.s_addr = ip->s_addr;
+        raddr.sin_addr.s_addr = my_s_addr;
         master_socket_val = socket(AF_INET, SOCK_DGRAM, 0);
         if (master_socket_val < 0)
         {
@@ -14712,6 +14725,7 @@ long long numrecs64, reclen;
 	struct client_command cc;
 	struct master_command *mc;
 	char command[512];
+	in_addr_t my_s_addr;
 
 	for(x=0;x<512;x++)
 		command[x]=0;
@@ -14762,10 +14776,12 @@ long long numrecs64, reclen;
 	
 	if(mdebug>=1)
 		printf("Starting master send channel\n");
-        master_send_sockets[x-1]= start_master_send(child_idents[x-1].child_name,c_port); 
+        master_send_sockets[x-1]= start_master_send(child_idents[x-1].child_name,c_port,
+		&my_s_addr); 
 	if(mdebug>=1)
 		printf("Starting master send async channel\n");
-        master_send_async_sockets[x-1]= start_master_send_async(child_idents[x-1].child_name,a_port); 
+        master_send_async_sockets[x-1]= start_master_send_async(child_idents[x-1].child_name,a_port,
+		my_s_addr); 
 
 	child_idents[x-1].master_socket_num = master_send_sockets[x-1];
 	child_idents[x-1].master_async_socket_num = master_send_async_sockets[x-1];
@@ -15575,5 +15591,25 @@ cleanup_children()
 			master_send(master_send_async_sockets[i],child_idents[i].child_name, &cc,sizeof(struct client_command));
 		}
 			
+	}
+}
+
+/*
+ * This closes the file descriptors that were created for the master send and async send
+ * at the end of each phase of the throughput testing.
+ */
+#ifdef HAVE_ANSIC_C
+void
+cleanup_comm(void)
+#else
+void
+cleanup_comm()
+#endif
+{
+	int i;
+	for(i=0;i<num_child;i++)
+	{
+        	close(master_send_sockets[i]);
+        	close(master_send_async_sockets[i]);
 	}
 }

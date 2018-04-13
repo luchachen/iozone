@@ -1320,4 +1320,9 @@ Changes for 64bit architectures. Brad Smith. OpenBSD.
 Revision 3.83
 =============================================================================
 Add -+m cluster option to the help list and the list of options.
+=============================================================================
+Revision 3.84 -> 3.88
+=============================================================================
+Fix file descriptor leak in cluster mode.
+
 
