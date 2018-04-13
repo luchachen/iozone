@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.97 $
+# Version $Revision: 1.98 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -311,7 +311,7 @@ Solaris7gcc:	iozone_solaris7gcc.o libasync7.o libbif7.o
 # Solaris 32 bit build with threads, largefiles, and async I/O
 #
 Solaris10gcc:	iozone_solaris10gcc.o libasync10.o libbif10.o 
-	$(GCC)  -O $(LDFLAGS) iozone_solaris10gcc.o libasync7.o libbif10.o \
+	$(GCC)  -O $(LDFLAGS) iozone_solaris10gcc.o libasync10.o libbif10.o \
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
 

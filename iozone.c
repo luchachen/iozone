@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.242 $"
+#define THISVERSION "        Version $Revision: 3.247 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -207,6 +207,9 @@ char *help[] = {
 "                                  3=dontneed, 4=willneed",
 #endif
 "           -+V Enable shared file. No locking.",
+#if defined(Windows)
+"           -+U Windows Unbufferd I/O API (Very Experimental)",
+#endif
 "" };
 
 char *head1[] = {
@@ -431,6 +434,7 @@ struct client_command {
 	char c_write_traj_filename[256];
 	char c_read_traj_filename[256];
 	int c_oflag;
+	int c_unbuffered;
 	int c_noretest;
 	int c_read_sync;
 	int c_jflag;
@@ -514,6 +518,7 @@ struct client_neutral_command {
 	char c_write_traj_filename[100];
 	char c_read_traj_filename[100];
 	char c_oflag[2];
+	char c_unbuffered[2];
 	char c_noretest[2];
 	char c_read_sync[2];
 	char c_jflag[2];
@@ -961,6 +966,9 @@ void *(thread_stride_read_test)(void *);
 void *(thread_set_base)(void *);
 void *(thread_join)(long long, void *);
 void disrupt(int);
+#if defined(Windows)
+void disruptw(HANDLE);
+#endif
 long long get_traj(FILE *, long long *, float *, long);
 void create_temp(off64_t, long long );
 FILE *open_w_traj(void);
@@ -1135,6 +1143,7 @@ double report_darray[MAX_X][MAXSTREAMS];
 double time_res,cputime_res;
 long long throughput_array[MAX_X];	/* Filesize & record size are constants */
 short current_x, current_y;
+long long orig_size;
 long long max_x, max_y;
 unsigned long long goodkilos;
 off64_t kilobytes64 = (off64_t)KILOBYTES;
@@ -1327,7 +1336,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 16;
+int proto_version = 17;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1348,7 +1357,7 @@ struct child_ident {
 }child_idents[MAXSTREAMS];
 char write_traj_filename [MAXNAMESIZE];     /* name of write telemetry file */
 char read_traj_filename [MAXNAMESIZE];    /* name of read telemetry file  */
-char oflag,jflag,k_flag,h_flag,mflag,pflag;
+char oflag,jflag,k_flag,h_flag,mflag,pflag,unbuffered;
 char noretest;
 char async_flag,stride_flag,mmapflag,mmapasflag,mmapssflag,mmapnsflag,mmap_mix;
 char verify = 1;
@@ -1377,6 +1386,9 @@ VOLATILE char *stop_flag;		/* Used to stop all children */
 float compute_time;
 int multiplier = MULTIPLIER;
 long long rest_val;
+#if defined(Windows)
+	HANDLE hand;
+#endif
 
 /******************************************************************************/
 /* End of Tele-port zone.                                                     */
@@ -2291,6 +2303,12 @@ char **argv;
 				case 'T':  /* Time stamps on */
 					L_flag=1;
 					break;
+#if defined(Windows)
+				case 'U':  /* Windows only Unbufferd I/O */
+					unbuffered=1;
+					sprintf(splash[splash_line++],"\tUnbuffered Windows API usage. >>> Very Experimental <<<\n");
+					break;
+#endif
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
 					exit(0);
@@ -2654,6 +2672,7 @@ char **argv;
 	}
 #endif
 #endif
+	orig_size=kilobytes64;
 	if(trflag){
 	    (void)multi_throughput_test(mint,maxt);
 	    goto out;
@@ -3128,7 +3147,7 @@ throughput_test()
 	if(!rflag)
         	reclen=(long long)4096;
 	if(aggflag)
-		kilobytes64=kilobytes64/num_child;
+		kilobytes64=orig_size/num_child;
         numrecs64 = (long long)(kilobytes64*1024)/reclen;
 	buffer=mainbuffer;
 	if(use_thread)
@@ -6163,6 +6182,7 @@ long long *data2;
 #else
 	long long *gc=0;
 #endif
+
 	int test_foo;
 
 #ifdef unix
@@ -6279,24 +6299,65 @@ long long *data2;
 		}
 		if(j==0)
 		{
-	  		if((fd = I_CREAT(filename, 0640))<0)
-	  		{
+#if defined(Windows)
+	        	if(unbuffered)
+		        {
+		        	hand=CreateFile(filename,
+				  GENERIC_READ|GENERIC_WRITE,
+			          FILE_SHARE_WRITE|FILE_SHARE_READ,
+				  NULL,OPEN_ALWAYS,FILE_FLAG_NO_BUFFERING|
+				  FILE_FLAG_WRITE_THROUGH|FILE_FLAG_POSIX_SEMANTICS,
+				  NULL);
+            		}
+		        else
+		        {
+#endif
+	  		   if((fd = I_CREAT(filename, 0640))<0)
+	  		   {
 				printf("\nCan not create temp file: %s\n", 
 					filename);
 				perror("creat");
 				exit(42);
-	  		}
+	  		   }
+#if defined(Windows)
+			}
+#endif
 		}
-		if(fd) 
+#if defined(Windows)
+		if(unbuffered)
+			CloseHandle(hand);
+		else
+		{
+#endif
+		  if(fd) 
 			close(fd);
+#if defined(Windows)
+		}
+#endif
 
-	  	if((fd = I_OPEN(filename, (int)file_flags,0))<0)
-	  	{
+#if defined(Windows)
+	       	if(unbuffered)
+	        {
+	        	hand=CreateFile(filename,
+			  GENERIC_READ|GENERIC_WRITE,
+		          FILE_SHARE_WRITE|FILE_SHARE_READ,
+			  NULL,OPEN_EXISTING,FILE_FLAG_NO_BUFFERING|
+			  FILE_FLAG_WRITE_THROUGH|FILE_FLAG_POSIX_SEMANTICS,
+			  NULL);
+            	}
+	        else
+	        {
+#endif
+	  	   if((fd = I_OPEN(filename, (int)file_flags,0))<0)
+	  	   {
 			printf("\nCan not open temp file: %s\n", 
 				filename);
 			perror("open");
 			exit(44);
+	  	   }
+#if defined(Windows)
 	  	}
+#endif
 #ifdef VXFS
 		if(direct_flag)
 		{
@@ -6363,10 +6424,20 @@ long long *data2;
 			{
 				traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(float *)&compute_time,(long)1);
 				reclen=traj_size;
+#if defined(Windows)
+			if(unbuffered)
+			  SetFilePointer(hand,(LONG)traj_offset,0,FILE_BEGIN);
+			else
+#endif
 				I_LSEEK(fd,traj_offset,SEEK_SET);
 			}
 			if(Q_flag)
 			{
+#if defined(Windows)
+			if(unbuffered)
+			  traj_offset=SetFilePointer(hand,(LONG)0,0,FILE_CURRENT);
+			else
+#endif
 				traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 			}
 			if(rlocking)
@@ -6426,6 +6497,15 @@ long long *data2;
 			  }
 			  else
 			  {
+#if defined(Windows)
+       			    if(unbuffered)
+        		    {
+				WriteFile(hand, pbuff, reclen,(LPDWORD)&wval,
+					0);
+			    }
+			    else
+			    {
+#endif
 			    wval=write(fd, pbuff, (size_t ) reclen);
 			    if(wval != reclen)
 			    {
@@ -6440,6 +6520,9 @@ long long *data2;
 					perror("write");
 				signal_handler();
 			    }
+#if defined(Windows)
+			    }
+#endif
 			  }
 			}
 			if(Q_flag)
@@ -6505,7 +6588,12 @@ long long *data2;
 			{
 				mmap_end(maddr,(unsigned long long)filebytes64);
 			}
-			close(fd);
+#if defined(Windows)
+			if(unbuffered)
+				CloseHandle(hand);
+			else
+#endif
+			   close(fd);
 		}
 		writetime[j] = ((time_so_far() - starttime1)-time_res)
 			-compute_val;
@@ -6526,6 +6614,11 @@ long long *data2;
 			{
 				mmap_end(maddr,(unsigned long long)filebytes64);
 			}
+#if defined(Windows)
+			if(unbuffered)
+				CloseHandle(hand);
+			else
+#endif
 			close(fd);
 		}
 		if(cpuutilflag)
@@ -7011,6 +7104,7 @@ long long *data1,*data2;
 	char *wmaddr;
 	int fd,open_flags;
 	int test_foo,ltest;
+	long wval;
 	double qtime_start,qtime_stop;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -7089,12 +7183,28 @@ long long *data1,*data2;
 		{
 			purge_buffer_cache();
 		}
+#if defined(Windows)
+	       	if(unbuffered)
+	        {
+	        	hand=CreateFile(filename,
+			  GENERIC_READ|GENERIC_WRITE,
+		          FILE_SHARE_WRITE|FILE_SHARE_READ,
+			  NULL,OPEN_EXISTING,FILE_FLAG_NO_BUFFERING|
+			  FILE_FLAG_WRITE_THROUGH|FILE_FLAG_POSIX_SEMANTICS,
+			  NULL);
+            	}
+	        else
+	        {
+#endif
 		if((fd = I_OPEN(filename, open_flags,0))<0)
 		{
 			printf("\nCan not open temporary file for read\n");
 			perror("open");
 			exit(58);
 		}
+#if defined(Windows)
+		}
+#endif
 #ifdef ASYNC_IO
 		if(async_flag)
 			async_init(&gc,fd,direct_flag);
@@ -7120,13 +7230,20 @@ long long *data1,*data2;
 		{
 			maddr=(char *)initfile(fd,filebytes64,0,PROT_READ);
 		}
-		fsync(fd);
+#if defined(Windows)
+		if(!unbuffered)
+#endif
+		  fsync(fd);
 		/* 
 		 *  Need to prime the instruction cache & TLB
 		 */
 		nbuff=mainbuffer;
 		if(fetchon)
 			fetchit(nbuff,reclen);
+#if defined(Windows)
+		if(!unbuffered)
+		{
+#endif
 		if(read(fd, (void *)nbuff, (size_t) page_size) != page_size)
 		{
 #ifdef _64BIT_ARCH_
@@ -7140,6 +7257,11 @@ long long *data1,*data2;
 			exit(60);
 		}
 		I_LSEEK(fd,0,SEEK_SET);
+#if defined(Windows)
+		}
+		if(unbuffered)
+			SetFilePointer(hand,(LONG)0,0,FILE_BEGIN);
+#endif
 		nbuff=mainbuffer;
 
 		if(fetchon)
@@ -7163,16 +7285,34 @@ long long *data1,*data2;
 		{
 			if(disrupt_flag && ((i%DISRUPT)==0))
 			{
+#if defined(Windows)
+	
+				if(unbuffered)
+				   disruptw(hand);
+				else
+				   disrupt(fd);
+#else
 				disrupt(fd);
+#endif
 			}
 			if(r_traj_flag)
 			{
 				traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(float *)&compute_time, (long)0);
 				reclen=traj_size;
+#if defined(Windows)
+			if(unbuffered)
+			  SetFilePointer(hand,(LONG)traj_offset,0,FILE_BEGIN);
+			else
+#endif
 				I_LSEEK(fd,traj_offset,SEEK_SET);
 			}
 			if(Q_flag)
 			{
+#if defined(Windows)
+			if(unbuffered)
+			  traj_offset=SetFilePointer(hand,(LONG)0,0,FILE_CURRENT);
+			else
+#endif
 				traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 			}
 			if(rlocking)
@@ -7212,7 +7352,16 @@ long long *data1,*data2;
 			  }
 			  else
 			  {
-			    if(read((int)fd, (void*)nbuff, (size_t) reclen) != reclen)
+#if defined(Windows)
+       			    if(unbuffered)
+        		    {
+				ReadFile(hand, nbuff, reclen,(LPDWORD)&wval,
+					0);
+			    }
+			    else
+#endif
+			      wval=read((int)fd, (void*)nbuff, (size_t) reclen);
+			    if(wval != reclen)
 			    {
 #ifdef _64BIT_ARCH_
 #ifdef NO_PRINT_LLD
@@ -7315,6 +7464,11 @@ long long *data1,*data2;
 			{
 				mmap_end(maddr,(unsigned long long)filebytes64);
 			}
+#if defined(Windows)
+			if(unbuffered)
+				CloseHandle(hand);
+			else
+#endif
 			close(fd);
 		}
 		readtime[j] = ((time_so_far() - starttime2)-time_res)-compute_val;
@@ -7335,6 +7489,11 @@ long long *data1,*data2;
 			{
 				mmap_end(maddr,(unsigned long long)filebytes64);
 			}
+#if defined(Windows)
+			if(unbuffered)
+				CloseHandle(hand);
+			else
+#endif
 			close(fd);
 		}
 		if(cpuutilflag)
@@ -10734,12 +10893,37 @@ thread_write_test( x)
 	/*******************************************************************/
 	/* Initial write throughput performance test. **********************/
 	/*******************************************************************/
-	if((fd = I_CREAT(dummyfile[xx], 0640))<0)
-	{
+#if defined(Windows)
+       	if(unbuffered)
+        {
+        	hand=CreateFile(dummyfile[xx],
+		  GENERIC_READ|GENERIC_WRITE,
+	          FILE_SHARE_WRITE|FILE_SHARE_READ,
+		  NULL,OPEN_ALWAYS,FILE_FLAG_NO_BUFFERING|
+		  FILE_FLAG_WRITE_THROUGH|FILE_FLAG_POSIX_SEMANTICS,
+		  NULL);
+       	}
+        else
+        {
+#endif
+	  if((fd = I_CREAT(dummyfile[xx], 0640))<0)
+	  {
 		perror(dummyfile[xx]);
 		exit(123);
+	  }
+#if defined(Windows)
 	}
-	close(fd);
+#endif
+#if defined(Windows)
+	if(unbuffered)
+		CloseHandle(hand);
+	else
+	{
+#endif
+	  close(fd);
+#if defined(Windows)
+	}
+#endif
 	if(oflag)
 		flags=O_RDWR|O_SYNC;
 	else
@@ -10763,6 +10947,19 @@ thread_write_test( x)
 		flags |=O_DIRECTIO;
 #endif
 #endif
+#if defined(Windows)
+       	if(unbuffered)
+        {
+        	hand=CreateFile(dummyfile[xx],
+		  GENERIC_READ|GENERIC_WRITE,
+	          FILE_SHARE_WRITE|FILE_SHARE_READ,
+		  NULL,OPEN_EXISTING,FILE_FLAG_NO_BUFFERING|
+		  FILE_FLAG_WRITE_THROUGH|FILE_FLAG_POSIX_SEMANTICS,
+		  NULL);
+       	}
+        else
+        {
+#endif
 	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
 	{
 		printf("\nCan not open temp file: %s\n", 
@@ -10770,6 +10967,9 @@ thread_write_test( x)
 		perror("open");
 		exit(125);
 	}
+#if defined(Windows)
+	}
+#endif
 #ifdef VXFS
 	if(direct_flag)
 	{
@@ -10874,10 +11074,20 @@ thread_write_test( x)
 		{
 			traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(float *)&delay, (long)1);
 			reclen=traj_size;
+#if defined(Windows)
+			if(unbuffered)
+			  SetFilePointer(hand,(LONG)traj_offset,0,FILE_BEGIN);
+			else
+#endif
 			I_LSEEK(fd,traj_offset,SEEK_SET);
 		}
 		if(Q_flag)
 		{
+#if defined(Windows)
+			if(unbuffered)
+			  traj_offset=SetFilePointer(hand,0,0,FILE_CURRENT);
+			else
+#endif
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 		}
 		if(rlocking)
@@ -10958,7 +11168,18 @@ again:
 		   }
 		   else
 		   {
+#if defined(Windows)
+		      if(unbuffered)
+		      {
+			WriteFile(hand,nbuff,reclen, (LPDWORD)&wval,0);
+		      }
+		      else
+		      {
+#endif
 		      wval=write(fd, nbuff, (size_t) reclen);
+#if defined(Windows)
+		      }
+#endif
 		      if(wval != reclen)
 		      {
 			if(*stop_flag && !stopped){
@@ -11070,6 +11291,11 @@ again:
 	{
 		if(mmapflag)
 			mmap_end(maddr,(unsigned long long)filebytes64);
+#if defined(Windows)
+		if(unbuffered)
+			CloseHandle(hand);
+		else
+#endif
 		close(fd);
 	}
 	if(!stopped){
@@ -11139,6 +11365,11 @@ again:
 		}else
 			fsync(fd);
 			
+#if defined(Windows)
+		if(unbuffered)
+			CloseHandle(hand);
+		else
+#endif
 		close(fd);
 	}
 	if(Q_flag && (thread_wqfd !=0) )
@@ -11864,6 +12095,19 @@ thread_rwrite_test(x)
 #endif
 #endif
 
+#if defined(Windows)
+       	if(unbuffered)
+        {
+        	hand=CreateFile(dummyfile[xx],
+		  GENERIC_READ|GENERIC_WRITE,
+	          FILE_SHARE_WRITE|FILE_SHARE_READ,
+		  NULL,OPEN_ALWAYS,FILE_FLAG_NO_BUFFERING|
+		  FILE_FLAG_WRITE_THROUGH|FILE_FLAG_POSIX_SEMANTICS,
+		  NULL);
+       	}
+        else
+        {
+#endif
 	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
 	{
 #ifdef NO_PRINT_LLD
@@ -11875,6 +12119,9 @@ thread_rwrite_test(x)
 		perror(dummyfile[xx]);
 		exit(128);
 	}
+#if defined(Windows)
+	}
+#endif
 #ifdef VXFS
 	if(direct_flag)
 	{
@@ -11963,10 +12210,20 @@ thread_rwrite_test(x)
 		{
 			traj_offset=get_traj(w_traj_fd, (long long *)&traj_size,(float *)&delay,(long)1);
 			reclen=traj_size;
+#if defined(Windows)
+			if(unbuffered)
+			  SetFilePointer(hand,(LONG)traj_offset,0,FILE_BEGIN);
+			else
+#endif
 			I_LSEEK(fd,traj_offset,SEEK_SET);
 		}
 		if(Q_flag)
 		{
+#if defined(Windows)
+			if(unbuffered)
+			  traj_offset=SetFilePointer(hand,(LONG)0,0,FILE_CURRENT);
+			else
+#endif
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 		}
 		if(rlocking)
@@ -12025,6 +12282,13 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 			}
 			else
 			{
+#if defined(Windows)
+			   if(unbuffered)
+			   {
+				WriteFile(hand,nbuff,reclen,(LPDWORD)&wval,0);
+			   }
+			   else
+#endif
 			   wval=write(fd, nbuff, (size_t) reclen);
 			   if(wval != reclen)
 			   {
@@ -12097,6 +12361,11 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 		{
 			mmap_end(maddr,(unsigned long long)filebytes64);
 		}
+#if defined(Windows)
+		if(unbuffered)
+			CloseHandle(hand);
+		else
+#endif
 		close(fd);
 	}
 	temp_time=time_so_far();
@@ -12152,6 +12421,11 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 		}
 		else
 			fsync(fd);
+#if defined(Windows)
+		if(unbuffered)
+			CloseHandle(hand);
+		else
+#endif
 		close(fd);
 	}
 	free(dummyfile[xx]);
@@ -12225,6 +12499,7 @@ thread_read_test(x)
 	volatile char *buffer1;
 	char now_string[30];
 	int anwser,bind_cpu;
+	long wval;
 #ifdef VXFS
 	int test_foo = 0;
 #endif
@@ -12304,11 +12579,28 @@ thread_read_test(x)
 		flags |=O_DIRECTIO;
 #endif
 #endif
+#if defined(Windows)
+       	if(unbuffered)
+        {
+        	hand=CreateFile(dummyfile[xx],
+		  GENERIC_READ|GENERIC_WRITE,
+	          FILE_SHARE_WRITE|FILE_SHARE_READ,
+		  NULL,OPEN_EXISTING,FILE_FLAG_NO_BUFFERING|
+		  FILE_FLAG_WRITE_THROUGH|FILE_FLAG_POSIX_SEMANTICS,
+		  NULL);
+		SetFilePointer(hand,(LONG)0,0,FILE_BEGIN);
+       	}
+	else
+	{
+#endif
 	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
 	{
 		perror(dummyfile[xx]);
 		exit(130);
 	}
+#if defined(Windows)
+	}
+#endif
 #ifdef ASYNC_IO
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
@@ -12409,16 +12701,34 @@ thread_read_test(x)
 		traj_offset= i*reclen;
 		if(disrupt_flag && ((i%DISRUPT)==0))
 		{
+#if defined(Windows)
+	
+			if(unbuffered)
+			   disruptw(hand);
+			else
+			   disrupt(fd);
+#else
 			disrupt(fd);
+#endif
 		}
 		if(r_traj_flag)
 		{
 			traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(float *)&delay,(long)0);
 			reclen=traj_size;
+#if defined(Windows)
+			if(unbuffered)
+			  SetFilePointer(hand,(LONG)traj_offset,0,FILE_BEGIN);
+			else
+#endif
 			I_LSEEK(fd,traj_offset,SEEK_SET);
 		}
 		if(Q_flag)
 		{
+#if defined(Windows)
+			if(unbuffered)
+			  traj_offset=SetFilePointer(hand,0,0,FILE_CURRENT);
+			else
+#endif
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 		}
 		if(rlocking)
@@ -12459,7 +12769,15 @@ thread_read_test(x)
 			  }
 			  else
 			  {
-			      if(read((int)fd, (void*)nbuff, (size_t) reclen) != reclen)
+#if defined(Windows)
+			      if(unbuffered)
+			      {
+				ReadFile(hand,nbuff,reclen,(LPDWORD)&wval,0);
+			      }
+			      else
+#endif
+			      wval=read((int)fd, (void*)nbuff, (size_t) reclen);
+			      if(wval != reclen)
 			      {
 				if(*stop_flag)
 				{
@@ -12552,6 +12870,11 @@ thread_read_test(x)
 		{
 			mmap_end(maddr,(unsigned long long)filebytes64);
 		}
+#if defined(Windows)
+		if(unbuffered)
+		  CloseHandle(hand);
+		else
+#endif
 		close(fd);
 	}
 	temp_time = time_so_far();
@@ -12606,6 +12929,11 @@ thread_read_test(x)
 			mmap_end(maddr,(unsigned long long)filebytes64);
 		}else
 			fsync(fd);
+#if defined(Windows)
+		if(unbuffered)
+		  CloseHandle(hand);
+		else
+#endif
 		close(fd);
 	}
         if(Q_flag && (thread_rqfd !=0) )
@@ -13132,6 +13460,7 @@ thread_rread_test(x)
 	char now_string[30];
 	volatile char *buffer1;
 	int anwser,bind_cpu;
+	long wval;
 	char tmpname[256];
 #ifdef VXFS
 	int test_foo = 0;
@@ -13230,11 +13559,28 @@ thread_rread_test(x)
 #endif
 #endif
 
+#if defined(Windows)
+       	if(unbuffered)
+        {
+        	hand=CreateFile(dummyfile[xx],
+		  GENERIC_READ|GENERIC_WRITE,
+	          FILE_SHARE_WRITE|FILE_SHARE_READ,
+		  NULL,OPEN_EXISTING,FILE_FLAG_NO_BUFFERING|
+		  FILE_FLAG_WRITE_THROUGH|FILE_FLAG_POSIX_SEMANTICS,
+		  NULL);
+		SetFilePointer(hand,(LONG)0,0,FILE_BEGIN);
+       	}
+	else
+	{
+#endif
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
 		perror(dummyfile[xx]);
 		exit(135);
 	}
+#if defined(Windows)
+	}
+#endif
 #ifdef ASYNC_IO
 	if(async_flag)
 		async_init(&gc,fd,direct_flag);
@@ -13315,16 +13661,34 @@ thread_rread_test(x)
 		traj_offset=i*reclen;
 		if(disrupt_flag && ((i%DISRUPT)==0))
 		{
+#if defined(Windows)
+	
+			if(unbuffered)
+			   disruptw(hand);
+			else
+			   disrupt(fd);
+#else
 			disrupt(fd);
+#endif
 		}
 		if(r_traj_flag)
 		{
 			traj_offset=get_traj(r_traj_fd, (long long *)&traj_size,(float *)&delay,(long)0);
 			reclen=traj_size;
+#if defined(Windows)
+			if(unbuffered)
+			  SetFilePointer(hand,(LONG)traj_offset,0,FILE_BEGIN);
+			else
+#endif
 			I_LSEEK(fd,traj_offset,SEEK_SET);
 		}
 		if(Q_flag)
 		{
+#if defined(Windows)
+			if(unbuffered)
+			  traj_offset=SetFilePointer(hand,(LONG)0,0,FILE_CURRENT);
+			else
+#endif
 			traj_offset=I_LSEEK(fd,0,SEEK_CUR);
 		}
 		if(rlocking)
@@ -13365,7 +13729,15 @@ thread_rread_test(x)
 			  }
 			  else
 			  {
-			      if(read((int)fd, (void*)nbuff, (size_t) reclen) != reclen)
+#if defined(Windows)
+			      if(unbuffered)
+			      {
+				ReadFile(hand,nbuff,reclen,(LPDWORD)&wval,0);
+			      }
+			      else
+#endif
+			      wval=read((int)fd, (void*)nbuff, (size_t) reclen);
+			      if(wval != reclen)
 			      {
 				if(*stop_flag)
 				{
@@ -13459,6 +13831,11 @@ thread_rread_test(x)
 		{
 			mmap_end(maddr,(unsigned long long)filebytes64);
 		}
+#if defined(Windows)
+		if(unbuffered)
+			CloseHandle(hand);
+		else
+#endif
 		close(fd);
 	}
 	temp_time = time_so_far();
@@ -13510,6 +13887,11 @@ thread_rread_test(x)
 			mmap_end(maddr,(unsigned long long)filebytes64);
 		}else
 			fsync(fd);
+#if defined(Windows)
+		if(unbuffered)
+			CloseHandle(hand);
+		else
+#endif
 		close(fd);
 	}
         if(Q_flag && (thread_rrqfd !=0) )
@@ -13665,6 +14047,17 @@ thread_reverse_read_test(x)
 	if(direct_flag)
 		flags |=O_DIRECTIO;
 #endif
+#endif
+#if defined(Windows)
+       	if(unbuffered)
+        {
+        	hand=CreateFile(dummyfile[xx],
+		  GENERIC_READ|GENERIC_WRITE,
+	          FILE_SHARE_WRITE|FILE_SHARE_READ,
+		  NULL,OPEN_EXISTING,FILE_FLAG_NO_BUFFERING|
+		  FILE_FLAG_WRITE_THROUGH|FILE_FLAG_POSIX_SEMANTICS,
+		  NULL);
+       	}
 #endif
 
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
@@ -14096,6 +14489,17 @@ thread_stride_read_test(x)
 #endif
 #endif
 
+#if defined(Windows)
+       	if(unbuffered)
+        {
+        	hand=CreateFile(dummyfile[xx],
+		  GENERIC_READ|GENERIC_WRITE,
+	          FILE_SHARE_WRITE|FILE_SHARE_READ,
+		  NULL,OPEN_EXISTING,FILE_FLAG_NO_BUFFERING|
+		  FILE_FLAG_WRITE_THROUGH|FILE_FLAG_POSIX_SEMANTICS,
+		  NULL);
+       	}
+#endif
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
 		perror(dummyfile[xx]);
@@ -14603,6 +15007,17 @@ thread_ranread_test(x)
 #endif
 #endif
 
+#if defined(Windows)
+       	if(unbuffered)
+        {
+        	hand=CreateFile(dummyfile[xx],
+		  GENERIC_READ|GENERIC_WRITE,
+	          FILE_SHARE_WRITE|FILE_SHARE_READ,
+		  NULL,OPEN_EXISTING,FILE_FLAG_NO_BUFFERING|
+		  FILE_FLAG_WRITE_THROUGH|FILE_FLAG_POSIX_SEMANTICS,
+		  NULL);
+       	}
+#endif
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
 		perror(dummyfile[xx]);
@@ -15099,6 +15514,17 @@ thread_ranwrite_test( x)
 	if(direct_flag)
 		flags |=O_DIRECTIO;
 #endif
+#endif
+#if defined(Windows)
+       	if(unbuffered)
+        {
+        	hand=CreateFile(dummyfile[xx],
+		  GENERIC_READ|GENERIC_WRITE,
+	          FILE_SHARE_WRITE|FILE_SHARE_READ,
+		  NULL,OPEN_EXISTING,FILE_FLAG_NO_BUFFERING|
+		  FILE_FLAG_WRITE_THROUGH|FILE_FLAG_POSIX_SEMANTICS,
+		  NULL);
+       	}
 #endif
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
@@ -16593,6 +17019,51 @@ int fd;
 	
 }
 
+#if defined(Windows)
+/************************************************************************/
+/* This function is intended to cause an interruption			*/
+/* in the read pattern. It will make a reader have			*/
+/* jitter in its access behavior.					*/
+/* When using direct I/O one must use a pagesize transfer.		*/
+/************************************************************************/
+#ifdef HAVE_ANSIC_C
+void
+disruptw(HANDLE hand)
+#else
+void
+disruptw(HANDLE)
+int hand;
+#endif
+{
+	char *nbuff,*free_addr;
+	off64_t current;
+	long retval;
+
+	free_addr=nbuff=(char *)malloc((size_t)page_size+page_size);
+	nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
+
+	/* Save current position */
+	current=SetFilePointer(hand,(LONG)0,0,FILE_CURRENT);
+
+	/* Move to beginning of file */
+	SetFilePointer(hand,(LONG)0,0,FILE_BEGIN);
+
+	/* Read a little of the file */
+	ReadFile(hand, nbuff, reclen,(LPDWORD)&retval,0);
+
+	/* Skip into the file */
+	SetFilePointer(hand,(LONG)page_size,0,FILE_BEGIN);
+
+	/* Read a little of the file */
+	ReadFile(hand, nbuff, reclen,(LPDWORD)&retval,0);
+
+	/* Restore current position in file, before disruption */
+	SetFilePointer(hand,(LONG)current,0,FILE_BEGIN);
+	free(free_addr);
+	
+}
+#endif
+
 /************************************************************************/
 /* Read a telemetry file and return the the offset			*/
 /* for the next operaton. Also, set the size				*/
@@ -17480,6 +17951,7 @@ int send_size;
 	strcpy(outbuf.c_write_traj_filename,send_buffer->c_write_traj_filename);
 	strcpy(outbuf.c_read_traj_filename,send_buffer->c_read_traj_filename);
 	sprintf(outbuf.c_oflag,"%d",send_buffer->c_oflag);
+	sprintf(outbuf.c_unbuffered,"%d",send_buffer->c_unbuffered);
 	sprintf(outbuf.c_noretest,"%d",send_buffer->c_noretest);
 	sprintf(outbuf.c_read_sync,"%d",send_buffer->c_read_sync);
 	sprintf(outbuf.c_jflag,"%d",send_buffer->c_jflag);
@@ -18344,6 +18816,7 @@ long long numrecs64, reclen;
 	cc.c_numrecs64 = numrecs64;
 	cc.c_reclen = reclen;
 	cc.c_oflag = oflag;
+	cc.c_unbuffered = unbuffered;
 	cc.c_noretest = noretest;
 	cc.c_read_sync = read_sync;
 	cc.c_jflag = jflag;
@@ -18615,6 +19088,7 @@ become_client()
 	sscanf(cnc->c_advise_flag,"%d",&cc.c_advise_flag);
 	sscanf(cnc->c_restf,"%d",&cc.c_restf);
 	sscanf(cnc->c_oflag,"%d",&cc.c_oflag);
+	sscanf(cnc->c_unbuffered,"%d",&cc.c_unbuffered);
 	sscanf(cnc->c_Q_flag,"%d",&cc.c_Q_flag);
 	sscanf(cnc->c_L_flag,"%d",&cc.c_L_flag);
 	sscanf(cnc->c_xflag,"%d",&cc.c_xflag);
@@ -18643,6 +19117,7 @@ become_client()
 	chid = cc.c_client_number;
 	workdir=cc.c_working_dir;
 	oflag = cc.c_oflag;
+	unbuffered = cc.c_unbuffered;
 	noretest = cc.c_noretest;
 	read_sync = cc.c_read_sync;
 	jflag = cc.c_jflag;
