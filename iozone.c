@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.248 $"
+#define THISVERSION "        Version $Revision: 3.249 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -2465,12 +2465,18 @@ char **argv;
 		}
 	}
 
-	/* Enforce only write,rewrite,read,reread */
-	if(w_traj_flag || r_traj_flag)
-	{
-		for(i=2;i<sizeof(func)/sizeof(char *);i++)
-			include_test[i] = 0;
-	}
+        /* Enforce only write,rewrite,read,reread */
+        if(w_traj_flag || r_traj_flag)
+        {
+                for(i=2;i<sizeof(func)/sizeof(char *);i++)
+                {
+                        if(seq_mix && (i==8))
+                                ;
+                        else
+                                include_test[i] = 0;
+                }
+        }
+
 	if(r_traj_flag)
 	{
 		if(include_test[READER_TEST] == 0) 

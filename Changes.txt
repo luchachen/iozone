@@ -1956,5 +1956,9 @@ Add support for -+U with -K (WIN32API calls + Jitter)
 Revision 3.248
 =============================================================================
 Bug fix. -J with -+m not passing compute delay correctly.
+=============================================================================
+Revision 3.249
+=============================================================================
+Add support for -i 8 when used with -+B (sequential mix)
 
 
