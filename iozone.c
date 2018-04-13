@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.83 $"
+#define THISVERSION "        Version $Revision: 3.87 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -127,7 +127,7 @@ char *help[] = {
 "                 3=Read-backwards, 4=Re-write-record, 5=stride-read, 6=fwrite/re-fwrite",
 "                 7=fread/Re-fread, 8=pwrite/Re-pwrite, 9=pread/Re-pread",
 "                 10=pwritev/Re-pwritev, 11=preadv/Re-preadv)",
-"           -I  Use VxFS VX_DIRECT for all file operations",
+"           -I  Use VxFS VX_DIRECT or O_DIRECT for all file operations",
 "           -j #  Set stride of file accesses to (# * record size)",
 "           -J #  milliseconds of compute cycle before each I/O operation",
 "           -k #  Use POSIX async I/O (no bcopy) with # async operations",
@@ -213,6 +213,9 @@ THISVERSION,
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
+#if defined(linux)
+  #define __USE_GNU
+#endif
 #include <fcntl.h>
 #if !defined(__FreeBSD__) && !defined(__OpenBSD__)
 #include <malloc.h>
@@ -993,8 +996,14 @@ char **argv;
 	time_t time_run;
 	char *port,*pl,*m,*subarg;
 	int num_child1;
-	int cret,test_foo,test_fd;
-	int anwser,bind_cpu;
+	int cret,test_fd;
+	int anwser,bind_cpu,retx;
+#if defined(linux)
+	char *tb,*tbs;
+#endif
+#ifdef VXFS
+	int test_foo;
+#endif
 
 	setvbuf( stdout, NULL, _IONBF, (size_t) NULL );
 	setvbuf( stderr, NULL, _IONBF, (size_t) NULL );
@@ -1099,7 +1108,7 @@ char **argv;
 #endif
 			async_flag++;
 			break;
-		case 'I':	/* Use vxfs direct advisory */
+		case 'I':	/* Use vxfs direct advisory or O_DIRECT from Linux */
 #ifdef VXFS
 			direct_flag++;
 			test_fd=open("vxfstest",O_CREAT|O_RDWR,0660);
@@ -1108,14 +1117,48 @@ char **argv;
 			unlink("vxfstest");
 			if(test_foo == 0)
 			{
-#endif
 				printf("\tVxFS advanced setcache feature not available\n");
 				exit(3);
-#ifdef VXFS
 			}
 			sprintf(splash[splash_line++],"\tVxFS advanced feature SET_CACHE, VX_DIRECT enabled\n");
-#endif
 			break;
+#endif
+#if defined(linux)
+			tbs=tb=(char *)malloc(2*page_size);
+#ifdef _64BIT_ARCH_
+	     	        tb = (char *) 
+			(((unsigned long long)tb + page_size ) 
+				& ~(page_size-1));
+#else
+	     		tb = (char *) 
+			(((long)tb + (long)page_size ) 
+				& ~((long)page_size-1));
+#endif
+			test_fd=open("dxfstest",O_CREAT|O_RDWR|O_DIRECT,0660);
+			if(test_fd <= 0)
+			{
+				printf("\tO_DIRECT feature not available\n");
+				exit(3);
+			}
+			retx=write(test_fd,tb,4096);
+			if(retx == 4096)
+			{
+				direct_flag++;
+			}
+			else
+				direct_flag=0;
+			free(tbs);
+			unlink("dxfstest");
+			if(direct_flag)
+				sprintf(splash[splash_line++],"\tO_DIRECT feature enabled\n");
+			else
+			{
+				sprintf(splash[splash_line++],"\tO_DIRECT feature not available\n");
+				exit(3);
+			}
+				
+			break;
+#endif
 		case 'B':	/* Use mmap file for test file */
 			sprintf(splash[splash_line++],"\tUsing mmap files\n");
 			mmapflag++;
@@ -4712,6 +4755,10 @@ long long *data2;
 		file_flags = O_RDWR|O_SYNC;
 	else
 		file_flags = O_RDWR;
+#if defined(linux)
+	if(direct_flag)
+		file_flags |=O_DIRECT;
+#endif
 
 	for( j=0; j<2; j++)
 	{
@@ -5433,7 +5480,7 @@ long long *data1,*data2;
 	volatile char *buffer1;
 	char *maddr;
 	char *wmaddr;
-	int fd;
+	int fd,open_flags;
 	double qtime_start,qtime_stop;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -5443,6 +5490,11 @@ long long *data1,*data2;
 #endif
 	numrecs64 = (kilo64*1024)/reclen;
 
+	open_flags = O_RDONLY;
+#if defined(linux)
+	if(direct_flag)
+		open_flags |=O_DIRECT;
+#endif
 	if(r_traj_flag)
 	{
 		numrecs64=r_traj_ops;
@@ -5485,7 +5537,7 @@ long long *data1,*data2;
 			purge_buffer_cache();
 		}
 #ifdef _LARGEFILE64_SOURCE
-		if((fd = open64(filename, O_RDONLY))<0)
+		if((fd = open64(filename, open_flags))<0)
 		{
 			printf("\nCan not open temporary file for read\n");
 			perror("open");
@@ -5505,7 +5557,7 @@ long long *data1,*data2;
 			ioctl(fd,VX_SETCACHE,VX_DIRECT);
 #endif
 #else
-		if((fd = open(filename, O_RDONLY))<0)
+		if((fd = open(filename, open_flags))<0)
 		{
 			printf("\nCan not open temporary file for read\n");
 			perror("open");
@@ -5836,6 +5888,10 @@ long long *data1, *data2;
 
 	numrecs64 = (kilo64*1024)/reclen;
 	flags = O_RDWR;
+#if defined(linux)
+	if(direct_flag)
+		flags |=O_DIRECT;
+#endif
 	fd=0;
 	if(oflag)
 		flags |= O_SYNC;
@@ -6193,7 +6249,7 @@ long long *data1,*data2;
 	long long Index = 0;
 	unsigned long long revreadrate[2];
 	off64_t filebytes64;
-	int fd;
+	int fd,open_flags;
 	char *maddr,*wmaddr;
 	volatile char *buffer1;
 #ifdef ASYNC_IO
@@ -6202,6 +6258,11 @@ long long *data1,*data2;
 	long long *gc=0;
 #endif
 
+	open_flags=O_RDONLY;
+#if defined(linux)
+	if(direct_flag)
+		open_flags |=O_DIRECT;
+#endif
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	fd = 0;
@@ -6237,7 +6298,7 @@ long long *data1,*data2;
 #endif
 
 #else
-	 	if((fd = open(filename, O_RDONLY))<0){
+	 	if((fd = open(filename, open_flags))<0){
 	 		printf("\nCan not open temporary file for read\n");
 	 		perror("open");
 	 		exit(76);
@@ -6466,6 +6527,10 @@ long long *data1,*data2;
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	flags = O_RDWR|O_CREAT|O_TRUNC;
+#if defined(linux)
+	if(direct_flag)
+		flags |=O_DIRECT;
+#endif
 	if(oflag)
 		flags |= O_SYNC;
 	if (!no_unlink)
@@ -6695,7 +6760,7 @@ long long *data1, *data2;
 	long long uu;
 	off64_t internal_offset = 0;
 	off64_t stripewrap=0;
-	int fd;
+	int fd,open_flags;
 	volatile char *buffer1;
 	char *maddr;
 	char *wmaddr;
@@ -6705,6 +6770,11 @@ long long *data1, *data2;
 	long long *gc=0;
 #endif
 
+	open_flags=O_RDONLY;
+#if defined(linux)
+	if(direct_flag)
+		open_flags |=O_DIRECT;
+#endif
 	next64 = (off64_t)0;
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
@@ -6713,7 +6783,7 @@ long long *data1, *data2;
 		purge_buffer_cache();
 	}
 #ifdef _LARGEFILE64_SOURCE
-        if((fd = open64(filename, (int)O_RDONLY, 0640))<0)
+        if((fd = open64(filename, (int)open_flags, 0640))<0)
         {
                     printf("\nCan not open temporary file for read\n");
 		    perror("open");
@@ -6733,7 +6803,7 @@ long long *data1, *data2;
 		ioctl(fd,VX_SETCACHE,VX_DIRECT);
 #endif
 #else
-        if((fd = open(filename, O_RDONLY, 0640))<0)
+        if((fd = open(filename, open_flags, 0640))<0)
         {
                     printf("\nCan not open temporary file for read\n");
 		    perror("open");
@@ -7014,6 +7084,10 @@ long long *data1,*data2;
 	{
 		flags_here = O_RDWR;
 	}
+#if defined(linux)
+	if(direct_flag)
+		flags_here |=O_DIRECT;
+#endif
 	for( j=0; j<2; j++)
 	{
 		if(cpuutilflag)
@@ -7218,8 +7292,13 @@ long long *data1, *data2;
 	long long Index = 0;
 	unsigned long long preadrate[2];
 	off64_t filebytes64;
-	int fd;
+	int fd,open_flags;
 
+	open_flags=O_RDONLY;
+#if defined(linux)
+	if(direct_flag)
+		open_flags |=O_DIRECT;
+#endif
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	fd = 0;
@@ -7235,7 +7314,7 @@ long long *data1, *data2;
 			purge_buffer_cache();
 		}
 #ifdef _LARGEFILE64_SOURCE
-		if((fd = open64(filename, (int)O_RDONLY))<0)
+		if((fd = open64(filename, (int)open_flags))<0)
 		{
 			printf("\nCan not open temporary file for read\n");
 			perror("open");
@@ -7246,7 +7325,7 @@ long long *data1, *data2;
 			ioctl(fd,VX_SETCACHE,VX_DIRECT);
 #endif
 #else
-		if((fd = open(filename, O_RDONLY))<0)
+		if((fd = open(filename, open_flags))<0)
 		{
 			printf("\nCan not open temporary file for read\n");
 			perror("open");
@@ -7389,6 +7468,10 @@ long long *data1,*data2;
 		flags_here = O_SYNC|O_RDWR;
 	else
 		flags_here = O_RDWR;
+#if defined(linux)
+	if(direct_flag)
+		flags_here |=O_DIRECT;
+#endif
 	 
 	for( j=0; j<2; j++)
 	{
@@ -7660,8 +7743,13 @@ long long *data1,*data2;
 	off64_t numrecs64;
 	unsigned long long preadvrate[2];
 	off64_t filebytes64;
-	int fd;
+	int fd,open_flags;
 
+	open_flags=O_RDONLY;
+#if defined(linux)
+	if(direct_flag)
+		open_flags |=O_DIRECT;
+#endif
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	buffer = mainbuffer;
@@ -7679,7 +7767,7 @@ long long *data1,*data2;
 		}
 
 #ifdef _LARGEFILE64_SOURCE
-		if((fd = open64(filename, (int)O_RDONLY))<0)
+		if((fd = open64(filename, (int)open_flags))<0)
 		{
 			printf("\nCan not open temporary file for preadv\n");
 			perror("open");
@@ -7690,7 +7778,7 @@ long long *data1,*data2;
 			ioctl(fd,VX_SETCACHE,VX_DIRECT);
 #endif
 #else
-		if((fd = open(filename, O_RDONLY))<0)
+		if((fd = open(filename, open_flags))<0)
 		{
 			printf("\nCan not open temporary file for preadv\n");
 			perror("open");
@@ -8826,6 +8914,10 @@ thread_write_test( x)
 		flags=O_RDWR|O_SYNC;
 	else
 		flags=O_RDWR;
+#if defined(linux)
+	if(direct_flag)
+		flags |=O_DIRECT;
+#endif
 #ifdef _LARGEFILE64_SOURCE
 	if((fd = open64(dummyfile[xx], (int)flags))<0)
 	{
@@ -9324,6 +9416,10 @@ thread_rwrite_test(x)
 	flags = O_RDWR;
 	if(oflag)
 		flags|= O_SYNC;
+#if defined(linux)
+	if(direct_flag)
+		flags |=O_DIRECT;
+#endif
 #ifdef _LARGEFILE64_SOURCE
 	if((fd = open64(dummyfile[xx], (int)flags))<0)
 	{
@@ -9719,6 +9815,10 @@ thread_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if defined(linux)
+	if(direct_flag)
+		flags |=O_DIRECT;
+#endif
 #ifdef _LARGEFILE64_SOURCE
 	if((fd = open64(dummyfile[xx], (int)flags))<0)
 	{
@@ -10159,6 +10259,10 @@ thread_rread_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if defined(linux)
+	if(direct_flag)
+		flags |=O_DIRECT;
+#endif
 #ifdef _LARGEFILE64_SOURCE
 	if((fd = open64(dummyfile[xx], (int)flags))<0)
 	{
@@ -10566,6 +10670,10 @@ thread_reverse_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if defined(linux)
+	if(direct_flag)
+		flags |=O_DIRECT;
+#endif
 #ifdef _LARGEFILE64_SOURCE
 	if((fd = open64(dummyfile[xx], (int)flags))<0)
 	{
@@ -10983,6 +11091,10 @@ thread_stride_read_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if defined(linux)
+	if(direct_flag)
+		flags |=O_DIRECT;
+#endif
 #ifdef _LARGEFILE64_SOURCE
 	if((fd = open64(dummyfile[xx], (int)flags))<0)
 	{
@@ -11401,6 +11513,10 @@ thread_ranread_test(x)
 		flags=O_RDONLY|O_SYNC;
 	else
 		flags=O_RDONLY;
+#if defined(linux)
+	if(direct_flag)
+		flags |=O_DIRECT;
+#endif
 #ifdef _LARGEFILE64_SOURCE
 	if((fd = open64(dummyfile[xx], (int)flags))<0)
 	{
@@ -11863,6 +11979,10 @@ thread_ranwrite_test( x)
 		flags=O_RDWR|O_SYNC;
 	else
 		flags=O_RDWR;
+#if defined(linux)
+	if(direct_flag)
+		flags |=O_DIRECT;
+#endif
 #ifdef _LARGEFILE64_SOURCE
 	if((fd = open64(dummyfile[xx], (int)flags))<0)
 	{

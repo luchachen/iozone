@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.51 $
+# Version $Revision: 1.54 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -221,7 +221,7 @@ Solaris: iozone_solaris.o libasync.o libbif.o
 Solaris7gcc: iozone_solaris7gcc.o libasync7.o libbif7.o 
 	gcc  -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-Dsolaris iozone_solaris7gcc.o libasync7.o libbif7.o \
-		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -lthread 
+		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -lthread \
 		-lpthread -lposix4 -lnsl -laio -lsocket -o iozone
 
 #
@@ -458,6 +458,7 @@ iozone_linux.o: iozone.c libbif.c libasync.c
 		-DSHARED_MEM -Dlinux libbif.c -o libbif.o
 	cc -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE libasync.c  -o libasync.o 
+
 iozone_linux-ia64.o: iozone.c libbif.c
 	@echo ""
 	@echo "Building iozone for Linux-ia64"
