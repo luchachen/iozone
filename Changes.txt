@@ -2478,3 +2478,24 @@ Revision 3.420
 =============================================================================
 Add new contributor to list. 
 =============================================================================
+Revision 3.421
+=============================================================================
+Bug fix from Alp Aker:
+Patch for a minor issue in IOzone's signal_handler() function:
+the no_unlink option is respected only for the first member of the dummyfile[]
+array; the rest of the dummy files are unconditionally deleted, whether or not
+the '+w' flag has been passed to the program. 
+=============================================================================
+Revision 3.422
+=============================================================================
+Code cleanup. No functional changes.
+=============================================================================
+Revision 3.423
+=============================================================================
+Improve consistency of Kbytes instead of kbytes, KBytes, kBytes... 
+=============================================================================
+Revision 3.424
+=============================================================================
+Fix for 64bit and touch_buf.
+=============================================================================
+
