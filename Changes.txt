@@ -2564,3 +2564,6 @@ Make the sighandler_t change effective for all BSD derivatives.
 Revision 3.454
 Make the my_sig_t change effective for all BSD derivatives.
 =============================================================================
+Revision 3.455
+Unify the usage of __FreeBSD__
+=============================================================================

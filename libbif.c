@@ -32,7 +32,7 @@
 #include <stdlib.h>
 #endif
 
-#if (defined(solaris) && defined( __LP64__ )) || defined(__s390x__) || defined(FreeBSD)
+#if (defined(solaris) && defined( __LP64__ )) || defined(__s390x__) || defined(__FreeBSD__)
 /* If we are building for 64-bit Solaris, all functions that return pointers
  * must be declared before they are used; otherwise the compiler will assume
  * that they return ints and the top 32 bits of the pointer will be lost,
@@ -91,7 +91,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.29 $";
+char libbif_version[] = "Libbif Version $Revision: 3.30 $";
 #endif
 
 #define BOF 0x9

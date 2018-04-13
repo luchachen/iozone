@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.454 $"
+#define THISVERSION "        Version $Revision: 3.455 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -70,7 +70,7 @@
 #include <windows.h>
 #include <errno.h>
 #else
-#if defined(linux) || defined(solaris) || defined(IOZ_macosx) || defined(__AIX__) || defined(FreeBSD) || defined(_HPUX_SOURCE) || defined(__OpenBSD__) || defined(__DragonFly__) || defined(__NetBSD__)
+#if defined(linux) || defined(solaris) || defined(IOZ_macosx) || defined(__AIX__) || defined(__FreeBSD__) || defined(_HPUX_SOURCE) || defined(__OpenBSD__) || defined(__DragonFly__) || defined(__NetBSD__)
 #include <errno.h>
 #else
 extern  int errno;   /* imported for errors */
