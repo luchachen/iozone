@@ -1421,4 +1421,9 @@ Fixes for Windows compile warnings. do_compute() proto.
 Revision 3.113 
 =============================================================================
 Add definition char *dumb for Solaris to alloc_mem()
+=============================================================================
+Revision 3.114 
+=============================================================================
+Code cleanup for AIX. No async support caused warnings.
+
 

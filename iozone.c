@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.113 $"
+#define THISVERSION "        Version $Revision: 3.114 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -810,11 +810,15 @@ char *inet_ntoa();
 void my_nap();
 int thread_exit();
 int system();
+#ifdef ASYNC_IO
 size_t async_write();
 void async_release();
 int async_read();
 int async_read_no_copy();
 size_t async_write_no_copy();
+void end_async();
+void async_init();
+#endif
 void do_float();
 int create_xls();
 void close_xls();
@@ -825,10 +829,8 @@ void srand(unsigned int);
 int get_client_info(void);
 void exit(int);
 void find_remote_shell(char *);
-void end_async();
 void takeoff_cache();
 void del_cache();
-void async_init();
 void fill_area(long long *, long long *, long long);
 void fill_buffer(char *,long long ,long long ,char, long long );
 void store_value(off64_t);
@@ -875,11 +877,13 @@ void close_xls();
 void do_label();
 int create_xls();
 void do_float();
+#ifdef ASYNC_IO
 void async_release();
 size_t async_write();
 size_t async_write_no_copy();
 int async_read();
 int async_read_no_copy();
+#endif
 int mylockf();
 int rand();
 void srand();
