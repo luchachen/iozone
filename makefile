@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.70 $
+# Version $Revision: 1.72 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -669,7 +669,7 @@ iozone_windows.o:	iozone.c libasync.c libbif.c
 	@echo "Building iozone for Windows (No threads, No async I/O)"
 	@echo ""
 	gcc -c -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS  \
-		-DNAME='"Windows"' -DWindows iozone.c -o iozone_windows.o
+		-DWindows iozone.c -o iozone_windows.o
 	gcc -c -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS  \
 		-DWindows libbif.c -o libbif.o
 

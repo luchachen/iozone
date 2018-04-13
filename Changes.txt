@@ -1646,4 +1646,8 @@ Improve resolution of get_resolution().
 Revision 3.168 
 =============================================================================
 Changes to support RedHat 9.0.
+=============================================================================
+Revision 3.169 
+=============================================================================
+Special handling of NAME for broken frontend in Cygwin/Windows env.
 

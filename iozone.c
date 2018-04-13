@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.168 $"
+#define THISVERSION "        Version $Revision: 3.169 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -1109,7 +1109,11 @@ char diag_v,sent_stop;
 char bif_flag;
 char gflag,nflag;
 char yflag,qflag;
+#ifdef Windows
+char *build_name = "Windows";
+#else
 char *build_name = NAME;
+#endif
 char trflag; 
 char cpuutilflag;
 long base_time;
