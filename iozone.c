@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.235 $"
+#define THISVERSION "        Version $Revision: 3.237 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1497,7 +1497,7 @@ char **argv;
     	sprintf(splash[splash_line++],"\t             Steve Landherr, Brad Smith, Mark Kelly, Dr. Alain CYR,\n");
     	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million, \n");
     	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg,\n");
-    	sprintf(splash[splash_line++],"\t             Erik Habbinga, Kris Strecker.\n\n");
+    	sprintf(splash[splash_line++],"\t             Erik Habbinga, Kris Strecker, Walter Wong.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
 	argvsave=argv;
@@ -2978,7 +2978,7 @@ void auto_test()
 	/* small buffers as it takes forever and becomes very 		*/
 	/* un-interesting.						*/
 	/****************************************************************/
-             if(!rflag && !sflag )
+             if(!rflag && !sflag && !yflag && !qflag)
              	if(kilosi > xover){
                 	min_rec_size = LARGE_REC;
 			mult = orig_min_rec_size/1024;
@@ -18606,6 +18606,7 @@ become_client()
 	sscanf(cnc->c_advise_op,"%d",&cc.c_advise_op);
 	sscanf(cnc->c_advise_flag,"%d",&cc.c_advise_flag);
 	sscanf(cnc->c_restf,"%d",&cc.c_restf);
+	sscanf(cnc->c_oflag,"%d",&cc.c_oflag);
 	sscanf(cnc->c_Q_flag,"%d",&cc.c_Q_flag);
 	sscanf(cnc->c_L_flag,"%d",&cc.c_L_flag);
 	sscanf(cnc->c_xflag,"%d",&cc.c_xflag);
