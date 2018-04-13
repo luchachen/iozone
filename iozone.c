@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.51 $"
+#define THISVERSION "        Version $Revision: 3.52 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -636,7 +636,7 @@ unsigned long cache_line_size=CACHE_LINE_SIZE;
 long long *pstatus;
 int no_unlink = 0;
 char *throughput_tests[] = {"Initial write","Rewrite","Read","Re-read",
-	"Reverse Read","Stride read","Random read"};
+	"Reverse Read","Stride read","Random read","Random write"};
 
 /****************************************************************/
 /*								*/
