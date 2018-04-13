@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.221 $"
+#define THISVERSION "        Version $Revision: 3.222 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -16375,6 +16375,7 @@ long which;
 #endif
 {
 	long long traj_offset = 0;
+	long long tmp2 = 0;
 	int tmp = 0;
 	int tokens;
 	int ret=0;
@@ -16409,11 +16410,12 @@ long which;
 	if(tokens == 3)
 	{
 #ifdef NO_PRINT_LLD
-		ret=sscanf(sbuf,"%ld %ld %d\n",&traj_offset,traj_size,&tmp);
+		ret=sscanf(sbuf,"%ld %ld %d\n",&traj_offset,&tmp2,&tmp);
 #else
-		ret=sscanf(sbuf,"%lld %lld %d\n",&traj_offset,traj_size,&tmp);
+		ret=sscanf(sbuf,"%lld %lld %d\n",&traj_offset,&tmp2,&tmp);
 #endif
 	/*printf("\nReading %s trajectory with %d items\n",which?"write":"read",tokens);*/
+		*traj_size=tmp2;
 		*delay= ((float)tmp/1000);
 	}
 	if(tokens == 2)

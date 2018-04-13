@@ -1859,4 +1859,8 @@ Improve master connect to child, without delays.
 Revision 3.221
 =============================================================================
 Add -+B Mixed sequential testing. BlueArc request.
+=============================================================================
+Revision 3.222
+=============================================================================
+Workaround for bug in Cygwin's sscanf
 
