@@ -52,7 +52,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.22 $"
+#define THISVERSION "        Version $Revision: 3.23 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -215,7 +215,9 @@ typedef long long off64_t;
 #ifndef solaris
 #ifndef off64_t
 #ifndef _OFF64_T
+#ifndef __AIX__
 typedef long long off64_t;
+#endif
 #endif
 #endif
 #endif
@@ -3104,9 +3106,9 @@ long long *data2;
 			if(write(fd, buffer, (size_t) 1) != 1)
 			{
 #ifdef NO_PRINT_LLD
-			    	printf("\nError writing block %ld, fd= %ld\n", 0, fd);
+			    	printf("\nError writing block %ld, fd= %d\n", (long long)0, fd);
 #else
-			    	printf("\nError writing block %lld, fd= %lld\n", 0, fd);
+			    	printf("\nError writing block %lld, fd= %d\n", (long long)0, fd);
 #endif
 				perror("write");
 				signal_handler();
@@ -3185,10 +3187,10 @@ long long *data2;
 			    if(write(fd, buffer, (size_t ) reclen) != reclen)
 			    {
 #ifdef NO_PRINT_LLD
-			    	printf("\nError writing block %ld, fd= %ld\n", i,
+			    	printf("\nError writing block %ld, fd= %d\n", i,
 					 fd);
 #else
-			    	printf("\nError writing block %lld, fd= %lld\n", i,
+			    	printf("\nError writing block %lld, fd= %d\n", i,
 					 fd);
 #endif
 				perror("write");
@@ -3401,10 +3403,10 @@ long long *data2;
 			if(fwrite(buffer, (size_t) reclen, 1, stream) != 1)
 			{
 #ifdef NO_PRINT_LLD
-			    	printf("\nError fwriting block %ld, fd= %ld\n", i,
+			    	printf("\nError fwriting block %ld, fd= %d\n", i,
 					 fd);
 #else
-			    	printf("\nError fwriting block %lld, fd= %lld\n", i,
+			    	printf("\nError fwriting block %lld, fd= %d\n", i,
 					 fd);
 #endif
 				perror("fwrite");
@@ -4627,9 +4629,9 @@ long long *data1,*data2;
 	if(write(fd, buffer, (size_t) reclen) != reclen)
 	{
 #ifdef NO_PRINT_LLD
-	    	printf("\nError writing block %ld, fd= %ld\n", 0, fd);
+	    	printf("\nError writing block %ld, fd= %d\n", 0, fd);
 #else
-	    	printf("\nError writing block %lld, fd= %lld\n", 0, fd);
+	    	printf("\nError writing block %lld, fd= %d\n", 0, fd);
 #endif
 		perror("write");
 		signal_handler();
@@ -4679,9 +4681,9 @@ long long *data1,*data2;
 			       if(write(fd, buffer, (size_t) reclen) != reclen)
 			       {
 #ifdef NO_PRINT_LLD
-		    		   printf("\nError writing block %ld, fd= %ld\n", i, fd);
+		    		   printf("\nError writing block %ld, fd= %d\n", i, fd);
 #else
-		    		   printf("\nError writing block %lld, fd= %lld\n", i, fd);
+		    		   printf("\nError writing block %lld, fd= %d\n", i, fd);
 #endif
 				   perror("write");
 				   signal_handler();
@@ -4886,10 +4888,10 @@ long long *data1, *data2;
 		   	  if((uu=read((int)fd, (void*)buffer, (size_t) reclen)) != reclen)
 		   	  {
 #ifdef NO_PRINT_LLD
-		    		printf("\nError reading block %ld, fd= %ld Filename %s Read returned %ld\n", i, fd,filename,uu);
+		    		printf("\nError reading block %ld, fd= %d Filename %s Read returned %ld\n", i, fd,filename,uu);
 		    		printf("\nSeeked to %ld Reclen = %ld\n", savepos64,reclen);
 #else
-		    		printf("\nError reading block %lld, fd= %lld Filename %s Read returned %lld\n", i, fd,filename,uu);
+		    		printf("\nError reading block %lld, fd= %d Filename %s Read returned %lld\n", i, fd,filename,uu);
 		    		printf("\nSeeked to %lld Reclen = %lld\n", savepos64,reclen);
 #endif
 				perror("read");
@@ -5178,10 +5180,10 @@ long long *data1,*data2;
 				(i * reclen )) != reclen)
 			{
 #ifdef NO_PRINT_LLD
-			    	printf("\nError pwriting block %ld, fd= %ld\n", i,
+			    	printf("\nError pwriting block %ld, fd= %d\n", i,
 					 fd);
 #else
-			    	printf("\nError pwriting block %lld, fd= %lld\n", i,
+			    	printf("\nError pwriting block %lld, fd= %d\n", i,
 					 fd);
 #endif
 				perror("pwrite");
@@ -5525,10 +5527,10 @@ long long *data1,*data2;
 			if(pwritev(fd, piov,numvecs) != (reclen*numvecs))
 			{
 #ifdef NO_PRINT_LLD
-			    	printf("\nError pwriteving block %ld, fd= %ld\n", i,
+			    	printf("\nError pwriteving block %ld, fd= %d\n", i,
 					 fd);
 #else
-			    	printf("\nError pwriteving block %lld, fd= %lld\n", i,
+			    	printf("\nError pwriteving block %lld, fd= %d\n", i,
 					 fd);
 #endif
 				perror("pwritev");
@@ -6638,10 +6640,10 @@ again:
 			   complete.
 			*/
 #ifdef NO_PRINT_LLD
-		    	printf("\nError writing block %ld, fd= %ld\n", i,
+		    	printf("\nError writing block %ld, fd= %d\n", i,
 				 fd);
 #else
-		    	printf("\nError writing block %lld, fd= %lld\n", i,
+		    	printf("\nError writing block %lld, fd= %d\n", i,
 				 fd);
 #endif
 			perror("write");
@@ -6921,10 +6923,10 @@ thread_rwrite_test(x)
 					break;
 				}
 #ifdef NO_PRINT_LLD
-		    		printf("\nError writing block %ld, fd= %ld\n", i,
+		    		printf("\nError writing block %ld, fd= %d\n", i,
 					 fd);
 #else
-		    		printf("\nError writing block %lld, fd= %lld\n", i,
+		    		printf("\nError writing block %lld, fd= %d\n", i,
 					 fd);
 #endif
 				perror("write");
@@ -7192,10 +7194,10 @@ thread_read_test(x)
 					break;
 				}
 #ifdef NO_PRINT_LLD
-		    		printf("\nError reading block %ld, fd= %ld\n", i,
+		    		printf("\nError reading block %ld, fd= %d\n", i,
 					 fd);
 #else
-		    		printf("\nError reading block %lld, fd= %lld\n", i,
+		    		printf("\nError reading block %lld, fd= %d\n", i,
 					 fd);
 #endif
 				perror("read");
@@ -7481,10 +7483,10 @@ thread_rread_test(x)
 					break;
 				}
 #ifdef NO_PRINT_LLD
-		    		printf("\nError writing block %ld, fd= %ld\n", i,
+		    		printf("\nError writing block %ld, fd= %d\n", i,
 					 fd);
 #else
-		    		printf("\nError writing block %lld, fd= %lld\n", i,
+		    		printf("\nError writing block %lld, fd= %d\n", i,
 					 fd);
 #endif
 				perror("read");
@@ -8108,9 +8110,9 @@ thread_stride_read_test(x)
 					break;
 				}
 #ifdef NO_PRINT_LLD
-		    		printf("\nError reading block %ld, fd= %ld\n", i, fd);
+		    		printf("\nError reading block %ld, fd= %d\n", i, fd);
 #else
-		    		printf("\nError reading block %lld, fd= %lld\n", i, fd);
+		    		printf("\nError reading block %lld, fd= %d\n", i, fd);
 #endif
 				perror("read");
 				if (!no_unlink)
