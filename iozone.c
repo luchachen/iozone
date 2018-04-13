@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.384 $"
+#define THISVERSION "        Version $Revision: 3.385 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -19792,9 +19792,7 @@ start_master_listen()
 	struct sockaddr_in addr;
 	int recv_buf_size=65536*4;
 	int optval=1;
-#if defined(Windows)
 	struct linger dummy={1,0};
-#endif
 
         s = socket(AF_INET, SOCK_STREAM, 0);
         if (s < 0)
@@ -19812,13 +19810,11 @@ start_master_listen()
 	if ( sockerr == -1 ) {
 		perror("Error in setsockopt 2\n");
 	}
-#if defined(Windows)
 	sockerr = setsockopt (s, SOL_SOCKET, SO_LINGER, (char *)
 		&dummy, sizeof(struct linger));
 	if ( sockerr == -1 ) {
 		perror("Error in setsockopt 2\n");
 	}
-#endif
 	tmp_port=HOST_LIST_PORT;
         bzero(&addr, sizeof(struct sockaddr_in));
         addr.sin_port = htons(tmp_port);
@@ -20279,9 +20275,7 @@ int size_of_message;
 	int sockerr;
 	int recv_buf_size=65536;
 	int optval=1;
-#if defined(Windows)
 	struct linger dummy={1,0};
-#endif
 	xx = 0;
 	tsize=size_of_message; /* Number of messages to receive */
         s = socket(AF_INET, SOCK_STREAM, 0);
@@ -20300,13 +20294,11 @@ int size_of_message;
 	if ( sockerr == -1 ) {
 		perror("Error in setsockopt 4\n");
 	}
-#if defined(Windows)
 	sockerr = setsockopt (s, SOL_SOCKET, SO_LINGER, (char *)
 		&dummy, sizeof(struct linger));
 	if ( sockerr == -1 ) {
 		perror("Error in setsockopt 4\n");
 	}
-#endif
         bzero(&child_sync_sock, sizeof(struct sockaddr_in));
 	tmp_port=CHILD_LIST_PORT+chid;
         child_sync_sock.sin_port = htons(tmp_port);
