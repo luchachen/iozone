@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.48 $"
+#define THISVERSION "        Version $Revision: 3.49 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -227,7 +227,9 @@ typedef long long off64_t;
 #ifndef off64_t
 #ifndef _OFF64_T
 #ifndef __AIX__
+#ifndef __off64_t_defined
 typedef long long off64_t;
+#endif
 #endif
 #endif
 #endif

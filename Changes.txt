@@ -1176,6 +1176,11 @@ telemetry file support.
 Revision 3.45 through 3.48
 =============================================================================
 Added latency/offset plot data files for all throughput tests.
+=============================================================================
+Revision 3.49
+=============================================================================
+Fixed compile warning for Linux off64_t redefinition.
+Add Solaris2.6 target with simple build.
 
 
 

@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.45 $
+# Version $Revision: 1.46 $
 #
 # The makefile for building all versions of Iozone for all supported
 # platforms
@@ -39,6 +39,7 @@ all:
 	@echo "        ->   OSFV5                (64bit)   <-"
 	@echo "        ->   SCO                  (32bit)   <-"
 	@echo "        ->   Solaris              (32bit)   <-"
+	@echo "        ->   Solaris-2.6          (32bit)   <-"
 	@echo "        ->   sppux                (32bit)   <-"
 	@echo "        ->   sppux-10.1           (32bit)   <-"
 	@echo "        ->   sppux_no_ansi-10.1   (32bit)   <-"
@@ -209,6 +210,13 @@ Solaris: iozone_solaris.o libasync.o libbif.o
 	cc  -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-Dsolaris iozone_solaris.o libasync.o libbif.o \
 		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -lthread -lpthread -lposix4 -o iozone
+
+#
+# Solaris 2.6 (32 bit) build with no threads, no largefiles, and no async I/O
+#
+Solaris-2.6: iozone_solaris-2.6.o libbif.o 
+	cc  -O -Dunix -DHAVE_ANSIC_C -Dsolaris iozone_solaris-2.6.o libbif.o \
+		-o iozone
 
 #
 # Windows build requires Cygnus development environment. You
@@ -453,6 +461,15 @@ iozone_solaris.o: iozone.c libasync.c libbif.c
 #		-DSHARED_MEM -Dsolaris libasync.c -o libasync.o
 #		-DSHARED_MEM -Dsolaris iozone.c -o iozone_solaris.o
 #
+
+iozone_solaris-2.6.o: iozone.c libbif.c
+	@echo ""
+	@echo "Building iozone for Solaris-2.6"
+	@echo ""
+	cc -c -O -Dunix -DHAVE_ANSIC_C -DNO_THREADS \
+		-Dsolaris  iozone.c -o iozone_solaris-2.6.o
+	cc -O -c  -Dunix -DHAVE_ANSIC_C \
+		-Dsolaris -DBIG_ENDIAN libbif.c -o libbif.o
 
 iozone_windows.o: iozone.c libasync.c libbif.c
 	@echo ""
