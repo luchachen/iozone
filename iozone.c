@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.213 $"
+#define THISVERSION "        Version $Revision: 3.214 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -6120,7 +6120,8 @@ long long *data2;
 	double qtime_s_start,qtime_s_stop;
 #endif
 	long long i,j;
-	off64_t numrecs64,traj_offset,lock_offset;
+	off64_t numrecs64,traj_offset;
+	off64_t lock_offset=0;
 	long long Index = 0;
 	long long file_flags = 0;
 	long long traj_size;
@@ -6940,7 +6941,8 @@ long long *data1,*data2;
 #endif
 	long long j;
 	long long traj_size;
-	off64_t i,numrecs64,traj_offset,lock_offset;
+	off64_t i,numrecs64,traj_offset;
+	off64_t lock_offset=0;
 	long long Index = 0;
 	unsigned long long readrate[2];
 	off64_t filebytes64;
@@ -7363,7 +7365,8 @@ long long *data1, *data2;
 	long long Index=0;
 	int flags;
 	unsigned long long randreadrate[2];
-	off64_t filebytes64,lock_offset;
+	off64_t filebytes64;
+	off64_t lock_offset=0;
 	volatile char *buffer1;
 	char *wmaddr,*nbuff;
 	char *maddr,*free_addr;
@@ -7767,7 +7770,8 @@ long long *data1,*data2;
 	off64_t i,numrecs64;
 	long long Index = 0;
 	unsigned long long revreadrate[2];
-	off64_t filebytes64,lock_offset;
+	off64_t filebytes64;
+	off64_t lock_offset=0;
 	int fd,open_flags;
 	char *maddr,*wmaddr;
 	volatile char *buffer1;
@@ -8034,7 +8038,8 @@ long long *data1,*data2;
 	long long flags;
 	long long Index=0;
 	unsigned long long writeinrate;
-	off64_t filebytes64,lock_offset;
+	off64_t filebytes64;
+	off64_t lock_offset=0;
 	int fd,wval;
 	char *maddr;
 	char *wmaddr,*free_addr,*nbuff;
@@ -8302,7 +8307,8 @@ long long *data1, *data2;
 	long long Index = 0;
 	off64_t i,savepos64 = 0;
 	unsigned long long strideinrate;
-	off64_t filebytes64,lock_offset;
+	off64_t filebytes64;
+	off64_t lock_offset=0;
 	long long uu;
 	off64_t stripewrap=0;
 	int fd,open_flags;
@@ -8609,7 +8615,8 @@ long long *data1,*data2;
 	off64_t filebytes64;
 	long long flags_here = 0;
 	int fd,ltest;
-	off64_t numrecs64,traj_offset,lock_offset;
+	off64_t numrecs64,traj_offset;
+	off64_t lock_offset=0;
 	long long traj_size;
 #ifdef VXFS
 	int test_foo=0;
@@ -8883,7 +8890,8 @@ long long *data1, *data2;
 	long long j;
 	long long Index = 0;
 	unsigned long long preadrate[2];
-	off64_t filebytes64,lock_offset;
+	off64_t filebytes64;
+	off64_t lock_offset=0;
 	int fd,open_flags;
 	int ltest;
 	off64_t traj_offset;
@@ -10577,7 +10585,8 @@ thread_write_test( x)
 	double compute_val = (double)0;
 	float delay = (float)0;
 	double thread_qtime_stop,thread_qtime_start;
-	off64_t traj_offset,lock_offset;
+	off64_t traj_offset;
+	off64_t lock_offset=0;
 	long long flags,traj_size;
 	long long w_traj_bytes_completed;
 	long long w_traj_ops_completed;
@@ -11114,7 +11123,8 @@ thread_pwrite_test( x)
 	double compute_val = (double)0;
 	float delay = (float)0;
 	double thread_qtime_stop,thread_qtime_start;
-	off64_t traj_offset,lock_offset;
+	off64_t traj_offset;
+	off64_t lock_offset=0;
 	long long flags,traj_size;
 	long long w_traj_bytes_completed;
 	long long w_traj_ops_completed;
@@ -11648,7 +11658,8 @@ thread_rwrite_test(x)
 	double walltime, cputime;
 	float delay = (float)0;
 	double thread_qtime_stop,thread_qtime_start;
-	off64_t traj_offset,lock_offset;
+	off64_t traj_offset;
+	off64_t lock_offset=0;
 	long long w_traj_bytes_completed;
 	long long w_traj_ops_completed;
 	int fd;
@@ -12093,7 +12104,8 @@ thread_read_test(x)
 	int fd;
 	FILE *r_traj_fd,*thread_rqfd;
 	long long flags = 0;
-	off64_t traj_offset,lock_offset;
+	off64_t traj_offset;
+	off64_t lock_offset=0;
 	double starttime1 = 0;
 	float delay = 0;
 	double temp_time;
@@ -12525,7 +12537,8 @@ thread_pread_test(x)
 	int fd;
 	FILE *r_traj_fd,*thread_rqfd;
 	long long flags = 0;
-	off64_t traj_offset,lock_offset;
+	off64_t traj_offset;
+	off64_t lock_offset=0;
 	double starttime1 = 0;
 	float delay = 0;
 	double temp_time;
@@ -12957,7 +12970,8 @@ thread_rread_test(x)
 	long long r_traj_bytes_completed;
 	double walltime, cputime;
 	long long r_traj_ops_completed;
-	off64_t traj_offset,lock_offset;
+	off64_t traj_offset;
+	off64_t lock_offset=0;
 	long long flags = 0;
 	double starttime1 = 0;
 	float delay = 0;
@@ -13390,7 +13404,8 @@ thread_reverse_read_test(x)
 	double temp_time;
 	double compute_val = (double)0;
 	long long recs_per_buffer;
-	off64_t i,t_offset,lock_offset;
+	off64_t i,t_offset;
+	off64_t lock_offset=0;
 	off64_t current_position=0;
 	off64_t written_so_far, reverse_read, re_read_so_far,read_so_far;
 	char *dummyfile[MAXSTREAMS];           /* name of dummy file     */
@@ -13796,7 +13811,8 @@ thread_stride_read_test(x)
 	double compute_val = (double)0;
 	double temp_time;
 	long long recs_per_buffer;
-	off64_t i,lock_offset;
+	off64_t i;
+	off64_t lock_offset=0;
 	off64_t savepos64=0;
 	off64_t written_so_far, stride_read,re_read_so_far,read_so_far;
 	off64_t stripewrap = 0;
@@ -14294,7 +14310,8 @@ thread_ranread_test(x)
 	char *wmaddr=0;
 	volatile char *buffer1;
 	int anwser,bind_cpu;
-	off64_t traj_offset,lock_offset;
+	off64_t traj_offset;
+	off64_t lock_offset=0;
 	char tmpname[256];
 	FILE *thread_randrfd=0;
 #ifdef VXFS
@@ -14734,7 +14751,8 @@ thread_ranwrite_test( x)
 	char *wmaddr=0;
 	char *free_addr=0;
 	int anwser,bind_cpu,wval;
-	off64_t filebytes64,lock_offset;
+	off64_t filebytes64;
+	off64_t lock_offset=0;
 	char tmpname[256];
 	FILE *thread_randwqfd=0;
 #ifdef VXFS
