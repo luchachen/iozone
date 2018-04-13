@@ -1,7 +1,7 @@
 Summary: IOzone Filesystem Benchmark
 Name: iozone
 Version: 3
-Release: 203
+Release: 206
 Copyright: Freeware
 Group: Applications/Engineering
 Source: %{name}%{version}_%{release}.tar

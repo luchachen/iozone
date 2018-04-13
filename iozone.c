@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.203 $"
+#define THISVERSION "        Version $Revision: 3.206 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -71,7 +71,7 @@ extern  int h_errno; /* imported for errors */
 
 
 #include <sys/types.h>
-#if defined (__LP64__) || defined(OSF_64) || defined(__alpha__) || defined(__arch64__) || defined(_LP64) || defined(__s390x__)
+#if defined (__LP64__) || defined(OSF_64) || defined(__alpha__) || defined(__arch64__) || defined(_LP64) || defined(__s390x__) || defined(__AMD64__)
 #define MODE "\tCompiled for 64 bit mode."
 #define _64BIT_ARCH_
 #else
@@ -193,6 +193,7 @@ char *help[] = {
 "           -+r Enable O_RSYNC|O_SYNC for all testing.",
 "           -+t Enable network performance test. Requires -+m ",
 "           -+n No retests selected.",
+"           -+k Use constant aggregate data set size.",
 #ifndef NO_MADVISE
 "           -+A #  Enable madvise. 0 = normal, 1=random, 2=sequential",
 "                                  3=dontneed, 4=willneed",
@@ -240,6 +241,10 @@ THISVERSION,
 #include <fcntl.h>
 #if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__APPLE__)
 #include <malloc.h>
+#endif
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__)
+#include <stdlib.h>
+#include <string.h>
 #endif
 
 #if defined (__FreeBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__APPLE__)
@@ -1287,6 +1292,7 @@ char toutput[20][20]; /* Used to help format the output */
 int toutputindex; /* Index to the current output line */
 int cdebug = 0; /* Use to turn on child/client debugging in cluster mode. */
 int mdebug = 0; /* Use to turn on master debug in cluster mode */
+int aggflag; /* Used to indicate constant aggregate data set size */
 struct sockaddr_in child_sync_sock, child_async_sock;
 
 /*
@@ -2199,6 +2205,9 @@ char **argv;
 					noretest = 1;	
     					sprintf(splash[splash_line++],"\tNo retest option selected\n");
 					break;
+				case 'k':	/* Constant aggregate data set size */
+					aggflag=1;
+					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
 					exit(0);
@@ -3035,6 +3044,8 @@ throughput_test()
 		kilobytes64=throughsize;
 	if(!rflag)
         	reclen=(long long)4096;
+	if(aggflag)
+		kilobytes64=kilobytes64/num_child;
         numrecs64 = (long long)(kilobytes64*1024)/reclen;
 	buffer=mainbuffer;
 	if(use_thread)

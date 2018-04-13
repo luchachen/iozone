@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.82 $
+# Version $Revision: 1.83 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -33,7 +33,8 @@ all:
 	@echo "        ->   IRIX                 (32bit)   <-"
 	@echo "        ->   IRIX64               (64bit)   <-"
 	@echo "        ->   linux                (32bit)   <-"
-	@echo "        ->   linux-ia64           (32bit)   <-"
+	@echo "        ->   linux-AMD64          (64bit)   <-"
+	@echo "        ->   linux-ia64           (64bit)   <-"
 	@echo "        ->   linux-powerpc        (32bit)   <-"
 	@echo "        ->   linux-sparc          (32bit)   <-"
 	@echo "        ->   macosx               (32bit)   <-"
@@ -176,12 +177,21 @@ linux-sparc: iozone_linux-sparc.o  libbif.o libasync.o
 		-lrt -o iozone
 
 #
-# GNU 'C' compiler Linux build with no threads, largefiles, no async I/O 
+# GNU 'C' compiler Linux build with threads, largefiles, async I/O 
 #
-linux-ia64:	iozone_linux-ia64.o  libbif.o
+linux-ia64:	iozone_linux-ia64.o  libbif.o libasync.o
 	cc  -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM \
-		-DNO_THREADS -D_LARGEFILE64_SOURCE -Dlinux \
-		iozone_linux-ia64.o libbif.o \
+		-D_LARGEFILE64_SOURCE -Dlinux \
+		iozone_linux-ia64.o libbif.o libasync.o -lrt -lpthread \
+		-o iozone
+
+#
+# GNU 'C' compiler Linux build with threads, largefiles, async I/O 
+#
+linux-AMD64:	iozone_linux-AMD64.o  libbif.o libasync.o
+	cc  -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM \
+		-D_LARGEFILE64_SOURCE -Dlinux \
+		iozone_linux-AMD64.o libbif.o libasync.o -lrt -lpthread \
 		-o iozone
 
 #
@@ -611,15 +621,30 @@ iozone_linux.o:	iozone.c libbif.c libasync.c
 	cc -Wall -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE libasync.c  -o libasync.o 
 
-iozone_linux-ia64.o:	iozone.c libbif.c
+iozone_linux-ia64.o:	iozone.c libbif.c libasync.c
 	@echo ""
 	@echo "Building iozone for Linux-ia64"
 	@echo ""
-	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DNO_THREADS -DNAME='"linux-ia64"' \
+	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DNAME='"linux-ia64"' \
 		-DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE iozone.c \
 		-o iozone_linux-ia64.o
-	cc -c -O3 -Dunix -DHAVE_ANSIC_C -D_LARGEFILE64_SOURCE \
+	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
 		-DSHARED_MEM -Dlinux libbif.c -o libbif.o
+	cc -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
+		-D_LARGEFILE64_SOURCE libasync.c  -o libasync.o 
+
+iozone_linux-AMD64.o:	iozone.c libbif.c libasync.c
+	@echo ""
+	@echo "Building iozone for Linux-AMD64"
+	@echo ""
+	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DNAME='"linux-AMD64"' \
+		-D__AMD64__ -DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE \
+		iozone.c \
+		-o iozone_linux-AMD64.o
+	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
+		-DSHARED_MEM -Dlinux libbif.c -o libbif.o
+	cc -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
+		-D_LARGEFILE64_SOURCE libasync.c  -o libasync.o 
 
 iozone_linux-s390.o:	iozone.c libbif.c libasync.c
 	@echo ""
