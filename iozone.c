@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.413 $"
+#define THISVERSION "        Version $Revision: 3.414 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1687,8 +1687,8 @@ char **argv;
     	sprintf(splash[splash_line++],"\t             Randy Dunlap, Mark Montague, Dan Million, Gavin Brebner,\n");
     	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg, Benny Halevy, Dave Boone,\n");
     	sprintf(splash[splash_line++],"\t             Erik Habbinga, Kris Strecker, Walter Wong, Joshua Root,\n");
-    	sprintf(splash[splash_line++],"\t             Fabrice Bacchella, Zhenghua Xue, Qin Li, Darren Sawyer.\n");
-    	sprintf(splash[splash_line++],"\t             Ben England.\n\n");
+    	sprintf(splash[splash_line++],"\t             Fabrice Bacchella, Zhenghua Xue, Qin Li, Darren Sawyer,\n");
+    	sprintf(splash[splash_line++],"\t             Vangel Bojaxhi, Ben England.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
 	argvsave=argv;
