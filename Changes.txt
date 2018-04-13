@@ -2276,4 +2276,12 @@ Bug fix for t_range addition.
 Revision 3.347
 Get rid of a warning. ( An invalid warning, but none the less )
 =============================================================================
-
+Revision 3.348
+Add more words to the usage warnings and license 
+=============================================================================
+Revision 3.349
+Remove Ascii dependency for IBM's Z/OS that speaks EBCDIC.
+=============================================================================
+Revision 3.353
+Add support for SUA
+=============================================================================

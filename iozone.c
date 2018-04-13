@@ -34,6 +34,19 @@
 /*									*/
 /*									*/
 /************************************************************************/
+/* THIS SOFTWARE IS PROVIDED BY DON CAPPS AND THE IOZONE CREW "AS IS    */
+/* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED    */
+/* TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A      */
+/* PARTICULAR PURPOSE ARE DISCLAIMED.					*/
+/*									*/
+/* IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY      */
+/* DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL   */
+/* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE    */
+/* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS        */
+/* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER */
+/* IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR      */
+/* OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE.       */
+/************************************************************************/
 
 /************************************************************************/
 /* For the beginner... 						        */
@@ -47,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.347 $"
+#define THISVERSION "        Version $Revision: 3.353 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -359,7 +372,8 @@ typedef long long off64_t;
 #endif
 
 #ifdef unix
-#if defined (__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined (__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__) \
+   || defined(_SUA_)
 #include <sys/time.h>
 #endif
 #include <sys/times.h>
@@ -930,7 +944,8 @@ struct master_neutral_command {
 /*								  */
 /******************************************************************/
 char *initfile();
-int pit_gettimeofday( struct timeval *, struct timezone *, char *, char *);
+/*int pit_gettimeofday( struct timeval *, struct timezone *, char *, char *);*/
+int pit_gettimeofday( );
 static int openSckt( const char *, const char *, unsigned int );
 static void pit( int, struct timeval *);
 void mmap_end();
@@ -1355,6 +1370,7 @@ int client_error;
 
 char pit_hostname[40];
 char pit_service[7];
+int junk;
 
 /* 
  * Host ports used to listen, and handle errors.
@@ -1913,7 +1929,7 @@ char **argv;
 			}
 			else
 			{
-                        	fread(reply,IBUFSIZE-1,1,pi);
+                        	junk=fread(reply,IBUFSIZE-1,1,pi);
                         	pclose(pi);
 				m=reply;
                         	while(*m) /* Strip new line */
@@ -7878,7 +7894,7 @@ long long *data1,*data2;
 		if(!unbuffered)
 		{
 #endif
-		if(read(fd, (void *)nbuff, (size_t) page_size) != page_size)
+		if(read(fd, (void *)nbuff, (size_t) reclen) != reclen)
 		{
 #ifdef _64BIT_ARCH_
 			printf("\nError reading block %d %x\n", 0,
@@ -11002,9 +11018,9 @@ long long who;
 		if(bif_flag)
 			do_float(bif_fd,(double)(rec_size/1024),bif_row,bif_column++);
 #ifdef NO_PRINT_LLD
-		if(!silent) printf("  %c%ld%c",042,rec_size/1024,042);
+		if(!silent) printf("  %c%ld%c",'"',rec_size/1024,'"');
 #else
-		if(!silent) printf("  %c%lld%c",042,rec_size/1024,042);
+		if(!silent) printf("  %c%lld%c",'"',rec_size/1024,'"');
 #endif
 	}
 	if(!silent) printf("\n");
@@ -11020,9 +11036,9 @@ long long who;
 		do_float(bif_fd,(double)(current_file_size),bif_row,bif_column++);
 	}
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%c%ld%c  ",042,current_file_size,042);
+	if(!silent) printf("%c%ld%c  ",'"',current_file_size,'"');
 #else
-	if(!silent) printf("%c%lld%c  ",042,current_file_size,042);
+	if(!silent) printf("%c%lld%c  ",'"',current_file_size,'"');
 #endif
 	for(i=0;i<=max_y;i++){
 		if(report_array[0][i] != current_file_size){
@@ -11035,9 +11051,9 @@ long long who;
 				do_float(bif_fd,(double)(current_file_size),bif_row,bif_column++);
 			}
 #ifdef NO_PRINT_LLD
-			if(!silent) printf("%c%ld%c  ",042,current_file_size,042);
+			if(!silent) printf("%c%ld%c  ",'"',current_file_size,'"');
 #else
-			if(!silent) printf("%c%lld%c  ",042,current_file_size,042);
+			if(!silent) printf("%c%lld%c  ",'"',current_file_size,'"');
 #endif
 		}
 		if(bif_flag)
@@ -11077,76 +11093,76 @@ void dump_excel()
     if ((!include_tflag) || (include_mask & (long long)WRITER_MASK)) {
 	if(bif_flag)
 		do_label(bif_fd,"Writer Report",bif_row++,bif_column);
-	if(!silent) printf("\n%cWriter report%c\n",042,042);
+	if(!silent) printf("\n%cWriter report%c\n",'"','"');
 	dump_report(2); 
 	if(bif_flag)
 		do_label(bif_fd,"Re-writer Report",bif_row++,bif_column);
-	if(!silent) printf("\n%cRe-writer report%c\n",042,042);
+	if(!silent) printf("\n%cRe-writer report%c\n",'"','"');
 	dump_report(3); 
     }
 
     if ((!include_tflag) || (include_mask & (long long)READER_MASK)) {
 	if(bif_flag)
 		do_label(bif_fd,"Reader Report",bif_row++,bif_column);
-	if(!silent) printf("\n%cReader report%c\n",042,042);
+	if(!silent) printf("\n%cReader report%c\n",'"','"');
 	dump_report(4); 
 	if(bif_flag)
 		do_label(bif_fd,"Re-reader Report",bif_row++,bif_column);
-	if(!silent) printf("\n%cRe-Reader report%c\n",042,042);
+	if(!silent) printf("\n%cRe-Reader report%c\n",'"','"');
 	dump_report(5); 
     }
 
 	if ((!include_tflag) || (include_mask & (long long)RANDOM_RW_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Random Read Report",bif_row++,bif_column);
-		if(!silent) printf("\n%cRandom read report%c\n",042,042);
+		if(!silent) printf("\n%cRandom read report%c\n",'"','"');
 		dump_report(6); 
 		if(bif_flag)
 			do_label(bif_fd,"Random Write Report",bif_row++,bif_column);
-		if(!silent) printf("\n%cRandom write report%c\n",042,042);
+		if(!silent) printf("\n%cRandom write report%c\n",'"','"');
 		dump_report(7); 
 	}
 
 	if ((!include_tflag) || (include_mask & (long long)REVERSE_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Backward Read Report",bif_row++,bif_column);
-		if(!silent) printf("\n%cBackward read report%c\n",042,042);
+		if(!silent) printf("\n%cBackward read report%c\n",'"','"');
 		dump_report(8); 
 	}
 
 	if ((!include_tflag) || (include_mask & (long long)REWRITE_REC_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Record Rewrite Report",bif_row++,bif_column);
-		if(!silent) printf("\n%cRecord rewrite report%c\n",042,042);
+		if(!silent) printf("\n%cRecord rewrite report%c\n",'"','"');
 		dump_report(9); 
 	}
 
 	if ((!include_tflag) || (include_mask & (long long)STRIDE_READ_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Stride Read Report",bif_row++,bif_column);
-		if(!silent) printf("\n%cStride read report%c\n",042,042);
+		if(!silent) printf("\n%cStride read report%c\n",'"','"');
 		dump_report(10); 
 	}
 
 	if ((!include_tflag) || (include_mask & (long long)FWRITER_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Fwrite Report",bif_row++,bif_column);
-		if(!silent) printf("\n%cFwrite report%c\n",042,042);
+		if(!silent) printf("\n%cFwrite report%c\n",'"','"');
 		dump_report(11); 
 		if(bif_flag)
 			do_label(bif_fd,"Re-fwrite Report",bif_row++,bif_column);
-		if(!silent) printf("\n%cRe-Fwrite report%c\n",042,042);
+		if(!silent) printf("\n%cRe-Fwrite report%c\n",'"','"');
 		dump_report(12); 
 	}
 
 	if ((!include_tflag) || (include_mask & (long long)FREADER_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd,"Fread Report",bif_row++,bif_column);
-		if(!silent) printf("\n%cFread report%c\n",042,042);
+		if(!silent) printf("\n%cFread report%c\n",'"','"');
 		dump_report(13); 
 		if(bif_flag)
 			do_label(bif_fd,"Re-fread Report",bif_row++,bif_column);
-		if(!silent) printf("\n%cRe-Fread report%c\n",042,042);
+		if(!silent) printf("\n%cRe-Fread report%c\n",'"','"');
 		dump_report(14); 
 	}
 
@@ -11156,22 +11172,22 @@ void dump_excel()
 		if ((!include_tflag) || (include_mask & (long long)PWRITER_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd,"Pwrite Report",bif_row++,bif_column);
-			if(!silent) printf("\n%cPwrite report%c\n",042,042);
+			if(!silent) printf("\n%cPwrite report%c\n",'"','"');
 			dump_report(15); 
 			if(bif_flag)
 				do_label(bif_fd,"Re-pwrite Report",bif_row++,bif_column);
-		 	if(!silent) printf("\n%cRe-Pwrite report%c\n",042,042);
+		 	if(!silent) printf("\n%cRe-Pwrite report%c\n",'"','"');
 		 	dump_report(16); 
 		}
 
 		if ((!include_tflag) || (include_mask & (long long)PREADER_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd,"Pread Report",bif_row++,bif_column);
-		 	if(!silent) printf("\n%cPread report%c\n",042,042);
+		 	if(!silent) printf("\n%cPread report%c\n",'"','"');
 		 	dump_report(17); 
 			if(bif_flag)
 				do_label(bif_fd,"Re-pread Report",bif_row++,bif_column);
-		 	if(!silent) printf("\n%cRe-Pread report%c\n",042,042);
+		 	if(!silent) printf("\n%cRe-Pread report%c\n",'"','"');
 		 	dump_report(18); 
 		}
 
@@ -11179,22 +11195,22 @@ void dump_excel()
 		if ((!include_tflag) || (include_mask & (long long)PWRITEV_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd,"Pwritev Report",bif_row++,bif_column);
- 			if(!silent) printf("\n%cPwritev report%c\n",042,042);
+ 			if(!silent) printf("\n%cPwritev report%c\n",'"','"');
  			dump_report(19); 
 			if(bif_flag)
 				do_label(bif_fd,"Re-pwritev Report",bif_row++,bif_column);
- 			if(!silent) printf("\n%cRe-Pwritev report%c\n",042,042);
+ 			if(!silent) printf("\n%cRe-Pwritev report%c\n",'"','"');
  			dump_report(20); 
 		}
 
 		if ((!include_tflag) || (include_mask & (long long)PREADV_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd,"Preadv Report",bif_row++,bif_column);
- 			if(!silent) printf("\n%cPreadv report%c\n",042,042);
+ 			if(!silent) printf("\n%cPreadv report%c\n",'"','"');
  			dump_report(21); 
 			if(bif_flag)
 				do_label(bif_fd,"Re-preadv Report",bif_row++,bif_column);
- 			if(!silent) printf("\n%cRe-Preadv report%c\n",042,042);
+ 			if(!silent) printf("\n%cRe-Preadv report%c\n",'"','"');
  			dump_report(22); 
 		}
 #endif
@@ -11232,9 +11248,9 @@ long long who;
 		if (bif_flag)
 			do_float(bif_fd, (double)(rec_size/1024), bif_row, bif_column++);
 #ifdef NO_PRINT_LLD
-		if(!silent) printf("  %c%ld%c",042,rec_size/1024,042);
+		if(!silent) printf("  %c%ld%c",'"',rec_size/1024,'"');
 #else
-		if(!silent) printf("  %c%lld%c",042,rec_size/1024,042);
+		if(!silent) printf("  %c%lld%c",'"',rec_size/1024,'"');
 #endif
 	}
 	if(!silent) printf("\n");
@@ -11250,9 +11266,9 @@ long long who;
 		do_float(bif_fd, (double)(current_file_size), bif_row, bif_column++);
 	}
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("%c%ld%c  ",042,current_file_size,042);
+	if(!silent) printf("%c%ld%c  ",'"',current_file_size,'"');
 #else
-	if(!silent) printf("%c%lld%c  ",042,current_file_size,042);
+	if(!silent) printf("%c%lld%c  ",'"',current_file_size,'"');
 #endif
 	for (i = 0; i <= max_y; i++) {
 		if (report_array[0][i] != current_file_size) {
@@ -11265,9 +11281,9 @@ long long who;
 				do_float(bif_fd, (double)(current_file_size), bif_row, bif_column++);
 			}
 #ifdef NO_PRINT_LLD
-			if(!silent) printf("%c%ld%c  ",042,current_file_size,042);
+			if(!silent) printf("%c%ld%c  ",'"',current_file_size,'"');
 #else
-			if(!silent) printf("%c%lld%c  ",042,current_file_size,042);
+			if(!silent) printf("%c%lld%c  ",'"',current_file_size,'"');
 #endif
 		}
 		if (bif_flag)
@@ -11298,76 +11314,76 @@ void dump_cputimes(void)
     if ((!include_tflag) || (include_mask & (long long)WRITER_MASK)) {
 	if(bif_flag)
 		do_label(bif_fd, "Writer CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-	if(!silent) printf("\n%cWriter CPU utilization report (Zero values should be ignored)%c\n",042,042);
+	if(!silent) printf("\n%cWriter CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 	dump_times(2); 
 	if(bif_flag)
 		do_label(bif_fd, "Re-writer CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-	if(!silent) printf("\n%cRe-writer CPU utilization report (Zero values should be ignored)%c\n",042,042);
+	if(!silent) printf("\n%cRe-writer CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 	dump_times(3); 
     }
 
     if ((!include_tflag) || (include_mask & (long long)READER_MASK)) {
 	if(bif_flag)
 		do_label(bif_fd, "Reader CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-	if(!silent) printf("\n%cReader CPU utilization report (Zero values should be ignored)%c\n",042,042);
+	if(!silent) printf("\n%cReader CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 	dump_times(4); 
 	if(bif_flag)
 		do_label(bif_fd, "Re-reader CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-	if(!silent) printf("\n%cRe-Reader CPU utilization report (Zero values should be ignored)%c\n",042,042);
+	if(!silent) printf("\n%cRe-Reader CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 	dump_times(5); 
     }
 
 	if ((!include_tflag) || (include_mask & (long long)RANDOM_RW_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd, "Random Read CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-		if(!silent) printf("\n%cRandom read CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		if(!silent) printf("\n%cRandom read CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 		dump_times(6); 
 		if(bif_flag)
 			do_label(bif_fd, "Random Write CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-		if(!silent) printf("\n%cRandom write CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		if(!silent) printf("\n%cRandom write CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 		dump_times(7); 
 	}
 
 	if ((!include_tflag) || (include_mask & (long long)REVERSE_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd, "Backward Read CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-		if(!silent) printf("\n%cBackward read CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		if(!silent) printf("\n%cBackward read CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 		dump_times(8); 
 	}
 
 	if ((!include_tflag) || (include_mask & (long long)REWRITE_REC_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd, "Record Rewrite CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-		if(!silent) printf("\n%cRecord rewrite CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		if(!silent) printf("\n%cRecord rewrite CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 		dump_times(9); 
 	}
 
 	if ((!include_tflag) || (include_mask & (long long)STRIDE_READ_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd, "Stride Read CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-		if(!silent) printf("\n%cStride read CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		if(!silent) printf("\n%cStride read CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 		dump_times(10); 
 	}
 
 	if ((!include_tflag) || (include_mask & (long long)FWRITER_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd, "Fwrite CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-		if(!silent) printf("\n%cFwrite CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		if(!silent) printf("\n%cFwrite CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 		dump_times(11); 
 		if(bif_flag)
 			do_label(bif_fd, "Re-fwrite CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-		if(!silent) printf("\n%cRe-Fwrite CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		if(!silent) printf("\n%cRe-Fwrite CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 		dump_times(12); 
 	}
 
 	if ((!include_tflag) || (include_mask & (long long)FREADER_MASK)) {
 		if(bif_flag)
 			do_label(bif_fd, "Fread CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-		if(!silent) printf("\n%cFread CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		if(!silent) printf("\n%cFread CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 		dump_times(13); 
 		if(bif_flag)
 			do_label(bif_fd, "Re-fread CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-		if(!silent) printf("\n%cRe-Fread CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		if(!silent) printf("\n%cRe-Fread CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 		dump_times(14); 
 	}
 
@@ -11377,22 +11393,22 @@ void dump_cputimes(void)
 		if ((!include_tflag) || (include_mask & (long long)PWRITER_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd, "Pwrite CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-			if(!silent) printf("\n%cPwrite CPU utilization report (Zero values should be ignored)%c\n",042,042);
+			if(!silent) printf("\n%cPwrite CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 			dump_times(15); 
 			if(bif_flag)
 				do_label(bif_fd, "Re-pwrite CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-		 	if(!silent) printf("\n%cRe-Pwrite CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		 	if(!silent) printf("\n%cRe-Pwrite CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 		 	dump_times(16); 
 		}
 
 		if ((!include_tflag) || (include_mask & (long long)PREADER_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd, "Pread CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-		 	if(!silent) printf("\n%cPread CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		 	if(!silent) printf("\n%cPread CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 		 	dump_times(17); 
 			if(bif_flag)
 				do_label(bif_fd, "Re-pread CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-		 	if(!silent) printf("\n%cRe-Pread CPU utilization report (Zero values should be ignored)%c\n",042,042);
+		 	if(!silent) printf("\n%cRe-Pread CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 		 	dump_times(18); 
 		}
 
@@ -11400,22 +11416,22 @@ void dump_cputimes(void)
 		if ((!include_tflag) || (include_mask & (long long)PWRITEV_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd, "Pwritev CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
- 			if(!silent) printf("\n%cPwritev CPU utilization report (Zero values should be ignored)%c\n",042,042);
+ 			if(!silent) printf("\n%cPwritev CPU utilization report (Zero values should be ignored)%c\n",'"','"');
  			dump_times(19); 
 			if(bif_flag)
 				do_label(bif_fd, "Re-pwritev CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
- 			if(!silent) printf("\n%cRe-Pwritev CPU utilization report (Zero values should be ignored)%c\n",042,042);
+ 			if(!silent) printf("\n%cRe-Pwritev CPU utilization report (Zero values should be ignored)%c\n",'"','"');
  			dump_times(20); 
 		}
 
 		if ((!include_tflag) || (include_mask & (long long)PREADV_MASK)) {
 			if(bif_flag)
 				do_label(bif_fd, "Preadv CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-			if(!silent) printf("\n%cPreadv CPU utilization report (Zero values should be ignored)%c\n",042,042);
+			if(!silent) printf("\n%cPreadv CPU utilization report (Zero values should be ignored)%c\n",'"','"');
  			dump_times(21); 
 			if(bif_flag)
 				do_label(bif_fd, "Re-preadv CPU utilization report (Zero values should be ignored)", bif_row++, bif_column);
-			if(!silent) printf("\n%cRe-Preadv CPU utilization report (Zero values should be ignored)%c\n",042,042);
+			if(!silent) printf("\n%cRe-Preadv CPU utilization report (Zero values should be ignored)%c\n",'"','"');
 			dump_times(22); 
 		}
 #endif
@@ -18561,18 +18577,18 @@ int fd;
 
 	/* Read a little of the file */
 	if(direct_flag)
-		read(fd,nbuff,page_size);
+		junk=read(fd,nbuff,page_size);
 	else
-		read(fd,nbuff,1);
+		junk=read(fd,nbuff,1);
 
 	/* Skip into the file */
 	I_LSEEK(fd,page_size,SEEK_SET);
 
 	/* Read a little of the file */
 	if(direct_flag)
-		read(fd,nbuff,page_size);
+		junk=read(fd,nbuff,page_size);
 	else
-		read(fd,nbuff,1);
+		junk=read(fd,nbuff,1);
 
 	/* Restore current position in file, before disruption */
 	I_LSEEK(fd,current,SEEK_SET);
@@ -20332,7 +20348,7 @@ long long numrecs64, reclen;
           strcat(command,my_port_num);
         }
 	strcat(command," '");
-	system(command);
+	junk=system(command);
 /*
 	system("remsh rsnperf '/home/capps/niozone/iozone -+s -t 1 -r 4 -s 8 -+c rsnperf'");
 
@@ -21332,7 +21348,7 @@ get_client_info()
 	}
 	while(1)
 	{
-          	if (count >= MAXSTREAMS) {                                                                           
+          	if (count > MAXSTREAMS) {                                                                           
             	  printf("Too many lines in client file - max of %d supported\n",
 			MAXSTREAMS);
             	  exit(7);
@@ -21769,7 +21785,7 @@ int client_flag;
 			sp_location, (int)reclen/1024, 
 			(int)kilos,sp_master_host);
 		/*printf("%s\n",sp_command);*/
-		system(sp_command);
+		junk=system(sp_command);
 		exit(0);
 	}
 	else
@@ -21845,7 +21861,7 @@ float throughput;
 	char mybuf[1024];
 	sprintf(mybuf,"%d %f",count, throughput);
 	msfd=sp_start_child_send(sp_dest, port, &sp_my_cs_addr);
-	write(msfd,mybuf,1024);
+	junk=write(msfd,mybuf,1024);
 	if(cdebug)
 		printf("Sending result\n");
 	close(msfd);
@@ -22523,7 +22539,7 @@ char *test;
 		   sprintf(command_line,"%s %s",imon_start,test);
 		else
 		   sprintf(command_line,"%s %s&",imon_start,test);
-		system(command_line);
+		junk=system(command_line);
 	}
 }
 #ifdef HAVE_ANSIC_C
@@ -22541,7 +22557,7 @@ char *test;
 		   sprintf(command_line,"%s %s",imon_stop,test);
 		else
 		   sprintf(command_line,"%s %s &",imon_stop,test);
-		system(command_line);
+		junk=system(command_line);
 	}
 }
 
@@ -22891,7 +22907,15 @@ typedef struct sockaddr_in6      sockaddr_in6_t;
 /*
  * Routine to mimic gettimeofday() using a remote PIT server 
  */
-int pit_gettimeofday( struct timeval *tp, struct timezone *foo,
+#if defined(_SUA_)
+struct timezone {
+	int 				tz_minuteswest;				
+	int 				tz_dsttime;							
+};
+#endif
+
+int 
+pit_gettimeofday( struct timeval *tp, struct timezone *foo,
 	char *pit_hostname, char *pit_service)
 {
 	int            	sckt;          /* socket descriptor */
@@ -23015,7 +23039,7 @@ static void pit( int sckt, struct timeval *tp)
    ** Send a datagram to the server to wake it up.  The content isn't
    ** important, but something must be sent to let it know we want the TOD.
    */
-   write( sckt, "Are you there?", 14 );
+   junk=write( sckt, "Are you there?", 14 );
    /*
    ** Read the PIT from the remote host.
    */
@@ -23028,4 +23052,11 @@ static void pit( int sckt, struct timeval *tp)
    tp->tv_sec = (long)(value / 1000000);
    tp->tv_usec = (long)(value % 1000000);
 }  
+
+/* sync does not exist in SUA */
+#if defined(_SUA_)
+sync()
+{
+}
+#endif
 

@@ -68,6 +68,13 @@
 #define PATH_MAX 255
 #endif
 
+#if defined(_SUA_)
+extern char *optarg;
+extern char *opterr;
+int fsync();
+int getopt();
+#endif
+int junk, *junkp;
 int x,excel;
 int verbose = 0;
 int sz = 1;
@@ -120,7 +127,7 @@ void bzero();
 void clear_stats();
 int validate(char *, int , char );
 
-#define THISVERSION "        $Revision: 1.53 $"
+#define THISVERSION "        $Revision: 1.56 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;
@@ -145,8 +152,8 @@ void purge_buffer_cache()
 	char command[1024];
 	int ret,i;
 
-	getcwd(cwd, sizeof(cwd));
-	chdir("/");
+	junkp=(int *)getcwd(cwd, sizeof(cwd));
+	junk=chdir("/");
 	strcpy(command,"umount ");
 	strcat(command, mountname);
         /*
@@ -161,8 +168,8 @@ void purge_buffer_cache()
         }
 	strcpy(command,"mount ");
 	strcat(command, mountname);
-	system(command);
-	chdir(cwd);
+	junk=system(command);
+	junk=chdir(cwd);
 }
 
 int main(int argc, char **argv)
@@ -254,7 +261,7 @@ int main(int argc, char **argv)
 		" Total_files");
 #endif
 	}
-	chdir(thedir); /* change starting point */
+	junk=chdir(thedir); /* change starting point */
 	if(x==0)
 		x=1;
 	if(range==0)
@@ -605,7 +612,7 @@ dir_create(int x)
 	 	stats[_STAT_DIR_CREATE].best=stats[_STAT_DIR_CREATE].speed;
 	  if(stats[_STAT_DIR_CREATE].speed > stats[_STAT_DIR_CREATE].worst)
 		 stats[_STAT_DIR_CREATE].worst=stats[_STAT_DIR_CREATE].speed;
-	  chdir(buf);
+	  junk=chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
 	    sprintf(buf,"fileop_L1_%d_L2_%d",i,j);
@@ -626,7 +633,7 @@ dir_create(int x)
 		 stats[_STAT_DIR_CREATE].best=stats[_STAT_DIR_CREATE].speed;
 	    if(stats[_STAT_DIR_CREATE].speed > stats[_STAT_DIR_CREATE].worst)
 		 stats[_STAT_DIR_CREATE].worst=stats[_STAT_DIR_CREATE].speed;
-	    chdir(buf);
+	    junk=chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
 	      sprintf(buf,"fileop_dir_%d_%d_%d",i,j,k);
@@ -647,12 +654,12 @@ dir_create(int x)
 		 stats[_STAT_DIR_CREATE].best=stats[_STAT_DIR_CREATE].speed;
 	      if(stats[_STAT_DIR_CREATE].speed > stats[_STAT_DIR_CREATE].worst)
 		 stats[_STAT_DIR_CREATE].worst=stats[_STAT_DIR_CREATE].speed;
-	      chdir(buf);
-	      chdir("..");
+	      junk=chdir(buf);
+	      junk=chdir("..");
 	    }
-	    chdir("..");
+	    junk=chdir("..");
 	  }
-	  chdir("..");
+	  junk=chdir("..");
 	}
 }
 
@@ -668,22 +675,22 @@ dir_traverse(int x)
 	{
 	  sprintf(buf,"fileop_L1_%d",i);
 	  stats[_STAT_DIR_TRAVERSE].starttime=time_so_far();
-	  chdir(buf);
+	  junk=chdir(buf);
 	  stats[_STAT_DIR_TRAVERSE].endtime=time_so_far();
 	  time1=stats[_STAT_DIR_TRAVERSE].endtime-stats[_STAT_DIR_TRAVERSE].starttime;
 	  for(j=0;j<x;j++)
 	  {
 	    sprintf(buf,"fileop_L1_%d_L2_%d",i,j);
 	    stats[_STAT_DIR_TRAVERSE].starttime=time_so_far();
-	    chdir(buf);
+	    junk=chdir(buf);
 	    stats[_STAT_DIR_TRAVERSE].endtime=time_so_far();
 	    time2=stats[_STAT_DIR_TRAVERSE].endtime-stats[_STAT_DIR_TRAVERSE].starttime;
 	    for(k=0;k<x;k++)
 	    {
 	      sprintf(buf,"fileop_dir_%d_%d_%d",i,j,k);
 	      stats[_STAT_DIR_TRAVERSE].starttime=time_so_far();
-	      chdir(buf);
-	      chdir("..");
+	      junk=chdir(buf);
+	      junk=chdir("..");
 	      stats[_STAT_DIR_TRAVERSE].endtime=time_so_far();
 	      stats[_STAT_DIR_TRAVERSE].speed=stats[_STAT_DIR_TRAVERSE].endtime-stats[_STAT_DIR_TRAVERSE].starttime;
 	      if(stats[_STAT_DIR_TRAVERSE].speed < (double)0.0)
@@ -696,7 +703,7 @@ dir_traverse(int x)
 		 stats[_STAT_DIR_TRAVERSE].worst=stats[_STAT_DIR_TRAVERSE].speed;
 	    }
 	    stats[_STAT_DIR_TRAVERSE].starttime=time_so_far();
-	    chdir("..");
+	    junk=chdir("..");
 	    stats[_STAT_DIR_TRAVERSE].endtime=time_so_far();
 	    stats[_STAT_DIR_TRAVERSE].speed=time2+stats[_STAT_DIR_TRAVERSE].endtime-stats[_STAT_DIR_TRAVERSE].starttime;
 	    if(stats[_STAT_DIR_TRAVERSE].speed < (double)0.0)
@@ -709,7 +716,7 @@ dir_traverse(int x)
 		 stats[_STAT_DIR_TRAVERSE].worst=stats[_STAT_DIR_TRAVERSE].speed;
 	  }
 	  stats[_STAT_DIR_TRAVERSE].starttime=time_so_far();
-	  chdir("..");
+	  junk=chdir("..");
 	  stats[_STAT_DIR_TRAVERSE].endtime=time_so_far();
 	  stats[_STAT_DIR_TRAVERSE].speed=time1+stats[_STAT_DIR_TRAVERSE].endtime-stats[_STAT_DIR_TRAVERSE].starttime;
 	  if(stats[_STAT_DIR_TRAVERSE].speed < (double)0.0)
@@ -746,7 +753,7 @@ file_create(int x)
 	      printf("Mkdir failed\n");
 	      exit(1);
 	  }
-	  chdir(buf);
+	  junk=chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
 	    sprintf(buf,"fileop_L1_%d_L2_%d",i,j);
@@ -756,7 +763,7 @@ file_create(int x)
 	      printf("Mkdir failed\n");
 	      exit(1);
 	    }
-	    chdir(buf);
+	    junk=chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
 	      sprintf(buf,"fileop_file_%d_%d_%d",i,j,k);
@@ -781,7 +788,7 @@ file_create(int x)
 		 stats[_STAT_CREATE].worst=stats[_STAT_CREATE].speed;
 
 	      stats[_STAT_WRITE].starttime=time_so_far();
-	      write(fd,mbuffer,sz);
+	      junk=write(fd,mbuffer,sz);
 	      stats[_STAT_WRITE].endtime=time_so_far();
 	      stats[_STAT_WRITE].counter++;
 	      stats[_STAT_WRITE].speed=stats[_STAT_WRITE].endtime-stats[_STAT_WRITE].starttime;
@@ -807,9 +814,9 @@ file_create(int x)
 	      if(stats[_STAT_CLOSE].speed > stats[_STAT_CLOSE].worst)
 		 stats[_STAT_CLOSE].worst=stats[_STAT_CLOSE].speed;
 	    }
-	    chdir("..");
+	    junk=chdir("..");
 	  }
-	  chdir("..");
+	  junk=chdir("..");
 	}
 }
 
@@ -824,11 +831,11 @@ file_stat(int x)
 	for(i=0;i<x;i++)
 	{
 	  sprintf(buf,"fileop_L1_%d",i);
-	  chdir(buf);
+	  junk=chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
 	    sprintf(buf,"fileop_L1_%d_L2_%d",i,j);
-	    chdir(buf);
+	    junk=chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
 	      sprintf(buf,"fileop_file_%d_%d_%d",i,j,k);
@@ -850,9 +857,9 @@ file_stat(int x)
 	      if(stats[_STAT_STAT].speed > stats[_STAT_STAT].worst)
 		 stats[_STAT_STAT].worst=stats[_STAT_STAT].speed;
 	    }
-	    chdir("..");
+	    junk=chdir("..");
 	  }
-	  chdir("..");
+	  junk=chdir("..");
 	}
 }
 
@@ -866,11 +873,11 @@ file_access(int x)
 	for(i=0;i<x;i++)
 	{
 	  sprintf(buf,"fileop_L1_%d",i);
-	  chdir(buf);
+	  junk=chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
 	    sprintf(buf,"fileop_L1_%d_L2_%d",i,j);
-	    chdir(buf);
+	    junk=chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
 	      sprintf(buf,"fileop_file_%d_%d_%d",i,j,k);
@@ -893,9 +900,9 @@ file_access(int x)
 	      if(stats[_STAT_ACCESS].speed > stats[_STAT_ACCESS].worst)
 		 stats[_STAT_ACCESS].worst=stats[_STAT_ACCESS].speed;
 	    }
-	    chdir("..");
+	    junk=chdir("..");
 	  }
-	  chdir("..");
+	  junk=chdir("..");
 	}
 }
 
@@ -909,11 +916,11 @@ file_chmod(int x)
 	for(i=0;i<x;i++)
 	{
 	  sprintf(buf,"fileop_L1_%d",i);
-	  chdir(buf);
+	  junk=chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
 	    sprintf(buf,"fileop_L1_%d_L2_%d",i,j);
-	    chdir(buf);
+	    junk=chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
 	      sprintf(buf,"fileop_file_%d_%d_%d",i,j,k);
@@ -936,9 +943,9 @@ file_chmod(int x)
 	      if(stats[_STAT_CHMOD].speed > stats[_STAT_CHMOD].worst)
 		 stats[_STAT_CHMOD].worst=stats[_STAT_CHMOD].speed;
 	    }
-	    chdir("..");
+	    junk=chdir("..");
 	  }
-	  chdir("..");
+	  junk=chdir("..");
 	}
 }
 
@@ -954,11 +961,11 @@ file_readdir(int x)
 	for(i=0;i<x;i++)
 	{
 	  sprintf(buf,"fileop_L1_%d",i);
-	  chdir(buf);
+	  junk=chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
 	    sprintf(buf,"fileop_L1_%d_L2_%d",i,j);
-	    chdir(buf);
+	    junk=chdir(buf);
 	    dirbuf=opendir(".");
 	    if(dirbuf==0)
 	    {
@@ -988,9 +995,9 @@ file_readdir(int x)
 	      printf("closedir failed\n");
 	      exit(1);
 	    }
-	    chdir("..");
+	    junk=chdir("..");
 	  }
-	  chdir("..");
+	  junk=chdir("..");
 	}
 }
 
@@ -1005,11 +1012,11 @@ file_link(int x)
 	for(i=0;i<x;i++)
 	{
 	  sprintf(buf,"fileop_L1_%d",i);
-	  chdir(buf);
+	  junk=chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
 	    sprintf(buf,"fileop_L1_%d_L2_%d",i,j);
-	    chdir(buf);
+	    junk=chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
 	      sprintf(buf,"fileop_file_%d_%d_%d",i,j,k);
@@ -1032,9 +1039,9 @@ file_link(int x)
 	      if(stats[_STAT_LINK].speed > stats[_STAT_LINK].worst)
 		 stats[_STAT_LINK].worst=stats[_STAT_LINK].speed;
 	    }
-	    chdir("..");
+	    junk=chdir("..");
 	  }
-	  chdir("..");
+	  junk=chdir("..");
 	}
 }
 
@@ -1049,11 +1056,11 @@ file_unlink(int x)
 	for(i=0;i<x;i++)
 	{
 	  sprintf(buf,"fileop_L1_%d",i);
-	  chdir(buf);
+	  junk=chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
 	    sprintf(buf,"fileop_L1_%d_L2_%d",i,j);
-	    chdir(buf);
+	    junk=chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
 	      sprintf(buf,"fileop_file_%d_%d_%d",i,j,k);
@@ -1076,9 +1083,9 @@ file_unlink(int x)
 	      if(stats[_STAT_UNLINK].speed > stats[_STAT_UNLINK].worst)
 		 stats[_STAT_UNLINK].worst=stats[_STAT_UNLINK].speed;
 	    }
-	    chdir("..");
+	    junk=chdir("..");
 	  }
-	  chdir("..");
+	  junk=chdir("..");
 	}
 }
 
@@ -1092,16 +1099,16 @@ dir_delete(int x)
 	for(i=0;i<x;i++)
 	{
 	  sprintf(buf,"fileop_L1_%d",i);
-	  chdir(buf);
+	  junk=chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
 	    sprintf(buf,"fileop_L1_%d_L2_%d",i,j);
-	    chdir(buf);
+	    junk=chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
 	      sprintf(buf,"fileop_dir_%d_%d_%d",i,j,k);
-	      chdir(buf);
-	      chdir("..");
+	      junk=chdir(buf);
+	      junk=chdir("..");
 	      stats[_STAT_DIR_DELETE].starttime=time_so_far();
 	      rmdir(buf);
 	      stats[_STAT_DIR_DELETE].endtime=time_so_far();
@@ -1115,7 +1122,7 @@ dir_delete(int x)
 	      if(stats[_STAT_DIR_DELETE].speed > stats[_STAT_DIR_DELETE].worst)
 		 stats[_STAT_DIR_DELETE].worst=stats[_STAT_DIR_DELETE].speed;
 	    }
-	    chdir("..");
+	    junk=chdir("..");
 	    sprintf(buf,"fileop_L1_%d_L2_%d",i,j);
 	    stats[_STAT_DIR_DELETE].starttime=time_so_far();
 	    rmdir(buf);
@@ -1130,7 +1137,7 @@ dir_delete(int x)
 	    if(stats[_STAT_DIR_DELETE].speed > stats[_STAT_DIR_DELETE].worst)
 		 stats[_STAT_DIR_DELETE].worst=stats[_STAT_DIR_DELETE].speed;
 	  }
-	  chdir("..");
+	  junk=chdir("..");
 	  sprintf(buf,"fileop_L1_%d",i);
 	  stats[_STAT_DIR_DELETE].starttime=time_so_far();
 	  rmdir(buf);
@@ -1157,11 +1164,11 @@ file_delete(int x)
 	for(i=0;i<x;i++)
 	{
 	  sprintf(buf,"fileop_L1_%d",i);
-	  chdir(buf);
+	  junk=chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
 	    sprintf(buf,"fileop_L1_%d_L2_%d",i,j);
-	    chdir(buf);
+	    junk=chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
 	      sprintf(buf,"fileop_file_%d_%d_%d",i,j,k);
@@ -1178,11 +1185,11 @@ file_delete(int x)
 	      if(stats[_STAT_DELETE].speed > stats[_STAT_DELETE].worst)
 		 stats[_STAT_DELETE].worst=stats[_STAT_DELETE].speed;
 	    }
-	    chdir("..");
+	    junk=chdir("..");
 	    sprintf(buf,"fileop_L1_%d_L2_%d",i,j);
 	    rmdir(buf);
 	  }
-	  chdir("..");
+	  junk=chdir("..");
 	  sprintf(buf,"fileop_L1_%d",i);
 	  rmdir(buf);
 	}
@@ -1200,11 +1207,11 @@ file_read(int x)
 	for(i=0;i<x;i++)
 	{
 	  sprintf(buf,"fileop_L1_%d",i);
-	  chdir(buf);
+	  junk=chdir(buf);
 	  for(j=0;j<x;j++)
 	  {
 	    sprintf(buf,"fileop_L1_%d_L2_%d",i,j);
-	    chdir(buf);
+	    junk=chdir(buf);
 	    for(k=0;k<x;k++)
 	    {
 	      sprintf(buf,"fileop_file_%d_%d_%d",i,j,k);
@@ -1248,9 +1255,9 @@ file_read(int x)
 	      if(stats[_STAT_READ].speed > stats[_STAT_READ].worst)
 		 stats[_STAT_READ].worst=stats[_STAT_READ].speed;
 	    }
-	    chdir("..");
+	    junk=chdir("..");
 	  }
-	  chdir("..");
+	  junk=chdir("..");
 	}
 }
 

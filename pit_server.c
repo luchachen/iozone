@@ -27,7 +27,11 @@
 #include <stdio.h>        /* printf(3) et al.                            */
 #include <stdlib.h>       /* exit(2).                                    */
 #include <string.h>       /* String manipulation & memory functions.     */
+#if defined(_SUA_)
+#include <poll.h>         /* poll(2) and related definitions.            */
+#else
 #include <sys/poll.h>     /* poll(2) and related definitions.            */
+#endif
 #include <sys/socket.h>   /* Socket functions (socket(2), bind(2), etc). */
 #include <time.h>         /* time(2) & ctime(3).                         */
 #include <sys/time.h>     /* gettimeofday 				 */
@@ -36,6 +40,10 @@
 #if defined (Windows)
 #include <Windows.h>
 int errno;
+#endif
+
+#if defined(_SUA_)
+extern char *optarg, *opterr;
 #endif
 
 /*

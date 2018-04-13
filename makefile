@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.131 $
+# Version $Revision: 1.133 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -72,6 +72,7 @@ all:
 	@echo "        ->   sppux                (32bit)   <-"
 	@echo "        ->   sppux-10.1           (32bit)   <-"
 	@echo "        ->   sppux_no_ansi-10.1   (32bit)   <-"
+	@echo "        ->   SUA                  (32bit)   <-"
 	@echo "        ->   TRU64                (64bit)   <-"
 	@echo "        ->   UWIN                 (32bit)   <-"
 	@echo "        ->   Windows (95/98/NT)   (32bit)   <-"
@@ -328,7 +329,8 @@ Solaris:	iozone_solaris.o libasync.o libbif.o fileop_Solaris.o pit_server.o
 		-lthread -lpthread -lposix4 -lnsl -laio -lsocket \
 		-o iozone
 	$(CC)  -O fileop_Solaris.o -o fileop
-	$(CC)  -O pit_server.o -o pit_server
+	$(CC)  -O pit_server.o -lthread -lpthread -lposix4 -lnsl -laio \
+		-lsocket -o pit_server
 
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
@@ -345,7 +347,8 @@ Solaris10:	iozone_solaris10.o libasync10.o libbif10.o fileop_Solaris10.o pit_ser
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
 	$(CC)  -O fileop_Solaris10.o -o fileop
-	$(CC)  -O pit_server.o -o pit_server
+	$(CC)  -O pit_server.o -lthread -lpthread -lposix4 -lnsl -laio \
+                -lsocket -o pit_server
 
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
@@ -355,7 +358,8 @@ Solaris10cc:	iozone_solaris10cc.o libasync10cc.o libbif10cc.o fileop_Solaris10cc
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
 	$(CC)  -O fileop_Solaris10cc.o -o fileop
-	$(CC)  -O pit_server.o -o pit_server
+	$(CC)  -O pit_server.o -lthread -lpthread -lposix4 -lnsl -laio \
+                -lsocket -o pit_server
 
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
@@ -365,7 +369,8 @@ Solaris10gcc:	iozone_solaris10gcc.o libasync10.o libbif10.o fileop_Solaris10gcc.
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
 	$(GCC)  -O fileop_Solaris10gcc.o -o fileop
-	$(GCC)  -O pit_server.o -o pit_server
+	$(GCC)  -O pit_server.o -lthread -lpthread -lposix4 -lnsl -laio \
+                -lsocket -o pit_server
 
 #
 # Solaris 64 bit build with threads, largefiles, and async I/O
@@ -375,7 +380,8 @@ Solaris10gcc-64:	iozone_solaris10gcc-64.o libasync10-64.o libbif10-64.o fileop_S
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
 	$(GCC)  -O $(S10GCCFLAGS) fileop_Solaris10gcc-64.o -o fileop
-	$(GCC)  -O $(S10GCCFLAGS) pit_server.o -o pit_server
+	$(GCC)  -O $(S10GCCFLAGS) pit_server.o -lthread -lpthread -lposix4 \
+		-lnsl -laio -lsocket -o pit_server
 
 
 #
@@ -386,7 +392,8 @@ Solaris10cc-64:	iozone_solaris10cc-64.o libasync10-64.o libbif10-64.o fileop_Sol
               -lthread -lpthread -lposix4 -lnsl -laio \
               -lsocket -o iozone
 	$(CC)  -O $(S10CCFLAGS) fileop_Solaris10cc-64.o -o fileop
-	$(CC)  -O $(S10CCFLAGS) pit_server.o -o pit_server
+	$(CC)  -O $(S10CCFLAGS) pit_server.o -lthread -lpthread -lposix4 \
+		-lnsl -laio -lsocket -o pit_server
 
 
 
@@ -423,6 +430,16 @@ Windows:	iozone_windows.o libbif.o fileop_windows.o pit_server_win.o
 	$(GCC) -O $(LDFLAGS) iozone_windows.o libbif.o -o iozone
 	$(GCC) -O $(LDFLAGS) fileop_windows.o -o fileop
 	$(GCC) -O $(LDFLAGS) pit_server_win.o -o pit_server
+
+#
+# Windows build requires SUA development environment. You
+# can get this from Microsoft
+# No largefiles, No async I/O
+#
+SUA:	iozone_sua.o libbif.o fileop_sua.o pit_server_sua.o
+	$(GCC) -O $(LDFLAGS) iozone_sua.o libbif.o -o iozone
+	$(GCC) -O $(LDFLAGS) fileop_sua.o -o fileop
+	$(GCC) -O $(LDFLAGS) pit_server_sua.o -o pit_server
 
 #
 # Uwin build requires UWIN development environment. 
@@ -617,7 +634,13 @@ pit_server_win.o:	pit_server.c
 	@echo ""
 	@echo "Building the pit_server for Windows"
 	@echo ""
-	$(CC) -c  $(CFLAGS) -DWindows pit_server.c  -o pit_server_win.o 
+	$(GCC) -c  $(CFLAGS) -DWindows pit_server.c  -o pit_server_win.o 
+
+pit_server_sua.o:	pit_server.c
+	@echo ""
+	@echo "Building the pit_server for Windows SUA"
+	@echo ""
+	$(GCC) -c  $(CFLAGS) -D_SUA_ pit_server.c  -o pit_server_sua.o 
 
 iozone_hpuxs-11.0w.o:	iozone.c libasync.c libbif.c
 	@echo ""
@@ -868,6 +891,12 @@ fileop_windows.o: fileop.c
 	@echo ""
 	$(GCC) -Wall -c -O3 $(CFLAGS) -DWindows fileop.c -o fileop_windows.o
 
+fileop_sua.o: fileop.c
+	@echo ""
+	@echo "Building fileop for Windows SUA"
+	@echo ""
+	$(GCC) -Wall -c -O3 $(CFLAGS) -D_SUA_ fileop.c -o fileop_sua.o
+
 iozone_linux-ia64.o:	iozone.c libbif.c libasync.c
 	@echo ""
 	@echo "Building iozone for Linux-ia64"
@@ -1106,6 +1135,19 @@ iozone_windows.o:	iozone.c libasync.c libbif.c fileop.c
 		-o iozone_windows.o
 	$(GCC) -c -O -Dunix -DHAVE_ANSIC_C -DNO_MADVISE \
 		-DWindows $(CFLAGS) libbif.c -o libbif.o
+
+
+#		-D_SUA_ $(CFLAGS) -DDONT_HAVE_O_DIRECT iozone.c \
+
+iozone_sua.o:	iozone.c libasync.c libbif.c fileop.c
+	@echo ""
+	@echo "Building iozone for Windows SUA (No async I/O)"
+	@echo ""
+	$(GCC) -c -O -Dunix -DHAVE_ANSIC_C -D_XOPEN_SOURCE -DNO_MADVISE  \
+		-D_SUA_ $(CFLAGS) iozone.c \
+		-DNAME='"Windows SUA"' -o iozone_sua.o
+	$(GCC) -c -O -Dunix -D_SUA_ -D_XOPEN_SOURCE -DHAVE_ANSIC_C \
+		-DNO_MADVISE $(CFLAGS) libbif.c -o libbif.o
 
 iozone_uwin.o:	iozone.c libbif.c
 	@echo ""
