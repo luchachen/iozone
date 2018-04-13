@@ -1417,4 +1417,8 @@ Fixes for UWIN compile warnings.
 Revision 3.112 
 =============================================================================
 Fixes for Windows compile warnings. do_compute() proto.
+=============================================================================
+Revision 3.113 
+=============================================================================
+Add definition char *dumb for Solaris to alloc_mem()
 

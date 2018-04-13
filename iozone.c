@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.112 $"
+#define THISVERSION "        Version $Revision: 3.113 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -8854,7 +8854,7 @@ alloc_mem(size)
 long long size;
 {
 	long long size1;
-	char *addr;
+	char *addr,*dumb;
 	int shmid;
 	int tfd;
 
