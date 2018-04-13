@@ -1960,5 +1960,16 @@ Bug fix. -J with -+m not passing compute delay correctly.
 Revision 3.249
 =============================================================================
 Add support for -i 8 when used with -+B (sequential mix)
+=============================================================================
+Revision 3.250
+=============================================================================
+Change the default pattern. Samba is trying to cheat by 
+special casing IOZONE.tmp, and the pattern of 0xA5.
+=============================================================================
+Revision 3.251
+=============================================================================
+Make the default pattern random, and based on Iozone version.
+This is to prevent the hack from Richard Sharpe (in Samba)
+from special casing Iozone, and lying to the user.
 
 

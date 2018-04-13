@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.249 $"
+#define THISVERSION "        Version $Revision: 3.251 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -722,7 +722,7 @@ struct master_neutral_command {
 /* Set the maximum number of types of tests */
 #define MAXTESTS 10
 /* Default fill pattern for verification */
-#define PATTERN 0xA5
+#define PATTERN get_pattern();
 /* Used for Excel internal tables */
 #define MAX_X 100			
 /* Used for Excel internal tables */
@@ -879,6 +879,7 @@ void throughput_test();		/* Multi process throughput 	  */
 void multi_throughput_test();	/* Multi process throughput 	  */
 void prepage();			/* Pre-fault user buffer	  */
 void get_date();
+int get_pattern();		/* Set pattern based on version   */
 #ifdef HAVE_ANSIC_C
 float do_compute(float);	/* compute cycle simulation       */
 #else
@@ -20726,5 +20727,33 @@ get_date(char *where)
 	t=time(0);
 	value=ctime(&t);
 	strcpy(where,value);
+}
+
+/* Richard Sharpe decided to hack up Samba and
+ * have it detect Iozone running, and then
+ * produce the data without doing any actual
+ * I/O. This was a HIGHLY un-ethical thing to
+ * be doing (my opinion). So... the pattern
+ * that he was locking on to, is now random,
+ * and will change with every release of Iozone.
+ * See: http://lists.samba.org/archive/samba-technical/2005-April/040541.html
+ */
+
+int
+get_pattern(void)
+{
+        int i,x,y;
+        char cp[100],*ptr;
+        int pat;
+
+        y=0;
+        ptr=&cp[0];
+        strcpy(cp,THISVERSION);
+        x=strlen(THISVERSION);
+        for(i=0;i<x;i++)
+                y+=*ptr;
+        srand(y);
+        pat=(rand()& 0xff);
+        return(pat);
 }
 
