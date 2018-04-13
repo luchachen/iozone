@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.470 $"
+#define THISVERSION "        Version $Revision: 3.471 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -547,6 +547,9 @@ struct client_command {
 	int c_odsync;
 	int c_diag_v;
 	int c_dedup;
+	int c_dedup_flag;
+	int c_dedup_iflag;
+	int c_dedup_bflag;
 	int c_dedup_interior;
 	int c_dedup_compress;
 	int c_dedup_mseed;
@@ -650,6 +653,9 @@ struct client_neutral_command {
 	char c_odsync[2];
 	char c_diag_v[2];
 	char c_dedup[4];
+	char c_dedup_flag[4];
+	char c_dedup_iflag[4];
+	char c_dedup_bflag[4];
 	char c_dedup_interior[4];
 	char c_dedup_compress[4];
 	char c_dedup_mseed[4];
@@ -1523,7 +1529,7 @@ int hist_summary;
 int op_rate;
 int op_rate_flag;
 char aflag, Eflag, hflag, Rflag, rflag, sflag,del_flag,mix_test;
-char diag_v,sent_stop,dedup,dedup_interior,dedup_compress;
+char diag_v,sent_stop,dedup,dedup_interior,dedup_compress, dedup_flag, dedup_iflag,dedup_bflag;
 char *dedup_ibuf;
 char *dedup_temp;
 char bif_flag;
@@ -2876,6 +2882,7 @@ char **argv;
 						dedup = 0;
 					if(dedup >100)
 						dedup = 100;
+					dedup_flag = 1;
 					sprintf(splash[splash_line++],"\tDedup activated %d percent.\n",dedup);
 					break;
 				case 'y':  /* Argument is the percent of interior dedup */
@@ -2891,6 +2898,7 @@ char **argv;
 						dedup_interior = 0;
 					if(dedup_interior >100)
 						dedup_interior = 100;
+					dedup_iflag = 1;
 					sprintf(splash[splash_line++],"\tDedup within & across %d percent.\n",dedup_interior);
 					break;
 				case 'C':  /* Argument is the percent of dedupe within & !across */
@@ -2906,6 +2914,7 @@ char **argv;
 						dedup_compress = 0;
 					if(dedup_compress >100)
 						dedup_compress = 100;
+					dedup_bflag = 1;
 					sprintf(splash[splash_line++],"\tDedup within %d percent.\n",dedup_compress);
 					break;
 				case 'S':  /* Argument is the seed for dedup */
@@ -3253,7 +3262,7 @@ char **argv;
 		printf("\n\tCan not do both -H and -k\n");
 		exit(20);
 	}
-	if((dedup | dedup_interior) && diag_v)
+	if((dedup_flag | dedup_iflag) && diag_v)
 	{
 		printf("\n\tCan not do both -+d and -+w\n");
 		exit(20);
@@ -7302,7 +7311,7 @@ char sverify;
 	  }
 	  return(0);
 	}
-	if(dedup)
+	if(dedup_flag)
 	{
 		gen_new_buf((char *)dedup_ibuf,(char *)dedup_temp, (long)recnum, (int)length,(int)dedup, (int) dedup_interior, dedup_compress, 0);
 		de_ibuf = (long *)buffer;
@@ -7456,7 +7465,7 @@ char sverify;
 	x=0;
 	mpattern=pattern;
 	/* printf("Fill: Sverify %d verify %d diag_v %d\n",sverify,verify,diag_v);*/
-	if(dedup)
+	if(dedup_flag)
 	{
 		gen_new_buf((char *)dedup_ibuf,(char *)buffer, (long)recnum, (int)length,(int)dedup, (int) dedup_interior, dedup_compress, 1);
 		return;
@@ -7862,7 +7871,7 @@ long long *data2;
 		pbuff=mainbuffer;
 		if(fetchon)
 			fetchit(pbuff,reclen);
-		if(verify || dedup || dedup_interior)
+		if(verify || dedup_flag || dedup_iflag)
 			fill_buffer(pbuff,reclen,(long long)pattern,sverify,(long long)0);
 		starttime1 = time_so_far();
 #ifdef unix
@@ -7906,7 +7915,7 @@ long long *data2;
 				mylockr((int) fd, (int) 1, (int)0,
 				  lock_offset, reclen);
 			}
-			if((verify && diag_v) || dedup || dedup_interior)
+			if((verify && diag_v) || dedup_flag || dedup_iflag)
 				fill_buffer(pbuff,reclen,(long long)pattern,sverify,i);
 			if(compute_flag)
 				compute_val+=do_compute(compute_time);
@@ -7918,12 +7927,12 @@ long long *data2;
 				pbuff = mbuffer + Index;	
 				if(diag_v)
 				{
-				   if(verify || dedup || dedup_interior)
+				   if(verify || dedup_flag || dedup_iflag)
 					fill_buffer(pbuff,reclen,(long long)pattern,sverify,(long long)i);
 				}
 				else
 				{
-				   if(verify || dedup || dedup_interior)
+				   if(verify || dedup_flag || dedup_iflag)
 					fill_buffer(pbuff,reclen,(long long)pattern,sverify,(long long)0);
 				}
 			}
@@ -7931,7 +7940,7 @@ long long *data2;
 			{
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-				if(verify || dedup || dedup_interior)
+				if(verify || dedup_flag || dedup_iflag)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 				if(purge)
 					purgeit(nbuff,reclen);
@@ -8273,7 +8282,7 @@ long long *data2;
 		buffer=mainbuffer;
 		if(fetchon)
 			fetchit(buffer,reclen);
-		if(verify || dedup || dedup_interior)
+		if(verify || dedup_flag || dedup_iflag)
 			fill_buffer(buffer,reclen,(long long)pattern,sverify,(long long)0);
 		starttime1 = time_so_far();
 		compute_val=(double)0;
@@ -8287,7 +8296,7 @@ long long *data2;
 					Index=0;
 				buffer = mbuffer + Index;	
 			}
-			if((verify & diag_v) || dedup || dedup_interior)
+			if((verify & diag_v) || dedup_flag || dedup_iflag)
 				fill_buffer(buffer,reclen,(long long)pattern,sverify,i);
 			if(purge)
 				purgeit(buffer,reclen);
@@ -9438,7 +9447,7 @@ long long *data1, *data2;
 	     } /* start write */
 	     else
 	     {
-			if(verify || dedup || dedup_interior)
+			if(verify || dedup_flag || dedup_iflag)
 				fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 			for(i=0; i<numrecs64; i++) 
 			{
@@ -9478,13 +9487,13 @@ long long *data1, *data2;
 				{
 					free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 					nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-					if(verify || dedup || dedup_interior)
+					if(verify || dedup_flag || dedup_iflag)
 						fill_buffer(nbuff,reclen,(long long)pattern,sverify,offset64/reclen);
 				}
 				if(purge)
 					purgeit(nbuff,reclen);
 
-				if((verify & diag_v) || dedup || dedup_interior)
+				if((verify & diag_v) || dedup_flag || dedup_iflag)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,offset64/reclen);
 
 				if (!(h_flag || k_flag || mmapflag))
@@ -10101,7 +10110,7 @@ long long *data1,*data2;
 		signal_handler();
 	}
 	*/
-	if(verify || dedup || dedup_interior)
+	if(verify || dedup_flag || dedup_iflag)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 	starttime1 = time_so_far();
 	if(cpuutilflag)
@@ -10129,10 +10138,10 @@ long long *data1,*data2;
 		{
 			free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 			nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-			if(verify || dedup || dedup_interior)
+			if(verify || dedup_flag || dedup_iflag)
 				fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 		}
-		if((verify & diag_v) || dedup || dedup_interior)
+		if((verify & diag_v) || dedup_flag || dedup_iflag)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 		if(purge)
 			purgeit(nbuff,reclen);
@@ -10739,7 +10748,7 @@ long long *data1,*data2;
 		mbuffer=mainbuffer;
 		if(fetchon)
 			fetchit(nbuff,reclen);
-		if(verify || dedup || dedup_interior)
+		if(verify || dedup_flag || dedup_iflag)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 		starttime1 = time_so_far();
 	        compute_val=(double)0;
@@ -10770,7 +10779,7 @@ long long *data1,*data2;
                                         Index=0;
                                 nbuff = mbuffer + Index;
                         }
-			if((verify && diag_v) || dedup || dedup_interior)
+			if((verify && diag_v) || dedup_flag || dedup_iflag)
 				fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			if(purge)
 				purgeit(nbuff,reclen);
@@ -11289,7 +11298,7 @@ long long *data1,*data2;
 			{
 				piov[xx].piov_base = 
 					(caddr_t)(nbuff+(xx * reclen));
-				if(verify || dedup || dedup_interior)
+				if(verify || dedup_flag || dedup_iflag)
 					fill_buffer(piov[xx].piov_base,reclen,(long long)pattern,sverify,i);
 				piov[xx].piov_len = reclen;
 #ifdef PER_VECTOR_OFFSET
@@ -12942,7 +12951,7 @@ thread_write_test( x)
 	}
 	if(fetchon)			/* Prefetch into processor cache */
 		fetchit(nbuff,reclen);
-	if((verify && !no_copy_flag) || dedup || dedup_interior)
+	if((verify && !no_copy_flag) || dedup_flag || dedup_iflag)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 
 	if(w_traj_flag)
@@ -13046,7 +13055,7 @@ thread_write_test( x)
 			mylockr((int) fd, (int) 1, (int)0,
 			  lock_offset, reclen);
 		}
-		if((verify && !no_copy_flag) || dedup || dedup_interior)
+		if((verify && !no_copy_flag) || dedup_flag || dedup_iflag)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -13129,7 +13138,7 @@ again:
 			     {
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-				if(verify || dedup || dedup_interior)
+				if(verify || dedup_flag || dedup_iflag)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (i*reclen), depth,free_addr);
 			     }
@@ -13637,7 +13646,7 @@ thread_pwrite_test( x)
 	}
 	if(fetchon)			/* Prefetch into processor cache */
 		fetchit(nbuff,reclen);
-	if((verify && !no_copy_flag) || dedup || dedup_interior)
+	if((verify && !no_copy_flag) || dedup_flag || dedup_iflag)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 
 	if(w_traj_flag)
@@ -13727,7 +13736,7 @@ thread_pwrite_test( x)
 			mylockr((int) fd, (int) 1, (int)0,
 			  lock_offset, reclen);
 		}
-		if((verify && !no_copy_flag) || dedup || dedup_interior)
+		if((verify && !no_copy_flag) || dedup_flag || dedup_iflag)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -13794,7 +13803,7 @@ again:
 			     {
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-				if(verify || dedup || dedup_interior)
+				if(verify || dedup_flag || dedup_iflag)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (traj_offset), depth,free_addr);
 			     }
@@ -14344,7 +14353,7 @@ thread_rwrite_test(x)
 	}
 	if(w_traj_flag)
 		rewind(w_traj_fd);
-	if((verify && !no_copy_flag) || dedup || dedup_interior)
+	if((verify && !no_copy_flag) || dedup_flag || dedup_iflag)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 	for(i=0; i<numrecs64; i++){
 		traj_offset= i*reclen ;
@@ -14382,7 +14391,7 @@ thread_rwrite_test(x)
 				printf("\nStop_flag 1\n");
 			break;
 		}
-		if((verify && !no_copy_flag) || dedup || dedup_interior)
+		if((verify && !no_copy_flag) || dedup_flag || dedup_iflag)
 		{
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 		}
@@ -14421,7 +14430,7 @@ fprintf(newstdout,"Chid: %lld Rewriting offset %lld for length of %lld\n",(long 
 			     {
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-				if(verify || dedup || dedup_interior)
+				if(verify || dedup_flag || dedup_iflag)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (i*reclen), depth,free_addr);
 			     }
@@ -18451,7 +18460,7 @@ thread_ranwrite_test( x)
 		fprintf(thread_Lwqfd,"%-25s %s","Random write start: ",
 			now_string);
 	}
-	if((verify && !no_copy_flag) || dedup || dedup_interior)
+	if((verify && !no_copy_flag) || dedup_flag || dedup_iflag)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 	starttime1 = time_so_far();
 	if(cpuutilflag)
@@ -18506,7 +18515,7 @@ thread_ranwrite_test( x)
 			mylockr((int) fd, (int) 1, (int)0,
 			  lock_offset, reclen);
 		}
-		if((verify && !no_copy_flag) || dedup || dedup_interior)
+		if((verify && !no_copy_flag) || dedup_flag || dedup_iflag)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)(current_offset/reclen));
 		if(*stop_flag && !stopped){
 			if(include_flush)
@@ -18566,7 +18575,7 @@ again:
 			     {
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
 				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-				if(verify || dedup || dedup_interior)
+				if(verify || dedup_flag || dedup_iflag)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)(current_offset/reclen));
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (current_offset), depth,free_addr);
 			     }
@@ -21078,6 +21087,9 @@ int send_size;
 	sprintf(outbuf.c_odsync,"%d",send_buffer->c_odsync);
 	sprintf(outbuf.c_diag_v,"%d",send_buffer->c_diag_v);
 	sprintf(outbuf.c_dedup,"%d",send_buffer->c_dedup);
+	sprintf(outbuf.c_dedup_flag,"%d",send_buffer->c_dedup_flag);
+	sprintf(outbuf.c_dedup_iflag,"%d",send_buffer->c_dedup_iflag);
+	sprintf(outbuf.c_dedup_bflag,"%d",send_buffer->c_dedup_bflag);
 	sprintf(outbuf.c_dedup_interior,"%d",send_buffer->c_dedup_interior);
 	sprintf(outbuf.c_dedup_compress,"%d",send_buffer->c_dedup_compress);
 	sprintf(outbuf.c_dedup_mseed,"%d",send_buffer->c_dedup_mseed);
@@ -21933,6 +21945,9 @@ long long numrecs64, reclen;
 	cc.c_sverify = sverify;
 	cc.c_odsync = odsync;
 	cc.c_diag_v = diag_v;
+	cc.c_dedup_flag = dedup_flag;
+	cc.c_dedup_iflag = dedup_iflag;
+	cc.c_dedup_bflag = dedup_bflag;
 	cc.c_dedup = dedup;
 	cc.c_dedup_interior = dedup_interior;
 	cc.c_dedup_compress = dedup_compress;
@@ -22191,6 +22206,9 @@ become_client()
 	sscanf(cnc->c_sverify,"%d",&cc.c_sverify);
 	sscanf(cnc->c_odsync,"%d",&cc.c_odsync);
 	sscanf(cnc->c_diag_v,"%d",&cc.c_diag_v);
+	sscanf(cnc->c_dedup_flag,"%d",&cc.c_dedup_flag);
+	sscanf(cnc->c_dedup_iflag,"%d",&cc.c_dedup_iflag);
+	sscanf(cnc->c_dedup_bflag,"%d",&cc.c_dedup_bflag);
 	sscanf(cnc->c_dedup,"%d",&cc.c_dedup);
 	sscanf(cnc->c_dedup_interior,"%d",&cc.c_dedup_interior);
 	sscanf(cnc->c_dedup_compress,"%d",&cc.c_dedup_compress);
@@ -22277,6 +22295,9 @@ become_client()
 	verify = cc.c_verify;
 	diag_v = cc.c_diag_v;
 	dedup = cc.c_dedup;
+	dedup_flag = cc.c_dedup_flag;
+	dedup_iflag = cc.c_dedup_iflag;
+	dedup_bflag = cc.c_dedup_bflag;
 	dedup_interior = cc.c_dedup_interior;
 	dedup_compress = cc.c_dedup_compress;
 	dedup_mseed = cc.c_dedup_mseed;
@@ -25086,7 +25107,7 @@ void * thread_fwrite_test( x)
             buffer=mainbuffer;
         if(fetchon)
                 fetchit(buffer,reclen);
-        if(verify || dedup || dedup_interior)
+        if(verify || dedup_flag || dedup_iflag)
                 fill_buffer(buffer,reclen,(long long)pattern,sverify,(long long)0);
 
         compute_val=(double)0;
@@ -25171,7 +25192,7 @@ void * thread_fwrite_test( x)
                                 Index=0;
                         buffer = mbuffer + Index;
                 }
-                if((verify & diag_v) || dedup || dedup_interior)
+                if((verify & diag_v) || dedup_flag || dedup_iflag)
                         fill_buffer(buffer,reclen,(long long)pattern,sverify,i);
                 if(purge)
                         purgeit(buffer,reclen);
