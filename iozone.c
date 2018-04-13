@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.465 $"
+#define THISVERSION "        Version $Revision: 3.468 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1043,7 +1043,7 @@ long long l_max(long long,long long);
 void Kill(long long,long long);
 long long l_min(long long,long long);
 void multi_throughput_test(long long,long long);
-long long mythread_create( void *, int );
+long long mythread_create( void *(*func)(void *),int);
 int thread_exit(void);
 void get_resolution(void);
 #ifndef NO_THREADS
@@ -2010,7 +2010,7 @@ char **argv;
 			break;
 #endif
 #if ! defined(DONT_HAVE_O_DIRECT)
-#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined(__FreeBSD__) || defined(solaris)
+#if defined(linux) || defined(__AIX__) || defined(IRIX) || defined(IRIX64) || defined(Windows) || defined(__FreeBSD__) || defined(solaris) || defined(macosx)
 			direct_flag++;
 			sprintf(splash[splash_line++],"\tO_DIRECT feature enabled\n");
 			break;
@@ -12895,7 +12895,7 @@ thread_write_test( x)
 		if(distributed && client_iozone)
 			send_stop();
 		printf("\nCan not open temp file: %s\n", 
-			filename);
+			dummyfile[xx]);
 		perror("open");
 		exit(125);
 	}
@@ -13074,7 +13074,7 @@ thread_write_test( x)
 				if(distributed && client_iozone)
 					send_stop();
 				printf("\nCan not open temp file: %s\n", 
-					filename);
+					dummyfile[xx]);
 				perror("open");
 				exit(125);
 			  }
@@ -13593,7 +13593,7 @@ thread_pwrite_test( x)
 		if(distributed && client_iozone)
 			send_stop();
 		printf("\nCan not open temp file: %s\n", 
-			filename);
+			dummyfile[xx]);
 		perror("open");
 		exit(125);
 	}
@@ -18354,7 +18354,7 @@ thread_ranwrite_test( x)
 		if(distributed && client_iozone)
 			send_stop();
 		printf("\nCan not open temp file: %s\n", 
-			filename);
+			dummyfile[xx]);
 		perror("open");
 		exit(125);
 	}
@@ -18909,8 +18909,7 @@ return(0);
 /************************************************************************/
 #ifndef NO_THREADS
 #ifdef HAVE_ANSIC_C
-long long 
-mythread_create( void *func,int x)
+long long mythread_create( void *(*func)(void *),int x)
 #else
 long long 
 mythread_create( func,x)

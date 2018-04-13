@@ -2597,3 +2597,11 @@ Make more friendly to build on Solaris.
 Revision 3.465
 Make more friendly to build on Solaris.
 =============================================================================
+Revision 3.466
+Fix error messages to use the correct file name from dummyfile[xx] instead of
+"filename" in the thread tests.
+=============================================================================
+Revision 3.467
+Fix compiler warning from Clang on MacOS for mythread_create(). Prototype
+didn't match the formal function definition.
+=============================================================================
