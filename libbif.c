@@ -91,10 +91,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.27 $";
-void do_eof(int );		/* Used internally */
-void do_header(int );		/* Used internally */
-int endian(void);
+char libbif_version[] = "Libbif Version $Revision: 3.28 $";
 #endif
 
 #define BOF 0x9
@@ -158,6 +155,28 @@ struct float_record {		/* Type 3 record */
 	char rgblo;
 	double data;
 	};
+
+#ifdef HAVE_ANSIC_C
+void close_xls(int);
+int create_xls(char *);
+void do_header(int);
+void do_int(int, int, int, int);
+void do_float(int, double, int, int);
+void do_label(int, char *, int, int );
+void do_eof(int) ;
+int endian(void);
+#else
+void
+close_xls(fd);
+int create_xls();
+void do_header();
+void do_int();
+void do_float();
+void do_label();
+void do_eof();
+int endian();
+#endif
+
 /*
  * Write the EOF and close the file 
  */
@@ -166,6 +185,7 @@ void
 close_xls(int fd)
 {
 #else
+void
 close_xls(fd)
 int fd;
 {

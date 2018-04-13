@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.446 $"
+#define THISVERSION "        Version $Revision: 3.449 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -78,6 +78,9 @@ extern  int h_errno; /* imported for errors */
 #endif
 #endif
 
+#ifdef NO_FORK
+#define fork no_fork
+#endif
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -104,7 +107,6 @@ int atoi();
 int close();
 int unlink();
 int main();
-void record_command_line();
 #if !defined(linux)
 int wait();
 #endif
@@ -112,14 +114,6 @@ int fsync();
 void srand48();
 long lrand48();
 void create_list();
-void Poll();
-void print_header();
-void Kill();
-long long l_min();
-long long l_max();
-long long mythread_create();
-int gen_new_buf();
-void touch_dedup();
 void init_by_array64(unsigned long long *, unsigned long long );
 unsigned long long genrand64_int64(void);
 #endif
@@ -318,7 +312,9 @@ THISVERSION,
  */
 #include <strings.h>
 #include <stdlib.h>
+#ifndef NO_SOCKET
 #include <sys/socket.h>
+#endif
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -460,6 +456,22 @@ struct iovec piov[PVECMAX];
 #endif
 
 #define DEDUPSEED 0x2719362
+
+#ifdef NO_SOCKET
+#define socket no_socket
+int no_socket(int, int, int);
+#define accept no_accept
+int no_accept(int , struct sockaddr *, socklen_t *);
+#define bind no_bind
+int   no_bind(int, const struct sockaddr *,  socklen_t);
+#define connect no_connect
+int no_connect(int,  const struct sockaddr *, socklen_t);
+#endif
+
+#ifdef NO_SIGNAL
+#define kill no_kill
+int no_kill(pid_t, int );
+#endif
 
 
 /*
@@ -967,45 +979,142 @@ struct master_neutral_command {
 /*    FUNCTION DECLARATIONS					  */
 /*								  */
 /******************************************************************/
-char *initfile();
 /*int pit_gettimeofday( struct timeval *, struct timezone *, char *, char *);*/
-int pit_gettimeofday( );
 static int openSckt( const char *, const char *, unsigned int );
 static void pit( int, struct timeval *);
-void mmap_end();
-void alloc_pbuf();
 void auto_test();		/* perform automatic test series  */
-void show_help();		/* show development help          */
 static double time_so_far();	/* time since start of program    */
-#ifdef unix
-static double utime_so_far();	/* user time 			  */
-static double stime_so_far();	/* system time   		  */
-static double clk_tck();	/* Get clocks/tick		  */
-static double cputime_so_far();
-#else
-#define cputime_so_far()	time_so_far()
-#endif
 static void update_burst_sleep(int, long long, double *);
 #ifndef NO_THREADS
 static void count_burst(double* burst_acc_time_sec, long long stream_id);
 #endif
-static double time_so_far1();	/* time since start of program    */
-void get_resolution();
-void get_rusage_resolution();
-void signal_handler();		/* clean up if user interrupts us */
-void begin();			/* The main worker in the app     */
-void fetchit();			/* Prime on chip cache		  */
-void purgeit();			/* Purge on chip cache		  */
-void throughput_test();		/* Multi process throughput 	  */
-void multi_throughput_test();	/* Multi process throughput 	  */
-void prepage();			/* Pre-fault user buffer	  */
-void get_date();
-int get_pattern();		/* Set pattern based on version   */
+
 #ifdef HAVE_ANSIC_C
 float do_compute(float);	/* compute cycle simulation       */
-#else
-float do_compute();		/* compute cycle simulation       */
+void begin(off64_t,long long);
+void record_command_line(int, char **);
+void show_help(void);		/* show development help          */
+sighandler_t signal_handler(void);	/* clean up if user interrupts us */
+void auto_test(void);
+void throughput_test(void);
+static double time_so_far(void);
+void fetchit(char *,long long);
+long long verify_buffer(volatile char *,long long, off64_t, long long, unsigned long long, char );
+void purgeit(char *,long long);
+void prepage(char *,long long);
+void write_perf_test(off64_t, long long, long long *,long long *);
+void fwrite_perf_test(off64_t, long long, long long *,long long *);
+void fread_perf_test(off64_t, long long, long long *, long long *);
+void read_perf_test(off64_t,long long,long long *,long long *);
+void mix_perf_test(off64_t,long long,long long *,long long *);
+void random_perf_test(off64_t,long long, long long *,long long *);
+void reverse_perf_test(off64_t,long long,long long *,long long *);
+void rewriterec_perf_test(off64_t ,long long,long long *,long long *);
+void read_stride_perf_test(off64_t,long long,long long *,long long *);
+#ifdef HAVE_PREAD
+void pread_perf_test(off64_t,long long ,long long *,long long *);
+void pwrite_perf_test(off64_t ,long long ,long long *,long long *);
+#endif /* HAVE_PREAD */
+#ifdef HAVE_PREADV
+void preadv_perf_test(off64_t ,long long ,long long *,long long *);
+void pwritev_perf_test(off64_t ,long long ,long long *,long long *);
+#endif /* HAVE_PREADV */
+void store_dvalue(double);
+void print_header(void);
+void dump_excel(void);
+void dump_throughput(void);
+int sp_start_child_send(char *, int , struct in_addr *);
+int sp_start_master_listen(int , int );
+void dump_report(long long);
+void dump_times(long long);
+void Poll(long long);
+long long l_max(long long,long long);
+void Kill(long long,long long);
+long long l_min(long long,long long);
+void multi_throughput_test(long long,long long);
+long long mythread_create( void *(*func)(void *),int );
+int thread_exit(void);
+void get_resolution(void);
+#ifndef NO_THREADS
+pthread_t mythread_self(void);
 #endif
+void dump_throughput_cpu(void);
+char * initfile(int , off64_t ,int ,int );
+void mmap_end( char *, long long);
+void my_nap( int );
+void my_unap( unsigned long long );
+void get_rusage_resolution(void);
+static double time_so_far1(void);
+#ifdef unix
+static double clk_tck(void);	  /* Get the clocks per tick for times */
+static double utime_so_far(void); /* Return user time in ticks as double */
+static double stime_so_far(void); /* Return system time in ticks as double */
+static double cputime_so_far(void); /* Return CPU time in seconds as double */
+#else
+#define cputime_so_far(void)	time_so_far(void)
+#endif
+int start_master_listen(void);
+void master_listen(int , int );
+void child_send(char *, struct master_command *, int );
+void master_send(int , char *, struct client_command *, int );
+void stop_child_listen(int);
+void O_stop_child_send(int);
+void stop_master_listen(int);
+void stop_master_send(int);
+int start_child_listen(int);
+int start_child_listen_async(int);
+void start_child_listen_loop(void);
+int child_attach(int, int);
+void child_listen(int, int);
+void child_listen_async(int, int);
+int start_master_send(char *, int, struct in_addr *);
+int start_master_send_async(char *, int , struct in_addr );
+long long start_child_proc(int ,long long , long long );
+int pick_client(int,long long, long long);
+void become_client(void);
+void tell_master_stats(int, long long, double, double, float, double, char, long long);
+void stop_master_listen_loop(void);
+void tell_master_ready(long long);
+void wait_for_master_go(long long);
+void start_master_listen_loop(int);
+void tell_children_begin(long long);
+void wait_dist_join(void);
+int parse_client_line(char *,int);
+void child_remove_files(int);
+void terminate_child_async(void);
+void distribute_stop(void);
+void send_stop(void);
+void cleanup_children(void);
+void cleanup_comm(void);
+int sp_start_master_send(char *, int , struct in_addr *);
+int sp_start_child_listen(int, int);
+void get_date(char *);
+int get_pattern(void);
+void alloc_pbuf(void);
+int check_filename(char *);
+int gen_new_buf(char *, char *, long, int, int, int, int, int );
+void touch_dedup(char *, int );
+void init_genrand64(unsigned long long);
+long long genrand64_int63(void);
+double genrand64_real1(void);
+double genrand64_real2(void);
+double genrand64_real3(void);
+int pit_gettimeofday( struct timeval *, struct timezone *, char *, char *);
+
+#else  /* NON ANSI C */
+
+float do_compute();		/* compute cycle simulation       */
+void begin();
+void record_command_line();
+void show_help();
+sighandler_t signal_handler();		/* clean up if user interrupts us */
+void auto_test();
+void throughput_test();
+static double time_so_far();
+void fetchit();			/* Prime on chip cache		  */
+long long verify_buffer();
+void purgeit();			/* Purge on chip cache		  */
+void prepage();			/* Pre-fault user buffer	  */
 void write_perf_test();		/* write/rewrite test		  */
 void fwrite_perf_test();	/* fwrite/refwrite test		  */
 void fread_perf_test();		/* fread/refread test		  */
@@ -1024,10 +1133,89 @@ void preadv_perf_test();	/* preadv/re-preadv test	  */
 void pwritev_perf_test();	/* pwritev/re-pwritev test	  */
 #endif /* HAVE_PREADV */
 void store_dvalue();		/* Store doubles array 		  */
+void print_header();
 void dump_excel();
 void dump_throughput();
 int sp_start_child_send();
 int sp_start_master_listen();
+void dump_report();
+void dump_times();
+void Poll();
+long long l_max();
+void Kill();
+long long l_min();
+void multi_throughput_test();	/* Multi process throughput 	  */
+long long mythread_create();
+int thread_exit();
+#ifndef NO_THREADS
+pthread_t mythread_self();
+#endif
+void dump_throughput_cpu();
+char * initfile();
+void mmap_end();
+void my_nap();
+void my_unap();
+void get_resolution();
+void get_rusage_resolution();
+static double time_so_far1();	/* time since start of program    */
+#ifdef unix
+static double clk_tck();	/* Get clocks/tick		  */
+static double utime_so_far();	/* user time 			  */
+static double stime_so_far();	/* system time   		  */
+static double cputime_so_far();
+#else
+#define cputime_so_far()	time_so_far()
+#endif
+int start_master_listen();
+void master_listen();
+void child_send();
+void master_send();
+void stop_child_listen();
+void O_stop_child_send();
+void stop_master_listen();
+void stop_master_send();
+int start_child_listen();
+int start_child_listen_async();
+void start_child_listen_loop();
+int child_attach();
+void child_listen();
+void child_listen_async();
+int start_master_send();
+int start_master_send_async();
+long long start_child_proc();
+int pick_client();
+void become_client();
+void tell_master_stats();
+void stop_master_listen_loop();
+void tell_master_ready();
+void wait_for_master_go();
+void start_master_listen_loop();
+void tell_children_begin();
+void wait_dist_join();
+int parse_client_line();
+void child_remove_files();
+void terminate_child_async();
+void distribute_stop();
+void send_stop();
+void cleanup_children();
+void cleanup_comm(void);
+int sp_start_master_send(char *, int , struct in_addr *);
+int sp_start_child_listen(int, int);
+void get_date();
+int get_pattern();
+void alloc_pbuf();
+int check_filename();
+int gen_new_buf();
+void touch_dedup();
+void init_genrand64();
+long long genrand64_int63();
+double genrand64_real1();
+double genrand64_real2();
+double genrand64_real3();
+int pit_gettimeofday();
+
+#endif /* End of HAVE ANSI C */
+
 #ifdef HAVE_ANSIC_C
 #if defined (HAVE_PREAD) && defined(_LARGEFILE64_SOURCE)
 ssize_t pwrite64(); 
@@ -1038,9 +1226,6 @@ char *getenv();
 char *inet_ntoa();
 int system();
 #endif
-void my_nap();
-void my_unap();
-int thread_exit();
 #ifdef ASYNC_IO
 size_t async_write();
 void async_release();
@@ -1126,9 +1311,6 @@ char *getenv();
 char *inet_ntoa();
 int system();
 #endif
-void my_nap();
-void my_unap();
-int thread_exit();
 void close_xls();
 void do_label();
 int create_xls();
@@ -1587,50 +1769,9 @@ long long rest_val;
  * Sort of... Full prototypes break non-ansi C compilers. No protos is 
  * a bit sloppy, so the compromise is this.
  */
-void child_send();
-int start_child_listen();
-int start_child_listen_async();
-void start_child_listen_loop();
-void child_listen();
-void child_listen_async();
 void stop_child_send();
-void stop_child_listen();
-void cleanup_comm();
-void master_send();
-int start_master_send();
-int start_master_listen();
-int check_filename();
-void master_listen();
-void stop_master_send();
-void stop_master_listen();
-long long start_child_proc();
-int parse_client_line();
-void wait_dist_join();
-void tell_children_begin();
-void start_master_listen_loop();
-void wait_for_master_go();
-void tell_master_ready();
-void stop_master_listen_loop();
-void tell_master_stats();
-void become_client();
-int pick_client();
-long long start_child_proc();
-int start_master_send();
-void child_listen();
-int start_child_listen();
-void stop_master_send();
-void stop_master_listen();
 void stop_child_send();
-void stop_child_listen();
-void master_send();
 void child_send();
-void master_listen();
-int start_master_listen();
-void child_remove_files();
-void terminate_child_async();
-void distribute_stop();
-void send_stop();
-void cleanup_children();
 
 
 /****************************************************************/
@@ -1720,8 +1861,10 @@ char **argv;
 	argcsave=argc;
 	argvsave=argv;
 
-    	signal(SIGINT, signal_handler);	 	/* handle user interrupt */
-    	signal(SIGTERM, signal_handler);	/* handle kill from shell */
+#ifndef NO_SIGNAL
+    	signal((int) SIGINT, (sighandler_t) signal_handler);	 	/* handle user interrupt */
+    	signal((int) SIGTERM, (sighandler_t) signal_handler);	/* handle kill from shell */
+#endif
 
         /********************************************************/
         /* Allocate and align buffer with beginning of the 	*/
@@ -3447,9 +3590,9 @@ void show_help()
 
 ******************************************************************/
 #ifdef HAVE_ANSIC_C
-void signal_handler(void)
+sighandler_t signal_handler(void)
 #else
-void signal_handler()
+sighandler_t signal_handler()
 #endif
 {
 	long long i;
@@ -3842,9 +3985,9 @@ throughput_test()
 		}
 
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create(thread_write_test,(void*)xx);
+		childids[xx] = mythread_create(( void *)thread_write_test,(int)xx);
 #else
-		childids[xx] = mythread_create(thread_write_test,(void*)(long)xx);
+		childids[xx] = mythread_create((void *)thread_write_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("Thread create failed\n");
@@ -4092,9 +4235,9 @@ waitout:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_rwrite_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_rwrite_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_rwrite_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_rwrite_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -4337,9 +4480,9 @@ next0:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_read_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_read_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_read_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_read_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -4572,9 +4715,9 @@ jumpend4:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_rread_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_rread_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_rread_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_rread_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -4812,9 +4955,9 @@ next1:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_reverse_read_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_reverse_read_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_reverse_read_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_reverse_read_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -5046,9 +5189,9 @@ next2:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_stride_read_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_stride_read_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_stride_read_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_stride_read_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -5281,9 +5424,9 @@ next3:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_ranread_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_ranread_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_ranread_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_ranread_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -5511,9 +5654,9 @@ next4:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_mix_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_mix_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_mix_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_mix_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -5741,9 +5884,9 @@ next5:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_ranwrite_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_ranwrite_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_ranwrite_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_ranwrite_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -5974,9 +6117,9 @@ next6:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_pwrite_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_pwrite_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_pwrite_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_pwrite_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -6209,9 +6352,9 @@ next7:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_pread_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_pread_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_pread_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_pread_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -6434,9 +6577,9 @@ next8:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_fwrite_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_fwrite_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_fwrite_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_fwrite_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -6664,9 +6807,9 @@ next9:
 			~(cache_size-1));
 		}
 #ifdef _64BIT_ARCH_
-		childids[xx] = mythread_create( thread_fread_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_fread_test,(int)xx);
 #else
-		childids[xx] = mythread_create( thread_fread_test,(int)xx);
+		childids[xx] = mythread_create( (void *)thread_fread_test,(int)xx);
 #endif
 		if(childids[xx]==-1){
 			printf("\nThread create failed\n");
@@ -6880,9 +7023,9 @@ next10:
 		{
 		   for(xx = 0; xx< num_child ; xx++){	/* Create the children */
 #ifdef _64BIT_ARCH_
-			childids[xx] = mythread_create( thread_cleanup_test,(int)xx);
+			childids[xx] = mythread_create( (void *)thread_cleanup_test,(int)xx);
 #else
-			childids[xx] = mythread_create( thread_cleanup_test,(int)xx);
+			childids[xx] = mythread_create( (void *)thread_cleanup_test,(int)xx);
 #endif
 			if(childids[xx]==-1){
 				printf("\nThread create failed\n");
@@ -18790,7 +18933,7 @@ long long
 mythread_create( void *(*func)(void *),int x)
 #else
 long long 
-mythread_create( func,x)
+mythread_create( func, x)
 void *(*func)(void *);
 int x;
 #endif
@@ -22305,20 +22448,8 @@ become_client()
  */
 #ifdef HAVE_ANSIC_C
 void
-tell_master_stats(testnum , chid, throughput, actual, 
-		 cpu_time, wall_time, stop_flag, child_flag)
-int testnum; 
-long long chid; 
-double throughput, actual, wall_time;
-float cpu_time;
-char stop_flag;
-long long child_flag;
-/*
-void
-tell_master_stats(int testnum , long long chid, double tthroughput, 
-		double actual, float cpu_time, float wall_time, 
-		char stop_flag, long long child_flag)
-*/
+tell_master_stats(int testnum , long long chid, double throughput, double actual, 
+		 float cpu_time, double wall_time, char stop_flag, long long child_flag)
 #else
 void
 tell_master_stats(testnum , chid, throughput, actual, cpu_time, 
@@ -25688,6 +25819,45 @@ static void count_burst(double* burst_acc_time_sec, long long stream_id)
 
 		*burst_acc_time_sec += time_so_far() - burst_start_time_sec;
 	}
+}
+#endif
+
+#ifdef NO_FORK
+pid_t no_fork(void)
+{
+	printf("Fork not supported\n");
+	return(-1);
+}
+#endif
+
+#ifdef NO_SOCKET
+int no_socket(int x, int y, int z)
+{
+	printf("Socket() not supported\n");
+	return(-1);
+}
+int no_accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+{
+	printf("Accept() not supported\n");
+	return(-1);
+}
+int no_bind(int sockfd, const struct sockaddr *my_addr, socklen_t addrlen)
+{
+	printf("Bind() not supported\n");
+	return(-1);
+}
+int  no_connect(int  sockfd,  const  struct  sockaddr  *serv_addr,  socklen_t addrlen)
+{
+	printf("Connect() not supported\n");
+	return(-1);
+}
+#endif
+
+#ifdef NO_SIGNAL
+int no_kill(pid_t pid, int sig)
+{
+	printf("Kill() not supported\n");
+	return(-1);
 }
 #endif
 

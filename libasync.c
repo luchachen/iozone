@@ -1,5 +1,3 @@
-
-
 /* 
  * Library for Posix async read operations with hints.
  * Author: Don Capps
@@ -163,7 +161,7 @@ extern int one;
  * cache, pointed to by async_init(gc) will be of
  * this structure type.
  */
-static const char version[] = "Libasync Version $Revision: 3.28 $";
+static const char version[] = "Libasync Version $Revision: 3.30 $";
 struct cache_ent {
 #if defined(_LARGEFILE64_SOURCE) && defined(__CrayX1__)
 	aiocb64_t myaiocb;		/* For use in large file mode */
@@ -205,20 +203,39 @@ long long max_depth;
 extern int errno;
 static struct cache_ent *alloc_cache();
 static struct cache_ent *incache();
+
+#ifdef HAVE_ANSIC_C
+void async_init(struct cache **,int, int);
+int async_suspend(struct cache_ent *);
+void end_async(struct cache *);
+void takeoff_cache(struct cache *, struct cache_ent *);
+void del_cache(struct cache *);
+void putoninuse(struct cache *,struct cache_ent *);
+void takeoffinuse(struct cache *);
+struct cache_ent * allocate_write_buffer( struct cache *, long long , long long ,long long, off64_t, long long, long long, char *, char *);
+void async_put_on_write_queue(struct cache *, struct cache_ent *);
+void async_write_finish(struct cache *);
+void async_wait_for_write(struct cache *);
+int async_read(struct cache *, long long , char *, off64_t, long long, long long, off64_t, long long);
+struct cache_ent * alloc_cache(struct cache *gc,long long fd,off64_t offset,long long size,long long op);
+struct cache_ent * incache(struct cache *, long long, off64_t, long long);
+int async_read_no_copy(struct cache *, long long, char **, off64_t, long long, long long, off64_t, long long);
+void async_release(struct cache *gc);
+size_t async_write(struct cache *,long long, char *, long long, off64_t, long long);
+size_t async_write_no_copy(struct cache *gc,long long fd,char *buffer,long long size,off64_t offset,long long depth,char *free_addr);
+#else
 void async_init();
 void end_async();
 int async_suspend();
 int async_read();
-void takeoff_cache();
-void del_cache();
 void async_release();
-void putoninuse();
-void takeoffinuse();
 struct cache_ent *allocate_write_buffer();
 size_t async_write();
 void async_wait_for_write();
 void async_put_on_write_queue();
 void async_write_finish();
+struct cache_ent * alloc_cache();
+#endif
 
 /* On Solaris _LP64 will be defined by <sys/types.h> if we're compiling
  * as a 64-bit binary.  Make sure that __LP64__ gets defined in this case,
@@ -235,11 +252,15 @@ void async_write_finish();
 /***********************************************/
 /* Initialization routine to setup the library */
 /***********************************************/
+#ifdef HAVE_ANSIC_C
+void async_init(struct cache **gc,int fd,int flag)
+#else
 void
 async_init(gc,fd,flag)
 struct cache **gc;
 int fd;
 int flag;
+#endif
 {
 #ifdef VXFS
 	if(flag)
@@ -267,9 +288,13 @@ int flag;
 /***********************************************/
 /* Tear down routine to shutdown the library   */
 /***********************************************/
+#ifdef HAVE_ANSIC_C
+void end_async(struct cache *gc)
+#else
 void
 end_async(gc)
 struct cache *gc;
+#endif
 {
 	del_cache(gc);
 	async_write_finish(gc);
@@ -279,8 +304,14 @@ struct cache *gc;
 /***********************************************/
 /* Wait for a request to finish                */
 /***********************************************/
+#ifdef HAVE_ANSIC_C
 int
 async_suspend(struct cache_ent *ce)
+#else
+int
+async_suspend(ce)
+struct cache_ent *ce;
+#endif
 {
 #ifdef _LARGEFILE64_SOURCE 
 #ifdef __LP64__
@@ -332,6 +363,10 @@ async_suspend(struct cache_ent *ce)
  * then the code will wait for the manditory first read.
  *************************************************************************/
 
+#ifdef HAVE_ANSIC_C
+int async_read(struct cache *gc, long long fd, char *ubuffer, off64_t offset, 
+	long long size, long long stride, off64_t max, long long depth)
+#else
 int 
 async_read(gc, fd, ubuffer, offset, size, stride, max, depth)
 struct cache *gc;
@@ -342,6 +377,7 @@ long long size;
 long long stride;
 off64_t max;
 long long depth;
+#endif
 {
 	off64_t a_offset,r_offset;
 	long long a_size;
@@ -473,11 +509,15 @@ out:
  * all memory associated with this cache entry.
  ************************************************************************/
 
+#ifdef HAVE_ANSIC_C
+struct cache_ent * alloc_cache(struct cache *gc,long long fd,off64_t offset,long long size,long long op)
+#else
 struct cache_ent *
 alloc_cache(gc,fd,offset,size,op)
 struct cache *gc;
 long long fd,size,op;
 off64_t offset;
+#endif
 {
 	struct cache_ent *ce;
 	intptr_t temp;
@@ -520,11 +560,16 @@ off64_t offset;
  * This routine checks to see if the requested data is in the
  * cache. 
 *************************************************************************/
+#ifdef HAVE_ANSIC_C
+struct cache_ent *
+incache(struct cache *gc, long long fd, off64_t offset, long long size)
+#else
 struct cache_ent *
 incache(gc,fd,offset,size)
 struct cache *gc;
 long long fd,size;
 off64_t offset;
+#endif
 {
 	struct cache_ent *move;
 	if(gc->head==0)
@@ -550,9 +595,7 @@ off64_t offset;
 *************************************************************************/
 
 void
-takeoff_cache(gc,ce)
-struct cache *gc;
-struct cache_ent *ce;
+takeoff_cache(struct cache *gc, struct cache_ent *ce)
 {
 	struct cache_ent *move;
 	long long found;
@@ -613,9 +656,14 @@ struct cache_ent *ce;
  * be satisfied from the cache. This indicates that the previous
  * async read-ahead was not correct and a new pattern is emerging. 
  ************************************************************************/
+#ifdef HAVE_ANSIC_C
+void
+del_cache(struct cache *gc)
+#else
 void
 del_cache(gc)
 struct cache *gc;
+#endif
 {
 	struct cache_ent *ce;
 	ssize_t ret;
@@ -642,6 +690,10 @@ struct cache *gc;
  * async I/O to be performed and does not require any bcopy to be
  * done to put the data back into the location specified by the caller.
  ************************************************************************/
+#ifdef HAVE_ANSIC_C
+int
+async_read_no_copy(struct cache *gc, long long fd, char **ubuffer, off64_t offset, long long size, long long stride, off64_t max, long long depth)
+#else
 int
 async_read_no_copy(gc, fd, ubuffer, offset, size, stride, max, depth)
 struct cache *gc;
@@ -652,6 +704,7 @@ long long size;
 long long stride;
 off64_t max;
 long long depth;
+#endif
 {
 	off64_t a_offset,r_offset;
 	long long a_size;
@@ -793,9 +846,13 @@ out:
  * the library is now free to return the memory to the pool for later
  * reuse.
  ************************************************************************/
+#ifdef HAVE_ANSIC_C
+void async_release(struct cache *gc)
+#else
 void
 async_release(gc)
 struct cache *gc;
+#endif
 {
 	takeoffinuse(gc);
 }
@@ -806,10 +863,15 @@ struct cache *gc;
  * the buffer it will call back into async_release and the items on the 
  * inuse list will be deallocated.
  ************************************************************************/
+#ifdef HAVE_ANSIC_C
+void
+putoninuse(struct cache *gc,struct cache_ent *entry)
+#else
 void
 putoninuse(gc,entry)
 struct cache *gc;
 struct cache_ent *entry;
+#endif
 {
 	if(gc->inuse_head)
 		entry->forward=gc->inuse_head;
@@ -822,9 +884,14 @@ struct cache_ent *entry;
  * This is called when the application is finished with the data that
  * was provided. The memory may now be returned to the pool.
  ************************************************************************/
+#ifdef HAVE_ANSIC_C
+void
+takeoffinuse(struct cache *gc)
+#else
 void
 takeoffinuse(gc)
 struct cache *gc;
+#endif
 {
 	struct cache_ent *ce;
 	if(gc->inuse_head==0)
@@ -847,6 +914,10 @@ struct cache *gc;
  * depth  ..... How much read-ahead do you want.
  * 
  *************************************************************************/
+#ifdef HAVE_ANSIC_C
+size_t
+async_write(struct cache *gc,long long fd,char *buffer,long long size,off64_t offset,long long depth)
+#else
 size_t
 async_write(gc,fd,buffer,size,offset,depth)
 struct cache *gc;
@@ -854,6 +925,7 @@ long long fd,size;
 char *buffer;
 off64_t offset;
 long long depth;
+#endif
 {
 	struct cache_ent *ce;
 	size_t ret;
@@ -904,6 +976,11 @@ again:
  * needed.
  *************************************************************************/
 
+#ifdef HAVE_ANSIC_C
+struct cache_ent *
+allocate_write_buffer( struct cache *gc, long long fd, long long size,long long op, 
+	off64_t offset, long long w_depth, long long direct, char *buffer, char *free_addr)
+#else
 struct cache_ent *
 allocate_write_buffer(gc,fd,offset,size,op,w_depth,direct,buffer,free_addr)
 struct cache *gc;
@@ -912,6 +989,7 @@ off64_t offset;
 long long w_depth;
 long long direct;
 char *buffer,*free_addr;
+#endif
 {
 	struct cache_ent *ce;
 	intptr_t temp;
@@ -960,10 +1038,15 @@ char *buffer,*free_addr;
  * Put it on the outbound queue.
  *************************************************************************/
 
+#ifdef HAVE_ANSIC_C
+void
+async_put_on_write_queue(struct cache *gc,struct cache_ent *ce)
+#else
 void
 async_put_on_write_queue(gc,ce)
 struct cache *gc;
 struct cache_ent *ce;
+#endif
 {
 	ce->forward=0;
 	ce->back=gc->w_tail;
@@ -979,9 +1062,14 @@ struct cache_ent *ce;
 /*************************************************************************
  * Cleanup all outstanding writes
  *************************************************************************/
+#ifdef HAVE_AHSIC_C
+void
+async_write_finish(struct cache *gc)
+#else
 void
 async_write_finish(gc)
 struct cache *gc;
+#endif
 {
 	while(gc->w_head)
 	{
@@ -994,9 +1082,14 @@ struct cache *gc;
  * Wait for an I/O to finish
  *************************************************************************/
 
+#ifdef HAVE_ANSIC_C
+void
+async_wait_for_write(struct cache *gc)
+#else
 void
 async_wait_for_write(gc)
 struct cache *gc;
+#endif
 {
 	struct cache_ent *ce;
 	size_t ret;
@@ -1054,6 +1147,10 @@ struct cache *gc;
  * free_addr .. address of memory to free after write is completed.
  * 
  *************************************************************************/
+#ifdef HAVE_ANSIC_C
+size_t
+async_write_no_copy(struct cache *gc,long long fd,char *buffer,long long size,off64_t offset,long long depth,char *free_addr)
+#else
 size_t
 async_write_no_copy(gc,fd,buffer,size,offset,depth,free_addr)
 struct cache *gc;
@@ -1062,6 +1159,7 @@ char *buffer;
 off64_t offset;
 long long depth;
 char *free_addr;
+#endif
 {
 	struct cache_ent *ce;
 	size_t ret;
