@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.462 $"
+#define THISVERSION "        Version $Revision: 3.464 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -18941,7 +18941,7 @@ mythread_create( void *(*func)(void *),int x)
 #else
 	pthread_attr_init(&attr);
 	xx=(int )pthread_create((pthread_t *)&ts, (pthread_attr_t *) &attr,
-		(void *)(func), myptr);
+		(void *(*)(void *))(func), myptr);
 #endif
 	bcopy(&ts,&p_childids[meme],sizeof(pthread_t));
 	if(xx < (int)0)
@@ -19937,7 +19937,6 @@ float comp_delay;
 		if(tmptime >= (double)comp_delay)
 			return(tmptime);
 	}
-	return(0.0);
 }
 
 /************************************************************************/
