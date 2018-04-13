@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.157 $"
+#define THISVERSION "        Version $Revision: 3.158 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -1958,8 +1958,8 @@ char **argv;
 				optarg[strlen(optarg)-1]=='G'){
 				minimum_file_size = (long long)(1024 * 1024 * (long long)atoi(optarg));
 			}
-			if(minimum_file_size <= KILOBYTES_START)
-				minimum_file_size=(off64_t)KILOBYTES_START;
+			if(minimum_file_size < RECLEN_START/1024)
+				minimum_file_size=(off64_t)(RECLEN_START/1024);
 #ifdef NO_PRINT_LLD
 			sprintf(splash[splash_line++],"\tUsing minimum file size of %ld kilobytes.\n",minimum_file_size);
 #else
@@ -1981,8 +1981,8 @@ char **argv;
 				optarg[strlen(optarg)-1]=='G'){
 				maximum_file_size = (long long)(1024 * 1024 * (long long)atoi(optarg));
 			}
-			if(maximum_file_size <= KILOBYTES_START)
-				maximum_file_size=(off64_t)KILOBYTES_END;
+			if(maximum_file_size < RECLEN_START/1024)
+				maximum_file_size=(off64_t)(RECLEN_START/1024);
 #ifdef NO_PRINT_LLD
 			sprintf(splash[splash_line++],"\tUsing maximum file size of %ld kilobytes.\n",maximum_file_size);
 #else
