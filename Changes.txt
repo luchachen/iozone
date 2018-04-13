@@ -1308,6 +1308,9 @@ Fix compatibility with AIX for shmat()
 Revision 3.79
 =============================================================================
 Fix throughput labels when user is selecting specific tests with -i option.
-
+=============================================================================
+Revision 3.80
+=============================================================================
+Remove dependency on min() and max(). They are not portable.
 
 

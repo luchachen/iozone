@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.79 $"
+#define THISVERSION "        Version $Revision: 3.80 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -87,8 +87,8 @@ void Poll();
 void print_header();
 void Kill();
 #ifndef Windows
-long long min();
-long long max();
+long long l_min();
+long long l_max();
 #endif
 long long mythread_create();
 #endif
@@ -1299,20 +1299,6 @@ char **argv;
 			fetchon=0;
 			pflag++;
 			purge=1;
-     			pbuffer = (char *) alloc_mem((long long)(3 * cache_size));
-			if(pbuffer == 0) {
-                        	perror("Memory allocation failed:");
-                          	exit(9);
-			}
-#ifdef __LP64__ 
-		     	pbuffer = (char *) 
-				(((unsigned long long)pbuffer + cache_size ) 
-					& ~(cache_size-1));
-#else
-		     	pbuffer = (char *) 
-				(((long)pbuffer + (long)cache_size ) 
-					& ~((long)cache_size-1));
-#endif
 			break;
 		case 'h':	/* show help */
 			hflag++;
@@ -1720,6 +1706,23 @@ char **argv;
 	for(i=0;i<splash_line;i++)
 		if(!silent) printf("%s",splash[i]);
 	record_command_line(argcsave, argvsave);
+	if(pflag) /* Allocate after cache_size is set */
+	{
+     		pbuffer = (char *) alloc_mem((long long)(3 * cache_size));
+		if(pbuffer == 0) {
+                       	perror("Memory allocation failed:");
+                       	exit(9);
+		}
+#ifdef __LP64__ 
+	     	pbuffer = (char *) 
+			(((unsigned long long)pbuffer + cache_size ) 
+				& ~(cache_size-1));
+#else
+	     	pbuffer = (char *) 
+			(((long)pbuffer + (long)cache_size ) 
+				& ~((long)cache_size-1));
+#endif
+	}
 	if(distributed && master_iozone)
 	{
 		if(maxt > clients_found)
@@ -1992,15 +1995,15 @@ char **argv;
 	/* Only bzero or fill that which you will use. The buffer is very large */
 	if(verify )	
 	{
-		fill_buffer((char *)buffer,min(reclen,cache_size),(long long)pattern,(char)sverify);
+		fill_buffer((char *)buffer,l_min(reclen,(long long)cache_size),(long long)pattern,(char)sverify);
 		if(pflag)
-			fill_buffer((char *)pbuffer,min(reclen,cache_size),(long long)pattern,(char)sverify);
+			fill_buffer((char *)pbuffer,l_min(reclen,(long long)cache_size),(long long)pattern,(char)sverify);
 		if(mflag)
-			fill_buffer((char *)mbuffer,min(reclen,cache_size),(long long)pattern,(char)sverify);
+			fill_buffer((char *)mbuffer,l_min(reclen,(long long)cache_size),(long long)pattern,(char)sverify);
 	}
 	else
 	{
-		bzero(buffer,(size_t)min(reclen,cache_size));
+		bzero(buffer,(size_t)l_min(reclen,(long long)cache_size));
 	}
 
 #ifndef NO_THREADS
@@ -4596,12 +4599,15 @@ long long reclen;
 #endif
 {
 	char *where;
-	long long rsize;
-	long long tsize;
+	long rsize;
+	long tsize;
 	VOLATILE long long x[200];
-	long long i;
+	long i,cache_lines_per_rec;
+	long cache_lines_per_cache;
 	tsize = 200;
-	rsize = min(reclen/cache_line_size,cache_size/cache_line_size);
+	cache_lines_per_rec = (long)(reclen/cache_line_size);
+	cache_lines_per_cache = (long)(cache_size/cache_line_size);
+	rsize = (long)l_min((long long)cache_lines_per_rec,(long long)cache_lines_per_cache);
 #ifdef __LP64__
 	where=(char *)pbuffer + ((unsigned long long)buffer & (cache_size-1));
 #else
@@ -8478,7 +8484,7 @@ long long size;
 	char *dumb;
 	
 
-	size1=max(size,page_size);
+	size1=l_max(size,page_size);
 	if(!distributed)
 	{
 		if(!trflag)
@@ -8488,7 +8494,7 @@ long long size;
 		}
 	}
 #ifdef SHARED_MEM
-	size1=max(size,page_size);
+	size1=l_max(size,page_size);
 	size1=(size1 +page_size) & ~(page_size-1);
 	shmid=(int)shmget((key_t)(IPC_PRIVATE), (size_t)size1 , (int)(IPC_CREAT|0666));
         if(shmid < (int)0)
@@ -8523,7 +8529,7 @@ long long size;
 	return(addr);
 #else
 
-	size1=max(size,page_size);
+	size1=l_max(size,page_size);
 	size1=(size1 +page_size) & ~(page_size-1);
 #ifdef bsd4_2
 	if((tfd = creat("mmap.tmp", 0666))<0)
@@ -8602,11 +8608,10 @@ long  long time1;
 /************************************************************************/
 /* Implementation of max() function.					*/
 /************************************************************************/
-#ifndef Windows
 #ifdef HAVE_ANSIC_C
-long long max(long long one,long long two)
+long long l_max(long long one,long long two)
 #else
-long long max(one,two)
+long long l_max(one,two)
 long long one,two;
 #endif
 {
@@ -8615,7 +8620,6 @@ long long one,two;
 	else
 		return(two);
 }
-#endif
 
 /************************************************************************/
 /* Internal Kill. With stonewalling disabled, kill does nothing 	*/
@@ -8637,11 +8641,10 @@ long long pid,sig;
 /* Implementation of min() function.					*/
 /************************************************************************/
 
-#ifndef Windows
 #ifdef HAVE_ANSIC_C
-long long min(long long num1,long long num2)
+long long l_min(long long num1,long long num2)
 #else
-long long min(num1,num2)
+long long l_min(num1,num2)
 long long num1,num2;
 #endif
 {
@@ -8650,7 +8653,6 @@ long long num1,num2;
 	else
 		return num1;
 }
-#endif
 
 /************************************************************************/
 /* Routine to call throughput tests many times.				*/
