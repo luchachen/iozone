@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.178 $"
+#define THISVERSION "        Version $Revision: 3.181 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -5790,12 +5790,15 @@ char sverify;
 	long long mpattern;
 	unsigned int seed;
 	unsigned long x;
-	unsigned long long value;
+	unsigned long long value,value1;
 	unsigned long long a= 0x01020304;
 	unsigned long long b = 0x05060708;
+	unsigned long long c= 0x01010101;
+	unsigned long long d = 0x01010101;
 	unsigned long long pattern_buf;
 
 	value = (a<<32) | b;
+	value1 = (c<<32) | d;
 
 	/* printf("Verify Sverify %d verify %d diag_v %d\n",sverify,verify,diag_v); */
 	x=0;
@@ -5807,6 +5810,9 @@ char sverify;
 			base_time=0;
 		seed= (unsigned int)(base_time+chid+recnum);
 	        srand(seed);
+	        mpattern=(long long)rand();
+	        mpattern=(mpattern<<48) | (mpattern<<32) | (mpattern<<16) | mpattern;
+		mpattern=mpattern+value;
 	}
 	/* printf("verify patt %llx CHid %d\n",mpattern,chid);*/
 
@@ -5856,9 +5862,7 @@ char sverify;
 	   {
               if(diag_v)
 	      {
-	         mpattern=(long long)rand();
-	         mpattern=(mpattern<<48) | (mpattern<<32) | (mpattern<<16) | mpattern;
-		 pattern_buf=mpattern+value;
+		 pattern_buf=mpattern;
 	      }
 	      else
               {
@@ -5893,6 +5897,8 @@ char sverify;
 		   return(1);
 	      }
 	      where++;
+	      if(diag_v)
+	         mpattern=mpattern+value1;
 	   }	
 	  }
 	}
@@ -5919,11 +5925,14 @@ char sverify;
 	long long mpattern;
 	unsigned int seed;
 	unsigned long x;
-	unsigned long long value;
+	unsigned long long value,value1;
 	unsigned long long a = 0x01020304;
 	unsigned long long b = 0x05060708;
+	unsigned long long c = 0x01010101;
+	unsigned long long d = 0x01010101;
 
 	value = (a << 32) | b;
+	value1 = (c << 32) | d;
 
 	x=0;
 	mpattern=pattern;
@@ -5937,6 +5946,9 @@ char sverify;
 			base_time=0;
 		seed= (unsigned int)(base_time+chid+recnum);
 	        srand(seed);
+		mpattern=(long long)rand();
+		mpattern=(mpattern<<48) | (mpattern<<32) | (mpattern<<16) | mpattern;
+		mpattern=mpattern+value;
 	}
 	where=(unsigned long long *)buffer;
 	if(sverify == 1)
@@ -5954,11 +5966,10 @@ char sverify;
 		{
 			for(j=0;j<(cache_line_size/sizeof(long long));j++)
 			{
-				mpattern=(long long)rand();
-				mpattern=(mpattern<<48) | (mpattern<<32) | (mpattern<<16) | mpattern;
 				if(diag_v)
 				{
-					*where = (long long)(mpattern+value);
+					*where = (long long)(mpattern);
+					mpattern=mpattern+value1;
 				}
 				else
 					*where = (long long)((pattern<<32) | pattern);
@@ -9930,6 +9941,11 @@ long long size;
 			addr=(char *)malloc((size_t)size1);
 			return(addr);
 		}
+		if(use_thread)
+		{
+			addr=(char *)malloc((size_t)size1);
+			return(addr);
+		}
 	}
 #ifdef SHARED_MEM
 	size1=l_max(size,page_size);
@@ -9994,7 +10010,7 @@ long long size;
 		MAP_SHARED, tfd, 0);
 	unlink("mmap.tmp");
 #else
-#if defined(SCO) || defined(SCO_Unixware_gcc)
+#if defined(SCO) || defined(SCO_Unixware_gcc) || defined(Windows)
         if((tfd = creat("mmap.tmp", 0666))<0)
         {
                 printf("Unable to create tmp file\n");
