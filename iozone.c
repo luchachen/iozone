@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.193 $"
+#define THISVERSION "        Version $Revision: 3.194 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -7208,7 +7208,7 @@ long long *data1, *data2;
 	double compute_val = (double)0;
 #if defined (bsd4_2) || defined(Windows)
 	long big_rand;
-	unsigned int rand1,rand2,rand3;
+	long long rand1,rand2,rand3;
 #endif
 	long long j;
 	off64_t i,numrecs64;
@@ -7317,16 +7317,16 @@ long long *data1, *data2;
 			if(purge)
 				purgeit(nbuff,reclen);
 #ifdef bsd4_2
-			rand1=rand();
-			rand2=rand();
-			rand3=rand();
+			rand1=(long long)rand();
+			rand2=(long long)rand();
+			rand3=(long long)rand();
 			big_rand=(rand1<<32)||(rand2<<16)||(rand3);
                         offset64 = reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
-			rand1=rand();
-			rand2=rand();
-			rand3=rand();
+			rand1=(long long)rand();
+			rand2=(long long)rand();
+			rand3=(long long)rand();
 			big_rand=(rand1<<32)||(rand2<<16)||(rand3);
                         offset64 = reclen * (big_rand%numrecs64);
 #else
@@ -7408,16 +7408,16 @@ long long *data1, *data2;
                                	    nbuff = mbuffer + Index;
                         	}
 #ifdef bsd4_2
-				rand1=rand();
-				rand2=rand();
-				rand3=rand();
+				rand1=(long long)rand();
+				rand2=(long long)rand();
+				rand3=(long long)rand();
 				big_rand=(rand1<<32)||(rand2<<16)||(rand3);
 				offset64 = reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
-				rand1=rand();
-				rand2=rand();
-				rand3=rand();
+				rand1=(long long)rand();
+				rand2=(long long)rand();
+				rand3=(long long)rand();
 				big_rand=(rand1<<32)||(rand2<<16)||(rand3);
 				offset64 = reclen * (big_rand%numrecs64);
 #else
@@ -9060,7 +9060,7 @@ off64_t numrecs64;
 	long long found,i,j;
 	long long numvecs;
 #if defined (bsd4_2) || defined(Windows)
-	unsigned int rand1,rand2,rand3;
+	long long rand1,rand2,rand3;
 	long big_rand;
 #endif
 
@@ -9074,16 +9074,16 @@ off64_t numrecs64;
 again:
 		found = 0;
 #ifdef bsd4_2
-		rand1=rand();
-		rand2=rand();
-		rand3=rand();
+		rand1=(long long)rand();
+		rand2=(long long)rand();
+		rand3=(long long)rand();
 		big_rand=(rand1<<32)||(rand2<<16)||(rand3);
 		offset64 = reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
-		rand1=rand();
-		rand2=rand();
-		rand3=rand();
+		rand1=(long long)rand();
+		rand2=(long long)rand();
+		rand3=(long long)rand();
 		big_rand=(rand1<<32)||(rand2<<16)||(rand3);
 		offset64 = reclen * (big_rand%numrecs64);
 #else
@@ -13818,7 +13818,7 @@ thread_ranread_test(x)
 #endif
 	long long save_pos;
 #if defined (bsd4_2) || defined(Windows)
-	unsigned int rand1,rand2,rand3;
+	long long rand1,rand2,rand3;
 	long big_rand;
 #endif
 #ifdef ASYNC_IO
@@ -13991,16 +13991,16 @@ thread_ranread_test(x)
 		if(purge)
 			purgeit(nbuff,reclen);
 #ifdef bsd4_2
-		rand1=rand();
-		rand2=rand();
-		rand3=rand();
+		rand1=(long long)rand();
+		rand2=(long long)rand();
+		rand3=(long long)rand();
 		big_rand=(rand1<<32)||(rand2<<16)||(rand3);
 		current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
 #ifdef Windows
-		rand1=rand();
-		rand2=rand();
-		rand3=rand();
+		rand1=(long long)rand();
+		rand2=(long long)rand();
+		rand3=(long long)rand();
 		big_rand=(rand1<<32)||(rand2<<16)||(rand3);
 		current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
@@ -14240,7 +14240,7 @@ thread_ranwrite_test( x)
 	int test_foo = 0;
 #endif
 #if defined (bsd4_2) || defined(Windows)
-	unsigned int rand1,rand2,rand3;
+	long long rand1,rand2,rand3;
 	long big_rand;
 #endif
 

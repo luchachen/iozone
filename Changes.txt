@@ -1742,4 +1742,8 @@ Make random offsets always based on 48 bit random values.
 Revision 3.193 
 =============================================================================
 Addition for make random offsets always based on 48 bit random values.
+=============================================================================
+Revision 3.194 
+=============================================================================
+Make rands long longs.
 
