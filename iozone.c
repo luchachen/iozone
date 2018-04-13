@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.323 $"
+#define THISVERSION "        Version $Revision: 3.326 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -107,6 +107,8 @@ long long l_max();
 long long mythread_create();
 int gen_new_buf();
 void touch_dedup();
+void init_by_array64(unsigned long long *, unsigned long long );
+unsigned long long genrand64_int64(void);
 #endif
 
 #include <fcntl.h>
@@ -186,6 +188,7 @@ char *help[] = {
 "           -Y filename  Read  telemetry file. Contains lines with (offset reclen compute_time) in ascii",
 "           -z  Used in conjunction with -a to test all possible record sizes",
 "           -Z  Enable mixing of mmap I/O and file I/O",
+"           -+E Use existing non-Iozone file for read-only testing",
 "           -+K Sony special. Manual control of test 8.",
 "           -+m  Cluster_filename   Enable Cluster testing",
 "           -+d  File I/O diagnostic mode. (To troubleshoot a broken file I/O subsystem)",
@@ -517,6 +520,7 @@ struct client_command {
 	int c_command;
 	int c_testnum;
 	int c_no_unlink;
+	int c_no_write;
 	int c_file_lock;
 	int c_rec_lock;
 	int c_Kplus_readers;
@@ -616,7 +620,8 @@ struct client_neutral_command {
 	char c_client_number[20]; 	/* int */
 	char c_command[20]; 		/* int */
 	char c_testnum[20]; 		/* int */
-	char c_no_unlink[20]; 		/* int */
+	char c_no_unlink[4]; 		/* int */
+	char c_no_write[4]; 		/* int */
 	char c_pattern[20]; 		/* int */
 	char c_version[20]; 		/* int */
 	char c_base_time[20]; 		/* int */
@@ -904,6 +909,7 @@ struct master_neutral_command {
 /* Child tells parent that it's DONE */
 #define CHILD_STATE_DONE	3	
 
+#define MERSENNE
 
 /******************************************************************/
 /*								  */
@@ -1442,6 +1448,7 @@ char L_flag=0;
 char no_copy_flag,include_close,include_flush;
 char disrupt_flag,compute_flag,xflag,Z_flag, X_flag;
 int no_unlink = 0;
+int no_write = 0;
 int r_traj_flag,w_traj_flag;
 char MS_flag;
 int advise_op,advise_flag;
@@ -2429,6 +2436,18 @@ char **argv;
 					sprintf(splash[splash_line++],"\t>>> Sequential Mixed workload. <<<\n");
 					seq_mix=1;
 					break;
+ 				        /* Use an existing user file, that does
+					 not contain Iozone's pattern. Use file
+	                                 for testing, but read only, and no 
+                                         delete at the end of the test. Also, 
+                                         no pattern verification, but do touch
+                                         the pages. */
+				case 'E':  
+					sprintf(splash[splash_line++],"\t>>> No Verify mode. <<<\n");
+					sverify=2;
+					no_unlink=1;
+					no_write=1;
+					break;
 				case 'T':  /* Time stamps on */
 					L_flag=1;
 					break;
@@ -2761,14 +2780,39 @@ char **argv;
 		exit(19);
 	}
 #endif
+	if(no_write)
+	{
+	   if(!include_tflag)
+	   {
+	     printf("You must specify which tests ( -i # ) when using -+E\n");
+	     exit(19);
+	   }
+	}
 	if(include_tflag)
 	{
 		for(i=0;i<sizeof(func)/sizeof(char *);i++)
 			if(include_test[i])
 				include_mask|=(long long)(1<<i);
-			/*printf("%x",include_mask); */
+		/* printf(">> %llx",include_mask);  HERE */
 	}
-
+	if(no_write) /* Disable if any writer would disturbe existing file */
+	{
+	   if(include_test[0] || include_test[2] || include_test[4] ||
+	      include_test[6] || include_test[8] || include_test[9] ||
+              include_test[11])
+	   {
+	      printf("You must disable any test that writes when using -+E\n");
+	      exit(20);
+	   }
+	}
+	if(no_write) /* User must specify the existing file name */
+	{
+	   if(!(fflag | mfflag))
+	   {
+	      printf("You must use -f or -F when using -+E\n");
+	      exit(20);
+	   }
+	}
 	if(h_flag && k_flag)
 	{
 		printf("\n\tCan not do both -H and -k\n");
@@ -6282,6 +6326,16 @@ char sverify;
 		xx2=(long long)0;
 	mpattern=patt;
 	pattern_buf=patt;
+	where=(unsigned long long *)buffer;
+	if(sverify == 2)
+	{
+	  for(i=0;i<(length);i+=page_size)
+	  {
+	      dummy = *where;
+	      where+=(page_size/sizeof(long long));
+	  }
+	  return(0);
+	}
 	if(dedup)
 	{
 		gen_new_buf((char *)dedup_ibuf,(char *)dedup_temp, (long)recnum, (int)length,(int)dedup, (int) dedup_interior, dedup_compress, 0);
@@ -6325,15 +6379,6 @@ char sverify;
 	if(!verify)
 		printf("\nOOPS You have entered verify_buffer unexpectedly !!! \n");
 
-	if(sverify == 2)
-	{
-	  for(i=0;i<(length);i+=page_size)
-	  {
-	      dummy = *where;
-	      where+=(page_size/sizeof(long long));
-	  }
-	  return(0);
-	}
 	if(sverify == 1)
 	{
 	  for(i=0;i<(length);i+=page_size)
@@ -8076,7 +8121,7 @@ long long *data1, *data2;
 #if defined (bsd4_2) || defined(Windows)
 	long long rand1,rand2,rand3;
 #endif
-	long long big_rand;
+	unsigned long long big_rand;
 	long long j;
 	off64_t i,numrecs64;
 	long long Index=0;
@@ -8097,9 +8142,16 @@ long long *data1, *data2;
 #else
 	long long *gc=0;
 #endif
+#ifdef MERSENNE
+    unsigned long long init[4]={0x12345ULL, 0x23456ULL, 0x34567ULL, 0x45678ULL};
+    unsigned long long length=4;
+#endif
 
 	maddr=free_addr=0;
 	numrecs64 = (kilo64*1024)/reclen;
+#ifdef MERSENNE
+       init_by_array64(init, length);
+#else
 #ifdef bsd4_2
         srand(0);
 #else
@@ -8107,6 +8159,7 @@ long long *data1, *data2;
         srand(0);
 #else
         srand48(0);
+#endif
 #endif
 #endif
         recnum = (long long *)malloc(sizeof(*recnum)*numrecs64);
@@ -8117,7 +8170,10 @@ long long *data1, *data2;
                 recnum[i] = i;
             }
             for(i = 0; i < numrecs64; i++) {
-                long long tmp = recnum[i];
+                long long tmp;
+#ifdef MERSENNE
+      	       big_rand=genrand64_int64();
+#else
 #ifdef bsd4_2
                rand1=(long long)rand();
                rand2=(long long)rand();
@@ -8131,6 +8187,7 @@ long long *data1, *data2;
                big_rand=(rand1<<32)|(rand2<<16)|(rand3);
 #else
                big_rand = lrand48();
+#endif
 #endif
 #endif
                big_rand = big_rand%numrecs64;
@@ -8220,6 +8277,9 @@ long long *data1, *data2;
 	     nbuff=mainbuffer;
 	     if(fetchon)
 		   fetchit(nbuff,reclen);
+#ifdef MERSENNE
+    	    init_by_array64(init, length);
+#else
 #ifdef bsd4_2
 	     srand(0);
 #else
@@ -8227,6 +8287,7 @@ long long *data1, *data2;
              srand(0);
 #else
              srand48(0);
+#endif
 #endif
 #endif
 	     compute_val=(double)0;
@@ -8250,6 +8311,10 @@ long long *data1, *data2;
 			else
 			{
 
+#ifdef MERSENNE
+      			   big_rand =genrand64_int64();
+			   offset64 = reclen * (big_rand%numrecs64);
+#else
 #ifdef bsd4_2
 			   rand1=(long long)rand();
 			   rand2=(long long)rand();
@@ -8265,6 +8330,7 @@ long long *data1, *data2;
                            offset64 = reclen * (big_rand%numrecs64);
 #else
 			   offset64 = reclen * (lrand48()%numrecs64);
+#endif
 #endif
 #endif
 			}
@@ -10086,6 +10152,9 @@ long long *data1,*data2;
 #endif
 	long long flags_here;
 	char *nbuff;
+#ifdef MERSENNE
+        unsigned long long init[4]={0x12345ULL, 0x23456ULL, 0x34567ULL, 0x45678ULL}, length=4;
+#endif
 
 	numrecs64 = (kilos64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
@@ -10216,6 +10285,9 @@ long long *data1,*data2;
                 if(numrecs64 < numvecs) numvecs=numrecs64;
                 if(MAXBUFFERSIZE/reclen < PVECMAX) numvecs=MAXBUFFERSIZE/reclen;
 
+#ifdef MERSENNE
+    	        init_by_array64(init, length);
+#else
 #ifdef bsd4_2
 	        srand(0);
 #else
@@ -10223,6 +10295,7 @@ long long *data1,*data2;
                 srand(0);
 #else
 	        srand48(0);
+#endif
 #endif
 #endif
 		starttime1 = time_so_far();
@@ -10380,7 +10453,7 @@ off64_t numrecs64;
 	long long numvecs;
 #if defined (bsd4_2) || defined(Windows)
 	long long rand1,rand2,rand3;
-	long long big_rand;
+	unsigned long long big_rand;
 #endif
 
 	numvecs = PVECMAX;
@@ -10392,6 +10465,10 @@ off64_t numrecs64;
 	{
 again:
 		found = 0;
+#ifdef MERSENNE
+                big_rand = genrand64_int64();
+		offset64 = reclen * (big_rand%numrecs64);
+#else
 #ifdef bsd4_2
 		rand1=(long long)rand();
 		rand2=(long long)rand();
@@ -10407,6 +10484,7 @@ again:
 		offset64 = reclen * (big_rand%numrecs64);
 #else
 		offset64 = reclen * (lrand48()%numrecs64);
+#endif
 #endif
 #endif
 
@@ -10456,6 +10534,9 @@ long long *data1,*data2;
 	int test_foo = 0;
 #endif
 	char *nbuff;
+#ifdef MERSENNE
+        unsigned long long init[4]={0x12345ULL, 0x23456ULL, 0x34567ULL, 0x45678ULL}, length=4;
+#endif
 
 	open_flags=O_RDONLY;
 #if ! defined(DONT_HAVE_O_DIRECT)
@@ -10532,6 +10613,9 @@ long long *data1,*data2;
                 if(numrecs64 < numvecs) numvecs=numrecs64;
                 if(MAXBUFFERSIZE/reclen < PVECMAX) numvecs=MAXBUFFERSIZE/reclen;
 
+#ifdef MERSENNE
+    	       init_by_array64(init, length);
+#else
 #ifdef bsd4_2
 	        srand(0);
 #else
@@ -10539,6 +10623,7 @@ long long *data1,*data2;
                 srand(0);
 #else
 	        srand48(0);
+#endif
 #endif
 #endif
 		starttime2 = time_so_far();
@@ -16139,13 +16224,19 @@ thread_ranread_test(x)
 #if defined (bsd4_2) || defined(Windows)
 	long long rand1,rand2,rand3;
 #endif
-	long long big_rand;
+	unsigned long long big_rand;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 #else
 	long long *gc=0;
 #endif
+#ifdef MERSENNE
+        unsigned long long init[4]={0x12345ULL, 0x23456ULL, 0x34567ULL, 0x45678ULL}, length=4;
+#endif
 
+#ifdef MERSENNE
+        init_by_array64(init, length);
+#else
 #ifdef bsd4_2
         srand(0);
 #else
@@ -16153,6 +16244,7 @@ thread_ranread_test(x)
         srand(0);
 #else
         srand48(0);
+#endif
 #endif
 #endif
         recnum = (long long *)malloc(sizeof(*recnum)*numrecs64);
@@ -16164,6 +16256,9 @@ thread_ranread_test(x)
             }
             for(i = 0; i < numrecs64; i++) {
                 long long tmp = recnum[i];
+#ifdef MERSENNE
+      	       big_rand = genrand64_int64();
+#else
 #ifdef bsd4_2
                rand1=(long long)rand();
                rand2=(long long)rand();
@@ -16177,6 +16272,7 @@ thread_ranread_test(x)
                big_rand=(rand1<<32)|(rand2<<16)|(rand3);
 #else
                big_rand = lrand48();
+#endif
 #endif
 #endif
                big_rand = big_rand%numrecs64;
@@ -16390,6 +16486,9 @@ thread_ranread_test(x)
 		cputime = cputime_so_far();
 	}
 
+#ifdef MERSENNE
+        init_by_array64(init, length);
+#else
 #ifdef bsd4_2
         srand(0);
 #else
@@ -16397,6 +16496,7 @@ thread_ranread_test(x)
         srand(0);
 #else
 	srand48(0);
+#endif
 #endif
 #endif
 	if(file_lock)
@@ -16416,6 +16516,10 @@ thread_ranread_test(x)
 		if (recnum) {
 			current_offset = reclen * (long long)recnum[i];
                 } else {
+#ifdef MERSENNE
+                   big_rand = genrand64_int64();
+		   current_offset = (off64_t)reclen * (big_rand%numrecs64);
+#else
 #ifdef bsd4_2
 		   rand1=(long long)rand();
 		   rand2=(long long)rand();
@@ -16431,6 +16535,7 @@ thread_ranread_test(x)
 		   current_offset = (off64_t)reclen * (big_rand%numrecs64);
 #else
 		   current_offset = reclen * (lrand48()%numrecs64);
+#endif
 #endif
 #endif
 		}
@@ -16707,13 +16812,16 @@ thread_ranwrite_test( x)
 #if defined (bsd4_2) || defined(Windows)
 	long long rand1,rand2,rand3;
 #endif
-	long long big_rand;
+	unsigned long long big_rand;
 
 #ifdef ASYNC_IO
 	struct cache *gc=0;
 
 #else
 	long long *gc=0;
+#endif
+#ifdef MERSENNE
+        unsigned long long init[4]={0x12345ULL, 0x23456ULL, 0x34567ULL, 0x45678ULL}, length=4;
 #endif
 
 	if(compute_flag)
@@ -16725,6 +16833,9 @@ thread_ranwrite_test( x)
 	written_so_far=read_so_far=re_written_so_far=re_read_so_far=0;
 	w_traj_bytes_completed=w_traj_ops_completed=0;
 	recs_per_buffer = cache_size/reclen ;
+#ifdef MERSENNE
+        init_by_array64(init, length);
+#else
 #ifdef bsd4_2
         srand(0);
 #else
@@ -16732,6 +16843,7 @@ thread_ranwrite_test( x)
         srand(0);
 #else
         srand48(0);
+#endif
 #endif
 #endif
         recnum = (long long *) malloc(sizeof(*recnum)*numrecs64);
@@ -16743,6 +16855,9 @@ thread_ranwrite_test( x)
             }
             for(i = 0; i < numrecs64; i++) {
                 long long tmp = recnum[i];
+#ifdef MERSENNE
+      	       big_rand = genrand64_int64();
+#else
 #ifdef bsd4_2
                rand1=(long long)rand();
                rand2=(long long)rand();
@@ -16756,6 +16871,7 @@ thread_ranwrite_test( x)
                big_rand=(rand1<<32)|(rand2<<16)|(rand3);
 #else
                big_rand = lrand48();
+#endif
 #endif
 #endif
                big_rand = big_rand%numrecs64;
@@ -19412,6 +19528,7 @@ int send_size;
 	sprintf(outbuf.c_command,"%d",send_buffer->c_command);
 	sprintf(outbuf.c_testnum,"%d",send_buffer->c_testnum);
 	sprintf(outbuf.c_no_unlink,"%d",send_buffer->c_no_unlink);
+	sprintf(outbuf.c_no_write,"%d",send_buffer->c_no_write);
 	sprintf(outbuf.c_file_lock,"%d",send_buffer->c_file_lock);
 	sprintf(outbuf.c_rec_lock,"%d",send_buffer->c_rec_lock);
 	sprintf(outbuf.c_Kplus_readers,"%d",send_buffer->c_Kplus_readers);
@@ -20290,6 +20407,7 @@ long long numrecs64, reclen;
 	cc.c_mmapssflag = mmapssflag;
 	cc.c_no_copy_flag = no_copy_flag;
 	cc.c_no_unlink = no_unlink;
+	cc.c_no_write = no_write;
 	cc.c_include_close = include_close;
 	cc.c_disrupt_flag = disrupt_flag;
 	cc.c_compute_flag = compute_flag;
@@ -20538,6 +20656,7 @@ become_client()
 	sscanf(cnc->c_w_traj_flag,"%d",&cc.c_w_traj_flag);
 	sscanf(cnc->c_r_traj_flag,"%d",&cc.c_r_traj_flag);
 	sscanf(cnc->c_no_unlink,"%d",&cc.c_no_unlink);
+	sscanf(cnc->c_no_write,"%d",&cc.c_no_write);
 	sscanf(cnc->c_include_close,"%d",&cc.c_include_close);
 	sscanf(cnc->c_disrupt_flag,"%d",&cc.c_disrupt_flag);
 	sscanf(cnc->c_compute_flag,"%d",&cc.c_compute_flag);
@@ -20609,6 +20728,7 @@ become_client()
 	mmapssflag = cc.c_mmapssflag; 
 	no_copy_flag = cc.c_no_copy_flag;
 	no_unlink = cc.c_no_unlink;
+	no_write = cc.c_no_write;
 	include_close = cc.c_include_close;
 	disrupt_flag = cc.c_disrupt_flag;
 	compute_flag = cc.c_compute_flag;
@@ -22464,3 +22584,192 @@ touch_dedup(char *i, int size)
 		ip++;
 	}
 }
+
+/* 
+   A C-program for MT19937-64 (2004/9/29 version).
+   Coded by Takuji Nishimura and Makoto Matsumoto.
+
+   This is a 64-bit version of Mersenne Twister pseudorandom number
+   generator.
+
+   Before using, initialize the state by using init_genrand64(seed)  
+   or init_by_array64(init_key, key_length).
+
+   Copyright (C) 2004, Makoto Matsumoto and Takuji Nishimura,
+   All rights reserved.                          
+
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
+
+     1. Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+
+     2. Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution.
+
+     3. The names of its contributors may not be used to endorse or promote 
+        products derived from this software without specific prior written 
+        permission.
+
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+   A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+   EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+   PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+   PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+   LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+   References:
+   T. Nishimura, ``Tables of 64-bit Mersenne Twisters''
+     ACM Transactions on Modeling and 
+     Computer Simulation 10. (2000) 348--357.
+   M. Matsumoto and T. Nishimura,
+     ``Mersenne Twister: a 623-dimensionally equidistributed
+       uniform pseudorandom number generator''
+     ACM Transactions on Modeling and 
+     Computer Simulation 8. (Jan. 1998) 3--30.
+
+   Any feedback is very welcome.
+   http://www.math.hiroshima-u.ac.jp/~m-mat/MT/emt.html
+   email: m-mat @ math.sci.hiroshima-u.ac.jp (remove spaces)
+*/
+
+
+
+#define NN 312
+#define MM 156
+#define MATRIX_A 0xB5026F5AA96619E9ULL
+#define UM 0xFFFFFFFF80000000ULL /* Most significant 33 bits */
+#define LM 0x7FFFFFFFULL /* Least significant 31 bits */
+
+
+/* The array for the state vector */
+static unsigned long long mt[NN]; 
+/* mti==NN+1 means mt[NN] is not initialized */
+static int mti=NN+1; 
+
+/* initializes mt[NN] with a seed */
+void init_genrand64(unsigned long long seed)
+{
+    mt[0] = seed;
+    for (mti=1; mti<NN; mti++) 
+        mt[mti] =  (6364136223846793005ULL * (mt[mti-1] ^ (mt[mti-1] >> 62)) + mti);
+}
+
+/* initialize by an array with array-length */
+/* init_key is the array for initializing keys */
+/* key_length is its length */
+void init_by_array64(unsigned long long init_key[],
+		     unsigned long long key_length)
+{
+    unsigned long long i, j, k;
+    init_genrand64(19650218ULL);
+    i=1; j=0;
+    k = (NN>key_length ? NN : key_length);
+    for (; k; k--) {
+        mt[i] = (mt[i] ^ ((mt[i-1] ^ (mt[i-1] >> 62)) * 3935559000370003845ULL))
+          + init_key[j] + j; /* non linear */
+        i++; j++;
+        if (i>=NN) { mt[0] = mt[NN-1]; i=1; }
+        if (j>=key_length) j=0;
+    }
+    for (k=NN-1; k; k--) {
+        mt[i] = (mt[i] ^ ((mt[i-1] ^ (mt[i-1] >> 62)) * 2862933555777941757ULL))
+          - i; /* non linear */
+        i++;
+        if (i>=NN) { mt[0] = mt[NN-1]; i=1; }
+    }
+
+    mt[0] = 1ULL << 63; /* MSB is 1; assuring non-zero initial array */ 
+}
+
+/* generates a random number on [0, 2^64-1]-interval */
+unsigned long long genrand64_int64(void)
+{
+    int i;
+    unsigned long long x;
+    static unsigned long long mag01[2]={0ULL, MATRIX_A};
+
+    if (mti >= NN) { /* generate NN words at one time */
+
+        /* if init_genrand64() has not been called, */
+        /* a default initial seed is used     */
+        if (mti == NN+1) 
+            init_genrand64(5489ULL); 
+
+        for (i=0;i<NN-MM;i++) {
+            x = (mt[i]&UM)|(mt[i+1]&LM);
+            mt[i] = mt[i+MM] ^ (x>>1) ^ mag01[(int)(x&1ULL)];
+        }
+        for (;i<NN-1;i++) {
+            x = (mt[i]&UM)|(mt[i+1]&LM);
+            mt[i] = mt[i+(MM-NN)] ^ (x>>1) ^ mag01[(int)(x&1ULL)];
+        }
+        x = (mt[NN-1]&UM)|(mt[0]&LM);
+        mt[NN-1] = mt[MM-1] ^ (x>>1) ^ mag01[(int)(x&1ULL)];
+
+        mti = 0;
+    }
+  
+    x = mt[mti++];
+
+    x ^= (x >> 29) & 0x5555555555555555ULL;
+    x ^= (x << 17) & 0x71D67FFFEDA60000ULL;
+    x ^= (x << 37) & 0xFFF7EEE000000000ULL;
+    x ^= (x >> 43);
+
+    return x;
+}
+
+/* generates a random number on [0, 2^63-1]-interval */
+long long genrand64_int63(void)
+{
+    return (long long)(genrand64_int64() >> 1);
+}
+
+/* generates a random number on [0,1]-real-interval */
+double genrand64_real1(void)
+{
+    return (genrand64_int64() >> 11) * (1.0/9007199254740991.0);
+}
+
+/* generates a random number on [0,1)-real-interval */
+double genrand64_real2(void)
+{
+    return (genrand64_int64() >> 11) * (1.0/9007199254740992.0);
+}
+
+/* generates a random number on (0,1)-real-interval */
+double genrand64_real3(void)
+{
+    return ((genrand64_int64() >> 12) + 0.5) * (1.0/4503599627370496.0);
+}
+
+#ifdef MT_TEST
+
+int main(void)
+{
+    int i;
+    unsigned long long init[4]={0x12345ULL, 0x23456ULL, 0x34567ULL, 0x45678ULL}, length=4;
+    init_by_array64(init, length);
+    printf("1000 outputs of genrand64_int64()\n");
+    for (i=0; i<1000; i++) {
+      printf("%20llu ", genrand64_int64());
+      if (i%5==4) printf("\n");
+    }
+    printf("\n1000 outputs of genrand64_real2()\n");
+    for (i=0; i<1000; i++) {
+      printf("%10.8f ", genrand64_real2());
+      if (i%5==4) printf("\n");
+    }
+    return 0;
+}
+
+
+#endif

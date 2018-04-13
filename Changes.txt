@@ -2206,3 +2206,13 @@ Fix c++ style comment back to 'C' style comment.
 Revision 3.323
 Bug fix for check_filenames and large files
 =============================================================================
+Revision 3.324
+Replace tripple rand() calls with 64 bit Mersene twister.
+=============================================================================
+Revision 3.325
+Add read-only, external file, with no-verify. -+E
+=============================================================================
+Revision 3.325
+Permit -+E on dedup files.
+=============================================================================
+
