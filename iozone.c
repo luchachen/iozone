@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.200 $"
+#define THISVERSION "        Version $Revision: 3.201 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -10094,7 +10094,6 @@ long long size;
 #else
         sprintf(mmapFileName, "mmap.tmp_%lld", getpid());
 #endif
-        sprintf(mmapFileName, "mmap.tmp", getpid());
         if((tfd = creat(mmapFileName, 0666))<0)
 	{
 		printf("Unable to create tmp file\n");
@@ -10107,22 +10106,28 @@ long long size;
 	free(dumb);
 	addr=(char *)mmap(0,(size_t)size1,PROT_WRITE|PROT_READ,
 		MAP_SHARED, tfd, 0);
-	unlink("mmapFileName");
+	unlink(mmapFileName);
 #else
 #if defined(SCO) || defined(SCO_Unixware_gcc) || defined(Windows)
-        if((tfd = creat("mmap.tmp", 0666))<0)
+        char mmapFileName[64];
+#ifdef NO_PRINT_LLD
+        sprintf(mmapFileName, "mmap.tmp_%ld", getpid());
+#else
+        sprintf(mmapFileName, "mmap.tmp_%lld", getpid());
+#endif
+        if((tfd = creat(mmapFileName, 0666))<0)
         {
                 printf("Unable to create tmp file\n");
                 exit(121);
         }
-        tfd=open("mmap.tmp",O_RDWR);
+	tfd=open(mmapFileName,O_RDWR);
         dumb=(char *)malloc((size_t)size1);
 	bzero(dumb,size1);
         write(tfd,dumb,size1);
         free(dumb);
         addr=(char *)mmap(0,(size_t)size1,PROT_WRITE|PROT_READ,
                 MAP_SHARED, tfd, 0);
-        unlink("mmap.tmp");
+	unlink(mmapFileName);
 #else
 	addr=(char *)mmap(0,(size_t)size1,PROT_WRITE|PROT_READ,
 		MAP_ANONYMOUS|MAP_SHARED, -1, 0);
