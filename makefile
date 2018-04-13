@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.134 $
+# Version $Revision: 1.135 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -364,12 +364,12 @@ Solaris10cc:	iozone_solaris10cc.o libasync10cc.o libbif10cc.o fileop_Solaris10cc
 #
 # Solaris 32 bit build with threads, largefiles, and async I/O
 #
-Solaris10gcc:	iozone_solaris10gcc.o libasync10.o libbif10.o fileop_Solaris10gcc.o pit_server.o
+Solaris10gcc:	iozone_solaris10gcc.o libasync10.o libbif10.o fileop_Solaris10gcc.o pit_server_solaris10gcc.o
 	$(GCC)  -O $(LDFLAGS) iozone_solaris10gcc.o libasync10.o libbif10.o \
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
 	$(GCC)  -O fileop_Solaris10gcc.o -o fileop
-	$(GCC)  -O pit_server.o -lthread -lpthread -lposix4 -lnsl -laio \
+	$(GCC)  -O pit_server_solaris10gcc.o -lthread -lpthread -lposix4 -lnsl -laio \
                 -lsocket -o pit_server
 
 #
@@ -635,6 +635,13 @@ pit_server-linux-powerpc64.o:	pit_server.c
 	@echo "Building the pit_server"
 	@echo ""
 	$(CC) -c  $(CFLAGS) $(FLAG64BIT) pit_server.c -o pit_server-linux-powerpc64.o 
+
+pit_server_solaris10gcc.o:	pit_server.c
+	@echo ""
+	@echo "Building the pit_server"
+	@echo ""
+	$(GCC) -c  $(CFLAGS) pit_server.c -o pit_server_solaris10gcc.o 
+
 
 pit_server_win.o:	pit_server.c
 	@echo ""

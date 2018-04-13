@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.361 $"
+#define THISVERSION "        Version $Revision: 3.362 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -70,7 +70,7 @@
 #include <Windows.h>
 int errno;
 #else
-#if defined(linux)
+#if defined(linux) || defined(solaris)
 #include <errno.h>
 #else
 extern  int errno;   /* imported for errors */
