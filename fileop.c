@@ -72,6 +72,7 @@ char *mbuffer;
 #define _STAT_DIR_CREATE 10
 #define _STAT_DIR_DELETE 11
 #define _STAT_READ 12
+#define _STAT_OPEN 13
 #define _NUM_STATS 14
 struct stat_struct {
 	double starttime;
@@ -104,7 +105,7 @@ void bzero();
 void clear_stats();
 int validate(char *, int , char );
 
-#define THISVERSION "        $Revision: 1.40 $"
+#define THISVERSION "        $Revision: 1.41 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;
@@ -193,13 +194,13 @@ int main(int argc, char **argv)
 	if(!verbose)
 	{
 #ifdef Windows
-	   	printf(" .     %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %12s\n",
-       	   	"mkdir","rmdir","create","read","write","close","stat",
+	   	printf(" .     %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %10s\n",
+       	   	"mkdir","rmdir","create","open","read","write","close","stat",
 		"access","chmod","readdir","delete"," Total_files");
 #else
 
-	   	printf(" .     %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %12s\n",
-       	   	"mkdir","rmdir","create","read","write","close","stat",
+	   	printf(" .     %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %6s %10s\n",
+       	   	"mkdir","rmdir","create","open", "read","write","close","stat",
 		"access","chmod","readdir","link  ","unlink","delete",
 		" Total_files");
 #endif
@@ -302,6 +303,16 @@ int main(int argc, char **argv)
 
 	   if(verbose)
 	   {
+	      printf("open:    Files = %9lld ",stats[_STAT_OPEN].counter);
+	      printf("Total Time = %12.9f seconds\n", stats[_STAT_OPEN].total_time);
+	      printf("         Avg open(s)/sec      = %12.2f (%12.9f seconds/op)\n",
+			stats[_STAT_OPEN].counter/stats[_STAT_OPEN].total_time,
+			stats[_STAT_OPEN].total_time/stats[_STAT_OPEN].counter);
+	      printf("         Best open(s)/sec     = %12.2f (%12.9f seconds/op)\n",
+			1/stats[_STAT_OPEN].best,stats[_STAT_OPEN].best);
+	      printf("         Worst open(s)/sec    = %12.2f (%12.9f seconds/op)\n\n",
+			1/stats[_STAT_OPEN].worst,stats[_STAT_OPEN].worst);
+
 	      printf("read:    Files = %9lld ",stats[_STAT_READ].counter);
 	      printf("Total Time = %12.9f seconds\n", stats[_STAT_READ].total_time);
 	      printf("         Avg read(s)/sec      = %12.2f (%12.9f seconds/op)\n",
@@ -418,6 +429,7 @@ int main(int argc, char **argv)
 	         printf("%c %4d %6.0f ",'A',x,stats[_STAT_DIR_CREATE].counter/stats[_STAT_DIR_CREATE].total_time);
 	         printf("%6.0f ",stats[_STAT_DIR_DELETE].counter/stats[_STAT_DIR_DELETE].total_time);
 	         printf("%6.0f ",stats[_STAT_CREATE].counter/stats[_STAT_CREATE].total_time);
+	         printf("%6.0f ",stats[_STAT_OPEN].counter/stats[_STAT_OPEN].total_time);
 	         printf("%6.0f ",stats[_STAT_READ].counter/stats[_STAT_READ].total_time);
 	         printf("%6.0f ",stats[_STAT_WRITE].counter/stats[_STAT_WRITE].total_time);
 	         printf("%6.0f ",stats[_STAT_CLOSE].counter/stats[_STAT_CLOSE].total_time);
@@ -430,7 +442,7 @@ int main(int argc, char **argv)
 	         printf("%6.0f ",stats[_STAT_UNLINK].counter/stats[_STAT_UNLINK].total_time);
 #endif
 	         printf("%6.0f ",stats[_STAT_DELETE].counter/stats[_STAT_DELETE].total_time);
-	         printf("%12d ",x*x*x);
+	         printf("%10d ",x*x*x);
 	         printf("\n");
   	   	 fflush(stdout);
 
@@ -439,6 +451,7 @@ int main(int argc, char **argv)
 	         printf("%c %4d %6.0f ",'B',x, 1/stats[_STAT_DIR_CREATE].best);
 	         printf("%6.0f ",1/stats[_STAT_DIR_DELETE].best);
 	         printf("%6.0f ",1/stats[_STAT_CREATE].best);
+	         printf("%6.0f ",1/stats[_STAT_OPEN].best);
 	         printf("%6.0f ",1/stats[_STAT_READ].best);
 	         printf("%6.0f ",1/stats[_STAT_WRITE].best);
 	         printf("%6.0f ",1/stats[_STAT_CLOSE].best);
@@ -451,7 +464,7 @@ int main(int argc, char **argv)
 	         printf("%6.0f ",1/stats[_STAT_UNLINK].best);
 #endif
 	         printf("%6.0f ",1/stats[_STAT_DELETE].best);
-	         printf("%12d ",x*x*x);
+	         printf("%10d ",x*x*x);
 		 printf("\n");
   	   	 fflush(stdout);
 		}
@@ -460,6 +473,7 @@ int main(int argc, char **argv)
 	         printf("%c %4d %6.0f ",'W',x, 1/stats[_STAT_DIR_CREATE].worst);
 	         printf("%6.0f ",1/stats[_STAT_DIR_DELETE].worst);
 	         printf("%6.0f ",1/stats[_STAT_CREATE].worst);
+	         printf("%6.0f ",1/stats[_STAT_OPEN].worst);
 	         printf("%6.0f ",1/stats[_STAT_READ].worst);
 	         printf("%6.0f ",1/stats[_STAT_WRITE].worst);
 	         printf("%6.0f ",1/stats[_STAT_CLOSE].worst);
@@ -472,7 +486,7 @@ int main(int argc, char **argv)
 	         printf("%6.0f ",1/stats[_STAT_UNLINK].worst);
 #endif
 	         printf("%6.0f ",1/stats[_STAT_DELETE].worst);
-	         printf("%12d ",x*x*x);
+	         printf("%10d ",x*x*x);
 		 printf("\n");
   	   	 fflush(stdout);
 		}
@@ -992,6 +1006,8 @@ file_read(int x)
 	char value;
 	stats[_STAT_READ].best=(double)99999.9;
 	stats[_STAT_READ].worst=(double)0.00000000;
+	stats[_STAT_OPEN].best=(double)99999.9;
+	stats[_STAT_OPEN].worst=(double)0.00000000;
 	for(i=0;i<x;i++)
 	{
 	  sprintf(buf,"iozone_L1_%d",i);
@@ -1004,12 +1020,24 @@ file_read(int x)
 	    {
 	      sprintf(buf,"iozone_file_%d_%d_%d",i,j,k);
 	      value=(char)((i^j^k) &0xff);
+	      stats[_STAT_OPEN].starttime=time_so_far();
 	      fd=open(buf,O_RDONLY);
 	      if(fd < 0)
 	      {
 	        printf("Open failed\n");
 	        exit(1);
 	      }
+	      stats[_STAT_OPEN].endtime=time_so_far();
+	      stats[_STAT_OPEN].speed=stats[_STAT_OPEN].endtime-stats[_STAT_OPEN].starttime;
+	      if(stats[_STAT_OPEN].speed < (double)0.0)
+		stats[_STAT_OPEN].speed=(double)0.0;
+	      stats[_STAT_OPEN].total_time+=stats[_STAT_OPEN].speed;
+	      stats[_STAT_OPEN].counter++;
+	      if(stats[_STAT_OPEN].speed < stats[_STAT_OPEN].best)
+		 stats[_STAT_OPEN].best=stats[_STAT_OPEN].speed;
+	      if(stats[_STAT_OPEN].speed > stats[_STAT_OPEN].worst)
+		 stats[_STAT_OPEN].worst=stats[_STAT_OPEN].speed;
+
 	      stats[_STAT_READ].starttime=time_so_far();
 	      y=read(fd,mbuffer,sz);
 	      if(y < 0)

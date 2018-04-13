@@ -2154,4 +2154,17 @@ Add new contributor's name.
 Revision 3.308
 Fix type-oh
 =============================================================================
+Revision 3.309
+Bug fix. rewrite_rec needed to fill entire buffer, or later stride read will
+fail.
+=============================================================================
+Revision 3.310
+=============================================================================
+Add ability for remote clients to return errors to the master and
+have the master display on output.
+=============================================================================
+Revision 3.311
+=============================================================================
+fix double reporting of client errors 
+=============================================================================
 

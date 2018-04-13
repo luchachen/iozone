@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.308 $"
+#define THISVERSION "        Version $Revision: 3.311 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -638,6 +638,7 @@ struct master_command {
 	char m_client_name[100];
 	char m_stop_flag; 
 	int m_client_number;
+	int m_client_error;
 	int m_child_port;
 	int m_child_async_port;
 	int m_command;
@@ -660,6 +661,7 @@ struct master_neutral_command {
 	char m_host_name[100];
 	char m_client_name[100];
 	char m_client_number[20];	/* int */
+	char m_client_error[20];	/* int */
 	char m_stop_flag[4];		/* char +space */
 	char m_child_port[20];		/* int */
 	char m_child_async_port[20];	/* int */
@@ -1315,6 +1317,7 @@ char splash[80][80];
 int splash_line;
 char client_filename[256];
 char remote_shell[256];
+int client_error;
 
 /* 
  * Host ports used to listen, and handle errors.
@@ -1395,7 +1398,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 20;
+int proto_version = 21;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -8857,7 +8860,7 @@ long long *data1,*data2;
 			purgeit(nbuff,reclen);
 		if(mmapflag)
 		{
-			wmaddr = &maddr[0];
+			wmaddr = &maddr[i*reclen];
 			fill_area((long long*)nbuff,(long long*)wmaddr,(long long)reclen);
 			if(!mmapnsflag)
 			{
@@ -11482,6 +11485,9 @@ thread_write_test( x)
 #endif
 	  if((fd = I_CREAT(dummyfile[xx], 0640))<0)
 	  {
+		client_error=errno;
+		if(distributed && client_iozone)
+			send_stop();
 		perror(dummyfile[xx]);
 		exit(123);
 	  }
@@ -11536,6 +11542,9 @@ thread_write_test( x)
 #endif
 	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
 	{
+		client_error=errno;
+		if(distributed && client_iozone)
+			send_stop();
 		printf("\nCan not open temp file: %s\n", 
 			filename);
 		perror("open");
@@ -11618,6 +11627,9 @@ thread_write_test( x)
 		thread_wqfd=fopen(tmpname,"a");
 		if(thread_wqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -11629,6 +11641,9 @@ thread_write_test( x)
 		thread_Lwqfd=fopen(tmpname,"a");
 		if(thread_Lwqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -11694,6 +11709,9 @@ thread_write_test( x)
 			{
 			  if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
 			  {
+				client_error=errno;
+				if(distributed && client_iozone)
+					send_stop();
 				printf("\nCan not open temp file: %s\n", 
 					filename);
 				perror("open");
@@ -12132,6 +12150,9 @@ thread_pwrite_test( x)
 	/*******************************************************************/
 	if((fd = I_CREAT(dummyfile[xx], 0640))<0)
 	{
+		client_error=errno;
+		if(distributed && client_iozone)
+			send_stop();
 		perror(dummyfile[xx]);
 		exit(123);
 	}
@@ -12161,6 +12182,9 @@ thread_pwrite_test( x)
 #endif
 	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
 	{
+		client_error=errno;
+		if(distributed && client_iozone)
+			send_stop();
 		printf("\nCan not open temp file: %s\n", 
 			filename);
 		perror("open");
@@ -12240,6 +12264,9 @@ thread_pwrite_test( x)
 		thread_wqfd=fopen(tmpname,"a");
 		if(thread_wqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -12251,6 +12278,9 @@ thread_pwrite_test( x)
 		thread_Lwqfd=fopen(tmpname,"a");
 		if(thread_Lwqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -12733,6 +12763,9 @@ thread_rwrite_test(x)
 #endif
 	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
 	{
+		client_error=errno;
+		if(distributed && client_iozone)
+			send_stop();
 #ifdef NO_PRINT_LLD
 		printf("\nChild %ld\n",xx);
 #else
@@ -12777,6 +12810,9 @@ thread_rwrite_test(x)
 		if(thread_rwqfd==0)
 		{
 			printf("Unable to open %s\n",tmpname);
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			exit(40);
 		}
 		fprintf(thread_rwqfd,"Offset in Kbytes   Latency in microseconds  Transfer size in bytes\n");
@@ -12787,6 +12823,9 @@ thread_rwrite_test(x)
 		thread_Lwqfd=fopen(tmpname,"a");
 		if(thread_Lwqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -13233,6 +13272,9 @@ thread_read_test(x)
 #endif
 	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
 	{
+		client_error=errno;
+		if(distributed && client_iozone)
+			send_stop();
 		perror(dummyfile[xx]);
 		exit(130);
 	}
@@ -13288,6 +13330,9 @@ thread_read_test(x)
 		thread_rqfd=fopen(tmpname,"a");
 		if(thread_rqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -13299,6 +13344,9 @@ thread_read_test(x)
 		thread_Lwqfd=fopen(tmpname,"a");
 		if(thread_Lwqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -13747,6 +13795,9 @@ thread_pread_test(x)
 #endif
 	if((fd = I_OPEN(dummyfile[xx], (int)flags,0))<0)
 	{
+		client_error=errno;
+		if(distributed && client_iozone)
+			send_stop();
 		perror(dummyfile[xx]);
 		exit(130);
 	}
@@ -13799,6 +13850,9 @@ thread_pread_test(x)
 		thread_rqfd=fopen(tmpname,"a");
 		if(thread_rqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -13810,6 +13864,9 @@ thread_pread_test(x)
 		thread_Lwqfd=fopen(tmpname,"a");
 		if(thread_Lwqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -14257,6 +14314,9 @@ thread_rread_test(x)
 #endif
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
+		client_error=errno;
+		if(distributed && client_iozone)
+			send_stop();
 		perror(dummyfile[xx]);
 		exit(135);
 	}
@@ -14294,6 +14354,9 @@ thread_rread_test(x)
                 thread_rrqfd=fopen(tmpname,"a");
                 if(thread_rrqfd==0)
                 {
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
                         printf("Unable to open %s\n",tmpname);
                         exit(40);
                 }
@@ -14305,6 +14368,9 @@ thread_rread_test(x)
 		thread_Lwqfd=fopen(tmpname,"a");
 		if(thread_Lwqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -14766,6 +14832,9 @@ thread_reverse_read_test(x)
 
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
+		client_error=errno;
+		if(distributed && client_iozone)
+			send_stop();
 		perror(dummyfile[xx]);
 		exit(140);
 	}
@@ -14798,6 +14867,9 @@ thread_reverse_read_test(x)
                 thread_revqfd=fopen(tmpname,"a");
                 if(thread_revqfd==0)
                 {
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
                         printf("Unable to open %s\n",tmpname);
                         exit(40);
                 }
@@ -14809,6 +14881,9 @@ thread_reverse_read_test(x)
 		thread_Lwqfd=fopen(tmpname,"a");
 		if(thread_Lwqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -14843,6 +14918,9 @@ thread_reverse_read_test(x)
 	  {
 	  	if((I_LSEEK( fd, -t_offset, SEEK_END ))<0)
 	  	{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			perror("lseek");
 			exit(142);
 	  	}
@@ -14851,6 +14929,9 @@ thread_reverse_read_test(x)
 	  {
 		if(I_LSEEK( fd, (numrecs64*reclen)-t_offset, SEEK_SET )<0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			perror("lseek");
 			exit(77);
 		}
@@ -15239,6 +15320,9 @@ thread_stride_read_test(x)
 #endif
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
+		client_error=errno;
+		if(distributed && client_iozone)
+			send_stop();
 		perror(dummyfile[xx]);
 		exit(147);
 	}
@@ -15272,6 +15356,9 @@ thread_stride_read_test(x)
                 thread_strqfd=fopen(tmpname,"a");
                 if(thread_strqfd==0)
                 {
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
                         printf("Unable to open %s\n",tmpname);
                         exit(40);
                 }
@@ -15283,6 +15370,9 @@ thread_stride_read_test(x)
 		thread_Lwqfd=fopen(tmpname,"a");
 		if(thread_Lwqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -15438,6 +15528,9 @@ thread_stride_read_test(x)
 			{
 			  if(I_LSEEK(fd,current_position,SEEK_SET)<0)
 			  {
+				client_error=errno;
+				if(distributed && client_iozone)
+					send_stop();
 				perror("lseek");
 				exit(152);
 			  }
@@ -15450,6 +15543,9 @@ thread_stride_read_test(x)
 			{
 			  if(I_LSEEK(fd,current_position,SEEK_SET)<0)
 			  {
+				client_error=errno;
+				if(distributed && client_iozone)
+					send_stop();
 				perror("lseek");
 				exit(154);
 			  };
@@ -15825,6 +15921,9 @@ thread_ranread_test(x)
 #endif
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
+		client_error=errno;
+		if(distributed && client_iozone)
+			send_stop();
 		perror(dummyfile[xx]);
 		exit(156);
 	}
@@ -15881,6 +15980,9 @@ thread_ranread_test(x)
                 thread_randrfd=fopen(tmpname,"a");
                 if(thread_randrfd==0)
                 {
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
                         printf("Unable to open %s\n",tmpname);
                         exit(40);
                 }
@@ -15892,6 +15994,9 @@ thread_ranread_test(x)
 		thread_Lwqfd=fopen(tmpname,"a");
 		if(thread_Lwqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -15967,6 +16072,9 @@ thread_ranread_test(x)
 		{
 		  if(I_LSEEK( fd, current_offset, SEEK_SET )<0)
 		  {
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			perror("lseek");
 			exit(158);
 		  };
@@ -16364,6 +16472,9 @@ thread_ranwrite_test( x)
 #ifdef foobar
 	if((fd = I_CREAT(dummyfile[xx], 0640))<0)
 	{
+		client_error=errno;
+		if(distributed && client_iozone)
+			send_stop();
 		perror(dummyfile[xx]);
 		exit(123);
 	}
@@ -16405,6 +16516,9 @@ thread_ranwrite_test( x)
 #endif
 	if((fd = I_OPEN(dummyfile[xx], ((int)flags),0))<0)
 	{
+		client_error=errno;
+		if(distributed && client_iozone)
+			send_stop();
 		printf("\nCan not open temp file: %s\n", 
 			filename);
 		perror("open");
@@ -16467,6 +16581,9 @@ thread_ranwrite_test( x)
 		thread_randwqfd=fopen(tmpname,"a");
 		if(thread_randwqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -16478,6 +16595,9 @@ thread_ranwrite_test( x)
 		thread_Lwqfd=fopen(tmpname,"a");
 		if(thread_Lwqfd==0)
 		{
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			printf("Unable to open %s\n",tmpname);
 			exit(40);
 		}
@@ -16522,6 +16642,9 @@ thread_ranwrite_test( x)
 		{
 		  if(I_LSEEK( fd, current_offset, SEEK_SET )<0)
 		  {
+			client_error=errno;
+			if(distributed && client_iozone)
+				send_stop();
 			perror("lseek");
 			exit(158);
 		  };
@@ -18801,6 +18924,7 @@ int send_size;
 	strcpy(outbuf.m_host_name,send_buffer->m_host_name);
 	strcpy(outbuf.m_client_name,send_buffer->m_client_name);
 	sprintf(outbuf.m_client_number,"%d",send_buffer->m_client_number);
+	sprintf(outbuf.m_client_error,"%d",send_buffer->m_client_error);
 	sprintf(outbuf.m_child_port,"%d",send_buffer->m_child_port);
 	sprintf(outbuf.m_child_async_port,"%d",send_buffer->m_child_async_port);
 	sprintf(outbuf.m_command,"%d",send_buffer->m_command);
@@ -20128,7 +20252,8 @@ become_client()
 
 	/* 6. Change to the working directory */
 
-	chdir(workdir);
+	if(chdir(workdir)<0)
+		client_error=errno;
 	start_child_listen_loop(); /* The async channel listener */
 
 	/* Need to start this after getting into the correct directory */
@@ -20289,6 +20414,7 @@ long long child_flag;
 	struct master_command mc;
 	bzero(&mc,sizeof(struct master_command));
 	mc.m_client_number = (int) chid;
+	mc.m_client_error = (int) client_error;
 	mc.m_throughput= throughput;
 	mc.m_testnum = testnum;
 	mc.m_actual = actual;
@@ -20349,6 +20475,7 @@ long long chid;
 	mc.m_version = proto_version;
 	mc.m_child_flag = CHILD_STATE_READY; 
 	mc.m_client_number = (int)chid; 
+	mc.m_client_error = client_error;
 	child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
 }
 
@@ -20425,11 +20552,17 @@ int num;
 		 */
 		sscanf(mnc->m_command,"%d",&mc.m_command);
 		sscanf(mnc->m_client_number,"%d",&mc.m_client_number);
+		sscanf(mnc->m_client_error,"%d",&mc.m_client_error);
 		sscanf(mnc->m_version,"%d",&mc.m_version);
 		if(mc.m_version != proto_version)
 		{
 			printf("Client # %d is not running the same version of Iozone !\n",
 				mc.m_client_number);
+		}		
+		if(mc.m_client_error != 0)
+		{
+			printf("\nClient # %d reporting an error %s !\n",
+				mc.m_client_number,strerror(mc.m_client_error));
 		}		
 #ifdef NO_PRINT_LLD
 		sscanf(mnc->m_child_flag,"%ld",&mc.m_child_flag);
@@ -20815,12 +20948,14 @@ send_stop()
 	mc.m_command = R_STOP_FLAG;
 	mc.m_version = proto_version;
 	mc.m_client_number = chid;
+	mc.m_client_error = client_error;
 	if(cdebug)
 	{
 		printf("Child %d sending stop flag to master\n",(int)chid);
 		fflush(stdout);
 	}
         child_send(s_sock, controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
+	client_error=0;  /* clear error, it has been delivered */
 }
 
 /*
