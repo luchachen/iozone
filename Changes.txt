@@ -1295,4 +1295,10 @@ Revision 3.76
 =============================================================================
 Portability change for shmat().
 Added and example of client_list file to the distribution.
+=============================================================================
+Revision 3.77
+=============================================================================
+Disable CPU utilization in distributed mode.
+Bug fix for CPU utilization in normal mode.
+
 

@@ -10,3 +10,11 @@
 # client1  /home/user/tmp /home/user/tmp/iozone
 # client2  /home/user/tmp /home/user/tmp/iozone
 #
+#
+# Example: With two copies of Iozone on each of the two clients 
+#
+# client1  /home/user/tmp /home/user/tmp/iozone
+# client1  /home/user/tmp /home/user/tmp/iozone
+# client2  /home/user/tmp /home/user/tmp/iozone
+# client2  /home/user/tmp /home/user/tmp/iozone
+#

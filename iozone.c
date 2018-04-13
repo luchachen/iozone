@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.76 $"
+#define THISVERSION "        Version $Revision: 3.77 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -1728,7 +1728,13 @@ char **argv;
 		}
 	}
 	
+	if(distributed && master_iozone && cpuutilflag)
+	{
+		printf("\n\t>>> WARNING <<< CPU utilization not supported in distributed mode.\n");
+		printf("\tRunning with CPU utilization disabled.\n\n");
+		cpuutilflag=0;
 
+	}
 	if(!OPS_flag && !MS_flag)
 	{
 		if(!silent) printf("\tOutput is in Kbytes/sec\n");
@@ -2727,11 +2733,15 @@ waitout:
 	if(cpuutilflag)
 	{
 		if(walltime == 0.0)
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 0.0);
+		}
 		else
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 100.0 * cputime / walltime);
+		}
 	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
@@ -2941,11 +2951,15 @@ jump3:
 	if(cpuutilflag)
 	{
 		if(walltime == 0.0)
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 0.0);
+		}
 		else
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 100.0 * cputime / walltime);
+		}
 	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
@@ -3146,11 +3160,15 @@ jumpend:
 	if(cpuutilflag)
 	{
 		if(walltime == 0.0)
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 0.0);
+		}
 		else
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 100.0 * cputime / walltime);
+		}
 	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
@@ -3352,11 +3370,15 @@ jumpend2:
 	if(cpuutilflag)
 	{
 		if(walltime == 0.0)
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 0.0);
+		}
 		else
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 100.0 * cputime / walltime);
+		}
 	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
@@ -3559,11 +3581,15 @@ next1:
 	if(cpuutilflag)
 	{
 		if(walltime == 0.0)
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 0.0);
+		}
 		else
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 100.0 * cputime / walltime);
+		}
 	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
@@ -3761,11 +3787,15 @@ next2:
 	if(cpuutilflag)
 	{
 		if(walltime == 0.0)
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 0.0);
+		}
 		else
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 100.0 * cputime / walltime);
+		}
 	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
@@ -3963,11 +3993,15 @@ next3:
 	if(cpuutilflag)
 	{
 		if(walltime == 0.0)
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 0.0);
+		}
 		else
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 100.0 * cputime / walltime);
+		}
 	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
@@ -4165,11 +4199,15 @@ next4:
 	if(cpuutilflag)
 	{
 		if(walltime == 0.0)
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 0.0);
+		}
 		else
+		{
 			if(!silent) printf("\tCPU utilization: Wall time %8.3f    CPU time %8.3f    CPU utilization %6.2f %%\n\n",
 				walltime, cputime, 100.0 * cputime / walltime);
+		}
 	}
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
