@@ -1618,4 +1618,8 @@ Stop test if file can not be written.
 Revision 3.161 
 =============================================================================
 Special handling for mmap of a file that is opened (O_DIRECT)
+=============================================================================
+Revision 3.162 
+=============================================================================
+Fixup for systems that do not have O_DIRECT.
 

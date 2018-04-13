@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.161 $"
+#define THISVERSION "        Version $Revision: 3.162 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -14997,6 +14997,7 @@ int flag, prot;
 	 int file_flags;
 	 long long recs;
 	 long long i;
+	 int dflag = 0;
 
 	 if(flag)
 	 {
@@ -15024,7 +15025,17 @@ int flag, prot;
 		 * a file that is opened with O_DIRECT 
 		 */
 	 	file_flags=fcntl(fd,F_GETFL);
-	 	if((file_flags & O_DIRECT) !=0)
+
+#if ! defined(DONT_HAVE_O_DIRECT)
+#if defined(linux) || defined(__AIX__)
+		dflag = O_DIRECT;
+#endif
+#if defined(TRU64)
+	if(direct_flag)
+		dflag = O_DIRECTIO;
+#endif
+#endif
+	 	if((file_flags & dflag) !=0)
 	 	{
 	 		recs=filebytes/reclen;
 			for (i =0; i<recs ;i++)
