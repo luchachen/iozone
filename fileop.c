@@ -48,6 +48,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <string.h>
 #if defined(Windows)
 #include <Windows.h>
 #endif
@@ -97,11 +98,10 @@ void file_unlink(int);
 void file_read(int);
 void splash(void);
 void usage(void);
-void *memset();
 void bzero();
 void clear_stats();
 
-#define THISVERSION "        $Revision: 1.36 $"
+#define THISVERSION "        $Revision: 1.37 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;

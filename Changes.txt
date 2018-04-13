@@ -2016,4 +2016,8 @@ Fix for Debian user bug. -r 1m -n 1m -g 2m gave bogus error.
 Revision 3.262
 =============================================================================
 Bug fix for -k used in conjunction with -t and content validation.
+=============================================================================
+Revision 3.263
+=============================================================================
+Bug fix for -k used in conjunction with -t and content validation.
 

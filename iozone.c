@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.262 $"
+#define THISVERSION "        Version $Revision: 3.263 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -5975,6 +5975,7 @@ char sverify;
 	        mpattern=(mpattern<<48) | (mpattern<<32) | (mpattern<<16) | mpattern;
 		mpattern=mpattern+value;
 	}
+
 	/* printf("verify patt %llx CHid %d\n",mpattern,chid);*/
 
 	where=(unsigned long long *)buffer;
@@ -6055,6 +6056,7 @@ char sverify;
 	printf("Record # %lld Record size %lld kb \n",recnum,recsize/1024);
 #endif
 	printf("Found pattern: Char >>%c<< Expecting >>%c<<\n", *where2,*pattern_ptr);
+	printf("Found pattern: Hex >>%x<< Expecting >>%x<<\n", *where2,*pattern_ptr);
 		   return(1);
 	      }
 	      where++;
@@ -11064,7 +11066,7 @@ thread_write_test( x)
 	}
 	if(fetchon)			/* Prefetch into processor cache */
 		fetchit(nbuff,reclen);
-	if(verify && !diag_v)
+	if(verify && !no_copy_flag)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 
 	if(w_traj_flag)
@@ -11162,7 +11164,7 @@ thread_write_test( x)
 			mylockr((int) fd, (int) 1, (int)0,
 			  lock_offset, reclen);
 		}
-		if(verify && diag_v && !no_copy_flag)
+		if(verify && !no_copy_flag)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -11655,7 +11657,7 @@ thread_pwrite_test( x)
 	}
 	if(fetchon)			/* Prefetch into processor cache */
 		fetchit(nbuff,reclen);
-	if(verify)
+	if(verify && !no_copy_flag)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 
 	if(w_traj_flag)
@@ -11739,7 +11741,7 @@ thread_pwrite_test( x)
 			mylockr((int) fd, (int) 1, (int)0,
 			  lock_offset, reclen);
 		}
-		if(verify && diag_v)
+		if(verify && !no_copy_flag)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 		if(compute_flag)
 			compute_val+=do_compute(delay);
@@ -12272,7 +12274,7 @@ thread_rwrite_test(x)
 	}
 	if(w_traj_flag)
 		rewind(w_traj_fd);
-	if(verify)
+	if(verify && !no_copy_flag)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 	for(i=0; i<numrecs64; i++){
 		traj_offset= i*reclen ;
@@ -12310,16 +12312,9 @@ thread_rwrite_test(x)
 				printf("\nStop_flag 1\n");
 			break;
 		}
-		if(verify && diag_v)
+		if(verify && !no_copy_flag)
 		{
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
-		}
-		if(async_flag && no_copy_flag)
-		{
-			free_addr=buffer=(char *)malloc((size_t)reclen+page_size);
-			nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
-			if(verify)
-				fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 		}
 		if(purge)
 			purgeit(nbuff,reclen);
@@ -12343,13 +12338,19 @@ printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,re
 		}
 		else
 		{
-			if(async_flag)
-			{
+		   	if(async_flag)
+		   	{
 			     if(no_copy_flag)
-			         async_write_no_copy(gc, (long long)fd, nbuff, reclen, (i*reclen), depth,free_addr);
+			     {
+				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
+				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
+				if(verify)
+					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
+			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (i*reclen), depth,free_addr);
+			     }
 			     else
-			         async_write(gc, (long long)fd, nbuff, reclen, (i*reclen), depth);
-			}
+				async_write(gc, (long long)fd, nbuff, reclen, (i*reclen), depth);
+		   	}
 			else
 			{
 #if defined(Windows)
@@ -15694,7 +15695,7 @@ thread_ranwrite_test( x)
 		fprintf(thread_Lwqfd,"%-25s %s","Random write start: ",
 			now_string);
 	}
-	if(verify)
+	if(verify && !no_copy_flag)
 		fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 	starttime1 = time_so_far();
 	if(cpuutilflag)
@@ -15742,7 +15743,7 @@ thread_ranwrite_test( x)
 			mylockr((int) fd, (int) 1, (int)0,
 			  lock_offset, reclen);
 		}
-		if(verify & diag_v)
+		if(verify && !no_copy_flag)
 			fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)(current_offset/reclen));
 		if(*stop_flag && !stopped){
 			if(include_flush)
