@@ -1148,5 +1148,15 @@ style operations.
 Revision 3.30 through 3.37
 =============================================================================
 Add support for read and write telemetry files.
+=============================================================================
+Revision 3.40 
+=============================================================================
+Code cleanup for popen() usage in -M path.
+=============================================================================
+Revision 3.41 
+=============================================================================
+Bug fix for ops/sec in rewrite throughput testing.
+Added average throughput to output in throughput mode.
+
 
 

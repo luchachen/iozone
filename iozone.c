@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.37 $"
+#define THISVERSION "        Version $Revision: 3.42 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -401,6 +401,7 @@ struct child_stats {
 /*									*/
 /************************************************************************/
 
+#define IBUFSIZE 100
 #define DISRUPT 100
 #define LARGE_REC 65536
 #define KILOBYTES 512 			/* number of kilobytes in file */
@@ -713,7 +714,7 @@ char **argv;
 	long long fileindx,i,tval;
 	long long ind;
 	FILE *pi;
-	char reply[99];
+	char reply[IBUFSIZE];
 	unsigned char inp_pat;
 	time_t time_run;
 	char *port,*pl,*m;
@@ -966,14 +967,27 @@ char **argv;
 				MAXBUFFERSIZE);
 			break;
                 case 'M':       /* Report machine name and OS */
+			bzero(reply,sizeof(reply));
                         pi=popen("uname -a", "r");
-                        fread(reply,99,1,pi);
-			m=reply;
-                        while(*m!='\n') /* Strip after new line */
-                                m++;
-                        *m=0;
-                        printf("\n\tMachine = %s\n",reply);
-                        pclose(pi);
+			if(pi == (FILE *)0)
+			{
+				printf("\n\tError using popen() on uname\n");
+				printf("\t-M option suppressed.\n");
+			}
+			else
+			{
+                        	fread(reply,IBUFSIZE-1,1,pi);
+                        	pclose(pi);
+				m=reply;
+                        	while(*m) /* Strip new line */
+				{
+					if(*m=='\n')
+                               		 	*m=0;
+					else	
+                               		 	m++;
+				}
+                        	printf("\n\tMachine = %s\n",reply);
+			}
                         break;
 
 		case 'P':	/* Set beginning processor for binding. */
@@ -1857,6 +1871,7 @@ void throughput_test()
 	VOLATILE char *temp;
 	double min_throughput = 0;
 	double max_throughput = 0;
+	double avg_throughput = 0;
 	double min_xfer = 0; 
 
 
@@ -2085,6 +2100,7 @@ waitout:
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
 	}
+	avg_throughput=total_kilos/num_child;
 
 	for(xyz=0;xyz<num_child;xyz++){
 		child_stat = (struct child_stats *) &shmaddr[xyz];
@@ -2100,11 +2116,12 @@ waitout:
 #endif
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
+	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
 	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-				printf("\t\tChild xfer count \t= %10.2f %s/sec\n", child_stat->actual,unit);
+				printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
 		}
 	/**********************************************************/
 	/*************** End of intitial writer *******************/
@@ -2234,6 +2251,7 @@ jump3:
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
 	}
+	avg_throughput=total_kilos/num_child;
 
 	for(xyz=0;xyz<num_child;xyz++){	/* Reset state to 0 */
 		child_stat=(struct child_stats *)&shmaddr[xyz];
@@ -2249,12 +2267,12 @@ jump3:
 #endif
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
+	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
 	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-			printf("\t\tChild xfer count \t= %10.2f %s/sec\n", 
-				child_stat->actual,unit);
+			printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
 		}
 	*stop_flag=0;
 	/**********************************************************/
@@ -2381,6 +2399,7 @@ jumpend:
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
 	}
+	avg_throughput=total_kilos/num_child;
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	printf("\tChildren see throughput for %2ld readers \t\t= %10.2f %s/sec\n", num_child, total_kilos,unit);
@@ -2391,11 +2410,12 @@ jumpend:
 #endif
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
+	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
 	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-			printf("\t\tChild xfer count \t= %10.2f %s/sec\n", child_stat->actual,unit);
+			printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
 		}
 	/**********************************************************/
 	/*************** End of readers throughput ****************/
@@ -2522,6 +2542,7 @@ jumpend2:
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
 	}
+	avg_throughput=total_kilos/num_child;
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	printf("\tChildren see throughput for %ld re-readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
@@ -2532,11 +2553,12 @@ jumpend2:
 #endif
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
+	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
 	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-			printf("\t\tChild xfer count \t= %10.2f %s/sec\n", child_stat->actual,unit);
+			printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
 		}
 	/**********************************************************/
 	/*************** End of re-readers throughput ****************/
@@ -2663,6 +2685,7 @@ next1:
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
 	}
+	avg_throughput=total_kilos/num_child;
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	printf("\tChildren see throughput for %ld reverse readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
@@ -2673,11 +2696,12 @@ next1:
 #endif
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
+	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
 	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-			printf("\t\tChild xfer count \t= %10.2f %s/sec\n", child_stat->actual,unit);
+			printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
 		}
 
 next2:
@@ -2800,6 +2824,7 @@ next2:
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
 	}
+	avg_throughput=total_kilos/num_child;
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	printf("\tChildren see throughput for %ld stride readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
@@ -2810,11 +2835,12 @@ next2:
 #endif
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
+	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
 	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-			printf("\t\tChild xfer count \t= %10.2f %s/sec\n", child_stat->actual,unit);
+			printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
 		}
 
 	/**************************************************************/
@@ -2938,6 +2964,7 @@ next3:
 		if(child_stat->throughput > max_throughput)
 			max_throughput=child_stat->throughput;
 	}
+	avg_throughput=total_kilos/num_child;
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
 	printf("\tChildren see throughput for %ld random readers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
@@ -2948,11 +2975,12 @@ next3:
 #endif
 	printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
 	printf("\tMax throughput per %s \t\t\t= %10.2f %s/sec\n", port,max_throughput,unit);
+	printf("\tAvg throughput per %s \t\t\t= %10.2f %s/sec\n", port,avg_throughput,unit);
 	printf("\tMin xfer \t\t\t\t\t= %10.2f %s\n\n", min_xfer,unit);
 	if(Cflag)
 		for(xyz=0;xyz<num_child;xyz++){
 			child_stat = (struct child_stats *) &shmaddr[xyz];
-			printf("\t\tChild xfer count \t= %10.2f %s/sec\n", child_stat->actual,unit);
+			printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n", (long)xyz, child_stat->actual,unit, child_stat->throughput,unit);
 		}
 
 next4:
@@ -4104,6 +4132,7 @@ long long *data1,*data2;
 		}
 		compute_val=(double)0;
 		r_traj_ops_completed=0;
+		r_traj_bytes_completed=0;
 		for(i=0; i<numrecs64; i++) 
 		{
 			if(disrupt_flag && ((i%DISRUPT)==0))
@@ -7426,6 +7455,7 @@ thread_rwrite_test(x)
 			}
 		}
 		re_written_so_far+=reclen/1024;
+	   	w_traj_ops_completed++;
 		w_traj_bytes_completed+=reclen;
 		if(*stop_flag)
 		{
