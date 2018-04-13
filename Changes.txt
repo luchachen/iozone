@@ -1552,4 +1552,13 @@ Bug fix for Redhat.
 Revision 3.145 
 =============================================================================
 Bug fix for when user used -l but failed to use -u too.
-
+=============================================================================
+Revision 3.146 
+=============================================================================
+Add void to speed_main() for non-ansi compiles.
+=============================================================================
+Revision 3.147 
+=============================================================================
+Add "Test running" So users will know the test is running
+and not to hit control 'c' too soon.
+Bug fix in libbif.c do_float()

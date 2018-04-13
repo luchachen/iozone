@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.64 $
+# Version $Revision: 1.65 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -452,7 +452,7 @@ iozone_hpux-11.0w.o:	iozone.c libasync.c libbif.c
 	@echo "Building iozone for HP-UX (11.0w)"
 	@echo ""
 	cc -c +DA2.0w +O3 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
-	    -DNAME='hpux-11.0w"' -DHAVE_ANSIC_C -DASYNC_IO -DVXFS iozone.c \
+	    -DNAME='"hpux-11.0w"' -DHAVE_ANSIC_C -DASYNC_IO -DVXFS iozone.c \
 	     -o iozone_hpux-11.0w.o
 	cc -c +DA2.0w +O3 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
 		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS libasync.c  -o libasyncw.o

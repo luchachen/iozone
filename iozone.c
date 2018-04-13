@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.145 $"
+#define THISVERSION "        Version $Revision: 3.147 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -3086,6 +3086,7 @@ waitout:
 			child_stat = (struct child_stats *) &shmaddr[i];
 			if(distributed && master_iozone)
 			{
+				printf("\n\tTest running:");
 				wait_dist_join();
 				break;
 			}
@@ -3173,10 +3174,10 @@ waitout:
 		store_times (walltime, cputime);	/* Must be Before store_dvalue(). */
 	store_dvalue(total_kilos);
 #ifdef NO_PRINT_LLD
-	if(!silent) printf("\n\n\tChildren see throughput for %2ld initial writers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
+	if(!silent) printf("\tChildren see throughput for %2ld initial writers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
 	if(!silent && !distributed) printf("\tParent sees throughput for %2ld initial writers \t= %10.2f %s/sec\n",num_child,((double)(ptotal)/total_time),unit);
 #else
-	if(!silent) printf("\n\n\tChildren see throughput for %2lld initial writers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
+	if(!silent) printf("\tChildren see throughput for %2lld initial writers \t= %10.2f %s/sec\n", num_child, total_kilos,unit);
 	if(!silent && !distributed) printf("\tParent sees throughput for %2lld initial writers \t= %10.2f %s/sec\n",num_child,((double)(ptotal)/total_time),unit);
 #endif
 	if(!silent) printf("\tMin throughput per %s \t\t\t= %10.2f %s/sec \n", port,min_throughput,unit);
@@ -3319,6 +3320,7 @@ jump3:
 			child_stat=(struct child_stats *)&shmaddr[i];
 			if(distributed && master_iozone)
 			{
+				printf("\n\tTest running:");
 				wait_dist_join();
 				break;
 			}
@@ -3547,6 +3549,7 @@ jumpend:
 			child_stat = (struct child_stats *)&shmaddr[i];
 			if(distributed && master_iozone)
 			{
+				printf("\n\tTest running:");
 				wait_dist_join();
 				break;
 			}
@@ -3770,6 +3773,7 @@ jumpend2:
 			child_stat = (struct child_stats *)&shmaddr[i];
                         if(distributed && master_iozone)
                         {
+				printf("\n\tTest running:");
                                 wait_dist_join();
                                 break;
                         }
@@ -3992,6 +3996,7 @@ next1:
 			child_stat = (struct child_stats *)&shmaddr[i];
                         if(distributed && master_iozone)
                         {
+				printf("\n\tTest running:");
                                 wait_dist_join();
                                 break;
                         }
@@ -4210,6 +4215,7 @@ next2:
 			child_stat = (struct child_stats *)&shmaddr[i];
                         if(distributed && master_iozone)
                         {
+				printf("\n\tTest running:");
                                 wait_dist_join();
                                 break;
                         }
@@ -4429,6 +4435,7 @@ next3:
 			child_stat = (struct child_stats *)&shmaddr[i];
                         if(distributed && master_iozone)
                         {
+				printf("\n\tTest running:");
                                 wait_dist_join();
                                 break;
                         }
@@ -4647,6 +4654,7 @@ next4:
 			child_stat = (struct child_stats *)&shmaddr[i];
                         if(distributed && master_iozone)
                         {
+				printf("\n\tTest running:");
                                 wait_dist_join();
                                 break;
                         }
@@ -4865,6 +4873,7 @@ next5:
 			child_stat = (struct child_stats *)&shmaddr[i];
                         if(distributed && master_iozone)
                         {
+				printf("\n\tTest running:");
                                 wait_dist_join();
                                 break;
                         }
@@ -5076,6 +5085,7 @@ next6:
 				child_stat=(struct child_stats *)&shmaddr[i];
 				if(distributed && master_iozone)
 				{
+					printf("\n\tTest cleanup:");
 					wait_dist_join();
 					break;
 				}
@@ -16860,6 +16870,7 @@ void
 speed_main(char *client_name, char *e_path, long long reclen,
 	long long kilos, int client_flag)
 #else
+void
 speed_main(client_name, e_path, reclen, kilos, client_flag)
 char *client_name;
 char *e_path;

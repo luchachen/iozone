@@ -78,7 +78,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.8 $";
+char libbif_version[] = "Libbif Version $Revision: 3.9 $";
 void do_eof(int );		/* Used internally */
 void do_header(int );		/* Used internally */
 #endif
@@ -273,8 +273,8 @@ int row,column;
         floatrec.rgblo=0x0;
         floatrec.hi_row=(char)(s_row&0xff);
         floatrec.lo_row=(char)((s_row>>8)&0xff);
-        floatrec.hi_column=(char)(column&0xff);
-        floatrec.lo_column=(char)((column>>8)&0xff);
+        floatrec.hi_column=(char)(s_column&0xff);
+        floatrec.lo_column=(char)((s_column>>8)&0xff);
 	sptr =(unsigned char *) &value;
 	dptr =(unsigned char *) &floatrec.data;
 #if defined(BIG_ENDIAN) && !defined(linux)
