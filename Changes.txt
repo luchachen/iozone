@@ -2088,3 +2088,7 @@ Code fixes for macosx
 Revision 3.281
 Add support for building with Sun's Studio 11 compiler
 =============================================================================
+Revision 3.283
+Bug fix for fread/fwrite with > 2Gig files.
+=============================================================================
+

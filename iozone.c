@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.281 $"
+#define THISVERSION "        Version $Revision: 3.283 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -6832,13 +6832,16 @@ long long *data2;
 		
         for(j=0;j<ltest;j++)
         {
-		writerate[j] = 
-		      (unsigned long long) ((double) filebytes64 / writetime[j]);
 		if(MS_flag)
 		{
-			writerate[j]=1000000.0*(1.0/writerate[j]);
+			writerate[j]=1000000.0*(writetime[j] / (double)filebytes64);
 			continue;
 		}
+              else
+            {
+                  writerate[j] = 
+                    (unsigned long long) ((double) filebytes64 / writetime[j]);
+            }
 		if(!(OPS_flag || MS_flag))
 		   writerate[j] >>= 10;
 	}
@@ -6946,7 +6949,7 @@ long long *data2;
 			exit(49);
 		}
 #endif
-		fd=open(filename,O_RDWR);
+		fd=I_OPEN(filename,O_RDWR,0640);
 		fsync(fd);
 		setvbuf(stream,stdio_buf,_IOFBF,reclen);
 		buffer=mainbuffer;
@@ -7052,13 +7055,16 @@ long long *data2;
 	}
         for(j=0;j<ltest;j++)
         {
-		writerate[j] = 
-		      (unsigned long long) ((double) filebytes64 / writetime[j]);
 		if(MS_flag)
 		{
-			writerate[j]=1000000.0*(1.0/writerate[j]);
+			writerate[j]=1000000.0*(writetime[j] / (double)filebytes64);
 			continue;
 		}
+            else
+            {
+                  writerate[j] = 
+		      (unsigned long long) ((double) filebytes64 / writetime[j]);
+            }
 		if(!(OPS_flag || MS_flag))
 			writerate[j] >>= 10;
 	}
@@ -7156,7 +7162,7 @@ long long *data1,*data2;
 			exit(52);
 		}
 #endif
-		fd=open(filename,O_RDONLY);
+		fd=I_OPEN(filename,O_RDONLY,0);
 		fsync(fd);
 		close(fd);
 		setvbuf(stream,stdio_buf,_IOFBF,reclen);
@@ -7245,13 +7251,16 @@ long long *data1,*data2;
 	}
         for(j=0;j<ltest;j++)
         {
-	   	readrate[j] = 
-		     (unsigned long long) ((double) filebytes64 / readtime[j]);
 		if(MS_flag)
 		{
-			readrate[j]=1000000.0*(1.0/readrate[j]);
+			readrate[j]=1000000.0*(readtime[j] / (double)filebytes64);
 			continue;
 		}
+            else
+            {
+                  readrate[j] = 
+                  (unsigned long long) ((double) filebytes64 / readtime[j]);
+            }
 		if(!(OPS_flag || MS_flag))
 			readrate[j] >>= 10;
 	}
@@ -7732,13 +7741,16 @@ long long *data1,*data2;
 
         for(j=0;j<ltest;j++)
         {
-	   	readrate[j] = 
-		     (unsigned long long) ((double) filebytes64 / readtime[j]);
 		if(MS_flag)
 		{
-			readrate[j]=1000000.0*(1.0/readrate[j]);
+			readrate[j]=1000000.0*(readtime[j] / (double)filebytes64);
 			continue;
 		}
+            else
+            {
+                  readrate[j] = 
+                  (unsigned long long) ((double) filebytes64 / readtime[j]);
+            }
 		if(!(OPS_flag || MS_flag))
 			readrate[j] >>= 10;
 			
@@ -8175,13 +8187,16 @@ long long *data1, *data2;
 	}
         for(j=0;j<2;j++)
         {
-		randreadrate[j] = 
-		      (unsigned long long) ((double) filebytes64 / randreadtime[j]);
 		if(MS_flag)
 		{
-			randreadrate[j]=1000000.0*(1.0/randreadrate[j]);
+			randreadrate[j]=1000000.0*(randreadtime[j] / (double)filebytes64);
 			continue;
 		}
+            else
+            {
+                  randreadrate[j] = 
+		      (unsigned long long) ((double) filebytes64 / randreadtime[j]);
+            }
 		if(!(OPS_flag || MS_flag))
 			randreadrate[j] >>= 10;
 	}
@@ -8459,13 +8474,16 @@ long long *data1,*data2;
 	   filebytes64=filebytes64/reclen;
 	}
 	for(j=0;j<ltest;j++){
-	    	revreadrate[j] = 
-		      (unsigned long long) ((double) filebytes64 / revreadtime[j]);
 		if(MS_flag)
 		{
-			revreadrate[j]=1000000.0*(1.0/revreadrate[j]);
+			revreadrate[j]=1000000.0*(revreadtime[j] / (double)filebytes64);
 			continue;
 		}
+            else
+            {
+                  revreadrate[j] = 
+		      (unsigned long long) ((double) filebytes64 / revreadtime[j]);
+            }
 		if(!(OPS_flag || MS_flag))
 			revreadrate[j] >>= 10;
 	}
@@ -8761,11 +8779,14 @@ long long *data1,*data2;
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
 	}
-    	writeinrate = (unsigned long long) ((double) filebytes64 / writeintime);
 	if(MS_flag)
 	{
-		writeinrate=1000000.0*(1.0/writeinrate);
+		writeinrate=1000000.0*(writeintime / (double)filebytes64);
 	}
+      else
+      {
+            writeinrate = (unsigned long long) ((double) filebytes64 / writeintime);
+      }
 	if(!(OPS_flag || MS_flag))
 		writeinrate >>= 10;
 	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
@@ -9066,11 +9087,14 @@ long long *data1, *data2;
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
 	}
-    	strideinrate = (unsigned long long) ((double) filebytes64 / strideintime);
 	if(MS_flag)
 	{
-		strideinrate=1000000.0*(1.0/strideinrate);
+		strideinrate=1000000.0*(strideintime / (double)filebytes64);
 	}
+      else
+      {
+            strideinrate = (unsigned long long) ((double) filebytes64 / strideintime);
+      }
 	if(!(OPS_flag || MS_flag))
 		strideinrate >>= 10;
 	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
@@ -9343,13 +9367,16 @@ long long *data1,*data2;
 	   filebytes64=filebytes64/reclen;
 	}
 	for(j=0;j<ltest;j++){
-		pwriterate[j] = 
-		      (unsigned long long) ((double) filebytes64 / pwritetime[j]);
 		if(MS_flag)
 		{
-			pwriterate[j]=1000000.0*(1.0/pwriterate[j]);
+			pwriterate[j]=1000000.0*(pwritetime[j] / (double)filebytes64);
 			continue;
 		}
+            else
+            {
+                  pwriterate[j] = 
+		      (unsigned long long) ((double) filebytes64 / pwritetime[j]);
+            }
 		if(!(OPS_flag || MS_flag))
 			pwriterate[j] >>= 10;
 	}
@@ -9574,13 +9601,16 @@ long long *data1, *data2;
 	   filebytes64=filebytes64/reclen;
 	}
 	for(j=0;j<ltest;j++){
-		preadrate[j] = 
-			(unsigned long long) ((double) filebytes64 / preadtime[j]);
 		if(MS_flag)
 		{
-			preadrate[j]=1000000.0*(1.0/preadrate[j]);
+			preadrate[j]=1000000.0*(preadtime[j] / (double)filebytes64);
 			continue;
 		}
+            else
+            {
+                  preadrate[j] = 
+			(unsigned long long) ((double) filebytes64 / preadtime[j]);
+            }
 		if(!(OPS_flag || MS_flag))
 			preadrate[j] >>= 10;
 	}
@@ -9851,13 +9881,16 @@ long long *data1,*data2;
 	   filebytes64=filebytes64/reclen;
 	}
 	for(j=0;j<ltest;j++){
-	    	pwritevrate[j] = 
-		      (unsigned long long) ((double) filebytes64 / pwritevtime[j]);
 		if(MS_flag)
 		{
-			pwritevrate[j]=1000000.0*(1.0/pwritevrate[j]);
+			pwritevrate[j]=1000000.0*(pwritevtime[j] / (double)filebytes64);
 			continue;
 		}
+            else
+            {
+                  pwritevrate[j] = 
+		      (unsigned long long) ((double) filebytes64 / pwritevtime[j]);
+            }
 		if(!(OPS_flag || MS_flag))
 			pwritevrate[j] >>= 10;
 	}
@@ -10128,13 +10161,16 @@ long long *data1,*data2;
 	   filebytes64=filebytes64/reclen;
 	}
 	for(j=0;j<ltest;j++){
-	    	preadvrate[j] = 
-		      (unsigned long long) ((double) filebytes64 / preadvtime[j]);
 		if(MS_flag)
 		{
-			preadvrate[j]=1000000.0*(1.0/preadvrate[j]);
+			preadvrate[j]=1000000.0*(preadvtime[j] / (double)filebytes64);
 			continue;
 		}
+            else
+            {
+                  preadvrate[j] = 
+		      (unsigned long long) ((double) filebytes64 / preadvtime[j]);
+            }
 		if(!(OPS_flag || MS_flag))
 			preadvrate[j] >>= 10;
 	}
