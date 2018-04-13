@@ -2267,4 +2267,7 @@ Bug fix for PIT on remote clients.
 Revision 3.344
 Bug fix for PIT on remote clients.
 =============================================================================
+Revision 3.345
+Have children re-acquire get_resolution.
+=============================================================================
 

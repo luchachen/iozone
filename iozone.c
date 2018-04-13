@@ -47,7 +47,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.344 $"
+#define THISVERSION "        Version $Revision: 3.345 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -20822,6 +20822,8 @@ become_client()
 		w_traj_size();
 	if(r_traj_flag)
 		r_traj_size();
+
+	get_resolution(); 		/* Get my clock resolution */
 
 	/* 7. Run the test */
 	switch(testnum) {
