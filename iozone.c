@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.388 $"
+#define THISVERSION "        Version $Revision: 3.389 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -19926,7 +19926,9 @@ int send_size;
 	struct master_neutral_command outbuf;
 	struct timespec req,rem;
 
-	req.tv_sec = 10000000;
+	req.tv_sec = 0;
+	req.tv_nsec = 10000000;
+	rem.tv_sec = 0;
 	rem.tv_nsec = 10000000;
 
         if(cdebug)
@@ -20587,7 +20589,9 @@ struct in_addr *my_s_addr;
 	struct in_addr *ip;
 	struct timespec req,rem;
 
-	req.tv_sec = 10000000;
+	req.tv_sec = 0;
+	req.tv_nsec = 10000000;
+	rem.tv_sec = 0;
 	rem.tv_nsec = 10000000;
 
         he = gethostbyname(child_host_name);
@@ -20697,7 +20701,9 @@ struct in_addr my_s_addr;
 	int ecount = 0;
 	struct timespec req,rem;
 
-	req.tv_sec = 10000000;
+	req.tv_sec = 0;
+	req.tv_nsec = 10000000;
+	rem.tv_sec = 0;
 	rem.tv_nsec = 10000000;
 
 
@@ -21636,7 +21642,9 @@ int num;
 	int temp;
 	struct timespec req,rem;
 
-	req.tv_sec = 10000000;
+	req.tv_sec = 0;
+	req.tv_nsec = 10000000;
+	rem.tv_sec = 0;
 	rem.tv_nsec = 10000000;
 
 
@@ -22455,7 +22463,9 @@ struct in_addr *sp_my_ms_addr;
 	struct in_addr *ip;
 	struct timespec req,rem;
 
-	req.tv_sec = 10000000;
+	req.tv_sec = 0;
+	req.tv_nsec = 10000000;
+	rem.tv_sec = 0;
 	rem.tv_nsec = 10000000;
 
         he = gethostbyname(sp_child_host_name);
@@ -22897,7 +22907,9 @@ struct in_addr *sp_my_cs_addr;
 	int ecount=0;
 	struct timespec req,rem;
 
-	req.tv_sec = 10000000;
+	req.tv_sec = 0;
+	req.tv_nsec = 10000000;
+	rem.tv_sec = 0;
 	rem.tv_nsec = 10000000;
 
         he = gethostbyname(sp_master_host_name);
