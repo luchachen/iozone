@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.66 $
+# Version $Revision: 1.68 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -71,7 +71,7 @@ hpux-11.0:	iozone_hpux-11.0.o libasync.o libbif.o
 # Turn on wide-mode, the optimizer, largefiles, Posix async I/O and threads.
 #
 hpux-11.0w:	iozone_hpux-11.0w.o libasyncw.o libbif.o
-	 cc +DA2.0w +O3 -D_LARGEFILE64_SOURCE -Dunix -D_HPUX_SOURCE -DASYNC_IO \
+	 cc +DD64 +O3 -D_LARGEFILE64_SOURCE -Dunix -D_HPUX_SOURCE -DASYNC_IO \
 	-DHAVE_ANSIC_C -DVXFS iozone_hpux-11.0w.o libasyncw.o \
 	libbif.o -lpthread -lrt -o iozone
 
@@ -88,7 +88,7 @@ hpuxs-11.0:	iozone_hpuxs-11.0.o libasync.o libbif.o
 # Simple build with wide-mode, largefiles, Posix threads and Posix async I/O
 #
 hpuxs-11.0w:	iozone_hpuxs-11.0w.o libasyncw.o libbif.o
-	 cc -O +DA2.0w -D_LARGEFILE64_SOURCE -Dunix -D_HPUX_SOURCE -DASYNC_IO \
+	 cc -O +DD64 -D_LARGEFILE64_SOURCE -Dunix -D_HPUX_SOURCE -DASYNC_IO \
 	-DHAVE_ANSIC_C -DVXFS \
 	iozone_hpuxs-11.0w.o libasyncw.o libbif.o -lpthread -lrt -o iozone
 
@@ -451,12 +451,12 @@ iozone_hpux-11.0w.o:	iozone.c libasync.c libbif.c
 	@echo ""
 	@echo "Building iozone for HP-UX (11.0w)"
 	@echo ""
-	cc -c +DA2.0w +O3 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
+	cc -c +DD64 +O3 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
 	    -DNAME='"hpux-11.0w"' -DHAVE_ANSIC_C -DASYNC_IO -DVXFS iozone.c \
 	     -o iozone_hpux-11.0w.o
-	cc -c +DA2.0w +O3 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
+	cc -c +DD64 +O3 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
 		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS libasync.c  -o libasyncw.o
-	cc -c +DA2.0w +O3 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
+	cc -c +DD64 +O3 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
 		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS -DBIG_ENDIAN libbif.c  -o libbif.o
 
 iozone_hpuxs-11.0.o:	iozone.c libasync.c libbif.c
@@ -464,7 +464,8 @@ iozone_hpuxs-11.0.o:	iozone.c libasync.c libbif.c
 	@echo "Building simple iozone for HP-UX (11.0)"
 	@echo ""
 	cc -c  -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE -DHAVE_ANSIC_C \
-		-DNAME='"hpuxs-11.0"' -DASYNC_IO -DVXFS iozone.c  -o iozone_hpuxs-11.0.o
+		-DNAME='"hpuxs-11.0"' -DASYNC_IO -DVXFS -DHAVE_PREAD iozone.c  \
+		-o iozone_hpuxs-11.0.o
 	cc -c  -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE -DHAVE_ANSIC_C \
 		-DASYNC_IO  -DVXFS libasync.c  -o libasync.o 
 	cc -c  -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE -DHAVE_ANSIC_C \
@@ -474,12 +475,12 @@ iozone_hpuxs-11.0w.o:	iozone.c libasync.c libbif.c
 	@echo ""
 	@echo "Building simple iozone for HP-UX (11.0w)"
 	@echo ""
-	cc -c +DA2.0w -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
-		-DNAME='"hpuxs-11.0w"' -DHAVE_ANSIC_C -DASYNC_IO -DVXFS iozone.c  \
-		-o iozone_hpuxs-11.0w.o
-	cc -c +DA2.0w -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
+	cc -c +DD64 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
+		-DNAME='"hpuxs-11.0w"' -DHAVE_ANSIC_C -DASYNC_IO -DVXFS \
+		-DHAVE_PREAD iozone.c  -o iozone_hpuxs-11.0w.o
+	cc -c +DD64 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
 		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS libasync.c  -o libasyncw.o 
-	cc -c +DA2.0w -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
+	cc -c +DD64 -Dunix -D_LARGEFILE64_SOURCE  -D_HPUX_SOURCE \
 		-DHAVE_ANSIC_C -DASYNC_IO -DVXFS -DBIG_ENDIAN libbif.c  -o libbif.o 
 
 iozone_hpux-10.1.o:	iozone.c libbif.c
