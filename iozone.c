@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.89 $"
+#define THISVERSION "        Version $Revision: 3.90 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -88,10 +88,8 @@ void create_list();
 void Poll();
 void print_header();
 void Kill();
-#ifndef Windows
 long long l_min();
 long long l_max();
-#endif
 long long mythread_create();
 #endif
 
@@ -14511,13 +14509,13 @@ int sock, size_of_message;
  */
 #ifdef HAVE_ANSIC_C
 int
-start_master_send(char *child_host_name, int child_port, in_addr_t *my_s_addr)
+start_master_send(char *child_host_name, int child_port, struct in_addr *my_s_addr)
 #else
 int
 start_master_send(child_host_name, child_port, my_s_addr)
 char *child_host_name; 
 int child_port;
-in_addr_t *my_s_addr;
+struct in_addr *my_s_addr;
 #endif
 {
 	int rc,master_socket_val,tsize;
@@ -14525,7 +14523,6 @@ in_addr_t *my_s_addr;
 	struct hostent *he;
 	int port;
 	struct in_addr *ip;
-
         he = gethostbyname(child_host_name);
         if (he == NULL)
         {
@@ -14547,7 +14544,7 @@ in_addr_t *my_s_addr;
 	}
 
 	port=child_port;
-	*my_s_addr = ip->s_addr;
+	my_s_addr->s_addr = ip->s_addr;
 	/*port=CHILD_LIST_PORT;*/
 
         raddr.sin_family = AF_INET;
@@ -14605,13 +14602,13 @@ in_addr_t *my_s_addr;
  */
 #ifdef HAVE_ANSIC_C
 int
-start_master_send_async(char *child_host_name, int child_port, in_addr_t my_s_addr)
+start_master_send_async(char *child_host_name, int child_port, struct in_addr my_s_addr)
 #else
 int
 start_master_send_async(child_host_name, child_port, my_s_addr)
 char *child_host_name; 
 int child_port;
-in_addr_t my_s_addr;
+struct in_addr my_s_addr;
 #endif
 {
 	int rc,master_socket_val,tsize;
@@ -14627,7 +14624,7 @@ in_addr_t my_s_addr;
 
         raddr.sin_family = AF_INET;
         raddr.sin_port = port;
-        raddr.sin_addr.s_addr = my_s_addr;
+        raddr.sin_addr.s_addr = my_s_addr.s_addr;
         master_socket_val = socket(AF_INET, SOCK_DGRAM, 0);
         if (master_socket_val < 0)
         {
@@ -14726,7 +14723,7 @@ long long numrecs64, reclen;
 	struct client_command cc;
 	struct master_command *mc;
 	char command[512];
-	in_addr_t my_s_addr;
+	struct in_addr my_s_addr;
 
 	for(x=0;x<512;x++)
 		command[x]=0;
