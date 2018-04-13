@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.408 $"
+#define THISVERSION "        Version $Revision: 3.412 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -70,7 +70,7 @@
 #include <windows.h>
 #include <errno.h>
 #else
-#if defined(linux) || defined(solaris) || defined(macosx) || defined(__AIX__) || defined(FreeBSD) || defined(_HPUX_SOURCE) || defined(__OpenBSD__) || defined(__DragonFly__)
+#if defined(linux) || defined(solaris) || defined(IOZ_macosx) || defined(__AIX__) || defined(FreeBSD) || defined(_HPUX_SOURCE) || defined(__OpenBSD__) || defined(__DragonFly__)
 #include <errno.h>
 #else
 extern  int errno;   /* imported for errors */
@@ -202,6 +202,7 @@ char *help[] = {
 "           -z  Used in conjunction with -a to test all possible record sizes",
 "           -Z  Enable mixing of mmap I/O and file I/O",
 "           -+E Use existing non-Iozone file for read-only testing",
+"           -+F Truncate file before write in thread_mix_test",
 "           -+K Sony special. Manual control of test 8.",
 "           -+m  Cluster_filename   Enable Cluster testing",
 "           -+d  File I/O diagnostic mode. (To troubleshoot a broken file I/O subsystem)",
@@ -547,6 +548,7 @@ struct client_command {
 	int c_direct_flag;
 	int c_cpuutilflag;
 	int c_seq_mix;
+	int c_del_flag;
 	int c_client_number;
 	int c_command;
 	int c_testnum;
@@ -648,6 +650,7 @@ struct client_neutral_command {
 	char c_direct_flag[2]; 		/* small int */
 	char c_cpuutilflag[2]; 		/* small int */
 	char c_seq_mix[2]; 		/* small int */
+	char c_del_flag[2];		/* small int */
 	char c_stride[10]; 		/* small long long */
 	char c_rest_val[10]; 		/* small long long */
 	char c_purge[10]; 		/* very small long long */
@@ -1306,7 +1309,7 @@ int chid_skew = 0;
 int hist_summary;
 int op_rate;
 int op_rate_flag;
-char aflag, Eflag, hflag, Rflag, rflag, sflag;
+char aflag, Eflag, hflag, Rflag, rflag, sflag,del_flag;
 char diag_v,sent_stop,dedup,dedup_interior,dedup_compress;
 char *dedup_ibuf;
 char *dedup_temp;
@@ -2389,6 +2392,9 @@ char **argv;
 					/* printf("Plus option argument = >%s<\n",subarg);*/
 					break;
 				case 'b':  /* Example: Does not have an argument */
+					break;
+				case 'F':  /* Example: Does not have an argument */
+					del_flag = 1;
 					break;
 				case 'c':  /* Argument is the controlling host name */
 					/* I am a client for distributed Iozone */
@@ -7618,8 +7624,16 @@ long long *data2;
 				if(Index > (MAXBUFFERSIZE-reclen))
 					Index=0;
 				pbuff = mbuffer + Index;	
-				if(verify || dedup || dedup_interior)
+				if(diag_v)
+				{
+				   if(verify || dedup || dedup_interior)
+					fill_buffer(pbuff,reclen,(long long)pattern,sverify,(long long)i);
+				}
+				else
+				{
+				   if(verify || dedup || dedup_interior)
 					fill_buffer(pbuff,reclen,(long long)pattern,sverify,(long long)0);
+				}
 			}
 			if(async_flag && no_copy_flag)
 			{
@@ -12114,7 +12128,7 @@ int shared_flag;
 
 	size1=l_max(size,page_size);
 	size1=(size1 +page_size) & ~(page_size-1);
-#if defined(bsd4_2) && !defined(macosx)
+#if defined(bsd4_2) && !defined(IOZ_macosx)
 	if((tfd = creat("mmap.tmp", 0666))<0)
 	{
 		printf("Unable to create tmp file\n");
@@ -12490,6 +12504,8 @@ thread_write_test( x)
 		flags=O_RDWR|O_SYNC|O_CREAT;
 	else
 		flags=O_RDWR|O_CREAT;
+	if(del_flag)
+		flags |=  O_TRUNC;
 #if defined(O_DSYNC)
 	if(odsync)
 		flags |= O_DSYNC;
@@ -18927,7 +18943,7 @@ int flag, prot;
 #endif
 #endif
 
-#if defined(bsd4_2) && !defined(macosx)
+#if defined(bsd4_2) && !defined(IOZ_macosx)
 	 pa = (char *)mmap( 0,&filebytes, (int)prot, 
 	 		(int)mflags, (int)fd, 0);
 #else
@@ -20641,6 +20657,7 @@ int send_size;
 	sprintf(outbuf.c_direct_flag,"%d",send_buffer->c_direct_flag);
 	sprintf(outbuf.c_cpuutilflag,"%d",send_buffer->c_cpuutilflag);
 	sprintf(outbuf.c_seq_mix,"%d",send_buffer->c_seq_mix);
+	sprintf(outbuf.c_del_flag,"%d",send_buffer->c_del_flag);
 	sprintf(outbuf.c_client_number,"%d",send_buffer->c_client_number);
 	sprintf(outbuf.c_command,"%d",send_buffer->c_command);
 	sprintf(outbuf.c_testnum,"%d",send_buffer->c_testnum);
@@ -21454,6 +21471,7 @@ long long numrecs64, reclen;
 	cc.c_direct_flag = direct_flag;
 	cc.c_cpuutilflag = cpuutilflag;
 	cc.c_seq_mix = seq_mix;
+	cc.c_del_flag = del_flag;
 	cc.c_async_flag = async_flag;
 	cc.c_k_flag = k_flag;
 	cc.c_h_flag = h_flag;
@@ -21711,6 +21729,7 @@ become_client()
 	sscanf(cnc->c_direct_flag,"%d",&cc.c_direct_flag);
 	sscanf(cnc->c_cpuutilflag,"%d",&cc.c_cpuutilflag);
 	sscanf(cnc->c_seq_mix,"%d",&cc.c_seq_mix);
+	sscanf(cnc->c_del_flag,"%d",&cc.c_del_flag);
 	sscanf(cnc->c_async_flag,"%d",&cc.c_async_flag);
 	sscanf(cnc->c_k_flag,"%d",&cc.c_k_flag);
 	sscanf(cnc->c_h_flag,"%d",&cc.c_h_flag);
@@ -21795,6 +21814,7 @@ become_client()
 	direct_flag = cc.c_direct_flag;
 	cpuutilflag = cc.c_cpuutilflag;
 	seq_mix = cc.c_seq_mix;
+	del_flag = cc.c_del_flag;
 	async_flag = cc.c_async_flag;
 	k_flag = cc.c_k_flag;
 	h_flag = cc.c_h_flag;
@@ -24613,7 +24633,10 @@ void * thread_fwrite_test( x)
         else
           setvbuf(stream,stdio_buf,_IOFBF,reclen);
 
-        buffer=mainbuffer;
+	if(use_thread)
+            buffer=nbuff;
+	else
+            buffer=mainbuffer;
         if(fetchon)
                 fetchit(buffer,reclen);
         if(verify || dedup || dedup_interior)
@@ -25046,7 +25069,10 @@ void * thread_fread_test( x)
         else
           setvbuf(stream,stdio_buf,_IOFBF,reclen);
 
-	buffer=mainbuffer;
+        if(use_thread)
+	    buffer=nbuff;
+	else
+	    buffer=mainbuffer;
 	if(fetchon)
 		fetchit(buffer,reclen);
 	compute_val=(double)0;
