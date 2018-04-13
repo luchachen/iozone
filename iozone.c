@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.392 $"
+#define THISVERSION "        Version $Revision: 3.394 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -817,7 +817,7 @@ struct master_neutral_command {
 /* If things ran way too fast */
 #define TOOFAST 10
 /* Set the maximum number of types of tests */
-#define MAXTESTS 10
+#define MAXTESTS 12
 /* Default fill pattern for verification */
 #define PATTERN get_pattern();
 #define PATTERN1 0xBB
@@ -1238,8 +1238,12 @@ char *test_output[] = {"                ",
 		      "",
 		      "                 ",
 		      "                   ",
+		      "                   ",
+		      "                   ",
+		      "                   ",
+		      "                   ",
 		      "                   \n" };
-long long test_soutput[] = {2,2,2,1,1,1,2,2,2,2,2,2};
+long long test_soutput[] = {2,2,2,1,1,1,2,2,2,2,2,2,2,2};
 
 
 /******************************************************************/
@@ -20769,13 +20773,21 @@ again:
         {
 		if(ecount++ < 300)
 		{
+		/* Really need this sleep for Windows */
+#if defined (Windows)
+			sleep(1);
+#else
 			nanosleep(&req,&rem);
-			/*sleep(1);*/
+#endif
 			goto again;
 		}
                 perror("Master: async connect failed\n");
                 close(master_socket_val);
+#if defined (Windows)
+		sleep(1);
+#else
 		nanosleep(&req,&rem);
+#endif
                 /*sleep(1);*/
                 ecount=0;
                 goto over;
@@ -21765,8 +21777,8 @@ int num;
            socket to the child, and cause it to become ill.
            On Solaris, it gets stuck in a 0=read() loop. */
 
-#if defined(solaris)
-	sleep(5);
+#if defined(Windows)
+	sleep(1);
 #else
 	nanosleep(&req,&rem);
 #endif
@@ -22544,7 +22556,11 @@ struct in_addr *sp_my_ms_addr;
                 perror("Master: bind failed for sync channel to child.\n");
                 exit(24);
         }
+#if defined(Windows)
+	sleep(1);
+#else
 	nanosleep(&req,&rem);
+#endif
 
 again:
         rc = connect(master_socket_val, (struct sockaddr *)&raddr, 
@@ -22553,7 +22569,11 @@ again:
         {
 		if(ecount++ < 300)
 		{
+#if defined(Windows)
+			sleep(1);
+#else
 			nanosleep(&req,&rem);
+#endif
 			/*sleep(1);*/
 			goto again;
 		}
@@ -22981,7 +23001,11 @@ struct in_addr *sp_my_cs_addr;
                 perror("Child: bind failed for sync channel to child.\n");
                 exit(24);
         }
+#if defined(Windows)
+	sleep(1);
+#else
 	nanosleep(&req,&rem);
+#endif
 again:
         rc = connect(sp_child_socket_val, (struct sockaddr *)&raddr, 
 			sizeof(struct sockaddr_in));
@@ -22989,8 +23013,11 @@ again:
         {
 		if(ecount++<300)
 		{
+#if defined(Windows)
+			sleep(1);
+#else
 			nanosleep(&req,&rem);
-			/*sleep(1);*/
+#endif
 			goto again;
 		}
 

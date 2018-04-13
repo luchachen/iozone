@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.137 $
+# Version $Revision: 1.138 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -18,6 +18,10 @@ CFLAGS	=
 S10GCCFLAGS    = -m64
 S10CCFLAGS     = -m64
 FLAG64BIT      = -m64
+
+# If your Linux kernel supports preadv and pwritev system calls 
+# and you want iozone to use them, add -DHAVE_PREADV -DHAVE_PWRITEV
+# to CFLAGS
 
 all:  
 	@echo ""
@@ -941,9 +945,7 @@ iozone_linux-AMD64.o:	iozone.c libbif.c libasync.c
 	@echo ""
 	$(CC) -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DNAME='"linux-AMD64"' \
 		-D__AMD64__ -DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE \
-		-DHAVE_PREAD -DHAVE_PWRITE -DHAVE_PREADV -DHAVE_PWRITEV \
-		$(CFLAGS) iozone.c \
-		-o iozone_linux-AMD64.o
+		-DHAVE_PREAD $(CFLAGS) iozone.c -o iozone_linux-AMD64.o
 	$(CC) -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
 		-DSHARED_MEM -Dlinux $(CFLAGS) libbif.c -o libbif.o
 	$(CC) -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \

@@ -2389,3 +2389,9 @@ Add code for MDEBUG and CDEBUG from Bob England (Redhat)
 Revision 3.392
 Add code for building HPUX. Errno.h
 =============================================================================
+Revision 3.393
+Fixes for Windows (nanosleep doesn't always work )
+=============================================================================
+Revision 3.394
+Fixes for preadv and pwritev from RedHat (Ben Englanc)
+=============================================================================
