@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.370 $"
+#define THISVERSION "        Version $Revision: 3.372 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -561,6 +561,7 @@ struct client_command {
 	int c_advise_op;
 	int c_advise_flag;
 	int c_restf;
+	int c_mygen;
 	long long c_stride;
 	long long c_rest_val;
 	long long c_delay;
@@ -664,6 +665,7 @@ struct client_neutral_command {
 	char c_advise_op[4]; 		/* small int */
 	char c_advise_flag[4]; 		/* small int */
 	char c_restf[4]; 		/* small int */
+	char c_mygen[20]; 		/* long */
 	char c_depth[20]; 		/* small long long */
 	char c_child_flag[40]; 		/* small long long */
 	char c_delay[80]; 		/* long long */
@@ -689,6 +691,7 @@ struct master_command {
 	int m_command;
 	int m_testnum;
 	int m_version;
+	int m_mygen;
 	float m_throughput;
 	float m_cputime;
 	float m_walltime;
@@ -713,6 +716,7 @@ struct master_neutral_command {
 	char m_command[20];		/* int */
 	char m_testnum[20];		/* int */
 	char m_version[20];		/* int */
+	char m_mygen[20];		/* int */
 	char m_throughput[80];		/* float */
 	char m_cputime[80];		/* float */
 	char m_walltime[80];		/* float */
@@ -1507,6 +1511,7 @@ char disrupt_flag,compute_flag,xflag,Z_flag, X_flag;
 int no_unlink = 0;
 int no_write = 0;
 int r_traj_flag,w_traj_flag;
+int mygen;
 char MS_flag;
 int advise_op,advise_flag;
 int direct_flag;
@@ -1614,6 +1619,9 @@ char **argv;
 	
 	/* Save the master's name */
 	gethostname(controlling_host_name,100);
+
+	srand(time(0));
+	mygen=rand(); /* Pick a random generation number */
 
 	/* Try to find the actual VM page size, if possible */
 #if defined (solaris) || defined (_HPUX_SOURCE) || defined (linux) || defined(IRIX) || defined (IRIX64)
@@ -12070,14 +12078,14 @@ thread_write_test( x)
 	{
 		if(cdebug)
 		{
-			printf("Child %d waiting for go from master\n",(int)xx);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d waiting for go from master\n",(int)xx);
+			fflush(newstdout);
 		}
 		wait_for_master_go(chid);
 		if(cdebug)
 		{
-			printf("Child %d received go from master\n",(int)xx);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d received go from master\n",(int)xx);
+			fflush(newstdout);
 		}
 	}
 	else
@@ -12423,9 +12431,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	}
 	if(cdebug)
 	{
-		printf("Child %d: throughput %f actual %f \n",(int)chid, child_stat->throughput,
+		fprintf(newstdout,"Child %d: throughput %f actual %f \n",(int)chid, child_stat->throughput,
 			child_stat->actual);
-		fflush(stdout);
+		fflush(newstdout);
 	}
 	if(cpuutilflag)
 	{
@@ -12753,14 +12761,14 @@ thread_pwrite_test( x)
 	{
 		if(cdebug)
 		{
-			printf("Child %d waiting for go from master\n",(int)xx);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d waiting for go from master\n",(int)xx);
+			fflush(newstdout);
 		}
 		wait_for_master_go(chid);
 		if(cdebug)
 		{
-			printf("Child %d received go from master\n",(int)xx);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d received go from master\n",(int)xx);
+			fflush(newstdout);
 		}
 	}
 	else
@@ -13056,9 +13064,9 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	}
 	if(cdebug)
 	{
-		printf("Child %d: throughput %f actual %f \n",(int)chid, child_stat->throughput,
+		fprintf(newstdout,"Child %d: throughput %f actual %f \n",(int)chid, child_stat->throughput,
 			child_stat->actual);
-		fflush(stdout);
+		fflush(newstdout);
 	}
 	if(cpuutilflag)
 	{
@@ -13400,10 +13408,16 @@ thread_rwrite_test(x)
 	if(distributed && client_iozone)
 	{
 		if(cdebug)
-			printf("Child %d waiting for go from master\n",(int)xx);
+		{
+			fprintf(newstdout,"Child %d waiting for go from master\n",(int)xx);
+			fflush(newstdout);
+		}
 		wait_for_master_go(chid);
 		if(cdebug)
-			printf("Child %d received go from master\n",(int)xx);
+		{
+			fprintf(newstdout,"Child %d received go from master\n",(int)xx);
+			fflush(newstdout);
+		}
 	}
 	else
 	{
@@ -13478,7 +13492,10 @@ thread_rwrite_test(x)
 		{
 			wmaddr = &maddr[i*reclen];
 			if(cdebug)
-printf("Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,reclen);
+			{
+fprintf(newstdout,"Chid: %lld Rewriting offset %lld for length of %lld\n",chid, i*reclen,reclen);
+			  fflush(newstdout);
+			}
 			fill_area((long long*)nbuff,(long long*)wmaddr,(long long)reclen);
 			if(!mmapnsflag)
 			{
@@ -13638,8 +13655,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 			send_stop();
 	}
 	if(cdebug)
-		printf("Child %d: throughput %f actual %f \n",(int)chid, child_stat->throughput,
+	{
+		fprintf(newstdout,"Child %d: throughput %f actual %f \n",(int)chid, child_stat->throughput,
 			child_stat->actual);
+	  	fflush(newstdout);
+	}
 	if(cpuutilflag)
 	{
 		cputime = cputime_so_far() - cputime;
@@ -14221,8 +14241,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 			send_stop();
 	}
         if(cdebug)
-                printf("Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
+	{
+                fprintf(newstdout,"Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
                         child_stat->actual);
+		fflush(newstdout);
+	}
 	if(cpuutilflag)
 	{
 		cputime = cputime_so_far() - cputime;
@@ -14745,8 +14768,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 			send_stop();
 	}
         if(cdebug)
-                printf("Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
+	{
+                fprintf(newstdout,"Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
                         child_stat->actual);
+		fflush(newstdout);
+	}
 	if(cpuutilflag)
 	{
 		cputime = cputime_so_far() - cputime;
@@ -16516,7 +16542,6 @@ thread_mix_test(x)
 	}
 	if(selector==0)
 	{
-		if(cdebug || mdebug) printf("Mix read %d\n",selector);
 		if(seq_mix)
 			thread_read_test(x);
 		else
@@ -16524,7 +16549,6 @@ thread_mix_test(x)
 	}
 	else
 	{
-		if(cdebug || mdebug) printf("Mix write %d\n",selector);
 		if(seq_mix)
 			thread_write_test(x);
 		else
@@ -17088,8 +17112,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 			send_stop();
 	}
         if(cdebug)
-                printf("Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
+	{
+                fprintf(newstdout,"Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
                         child_stat->actual);
+		fflush(newstdout);
+	}
 	if(cpuutilflag)
 	{
 		cputime = cputime_so_far() - cputime;
@@ -17767,8 +17794,11 @@ printf("Desired rate %g  Actual rate %g Nap %g microseconds\n",desired_op_rate_t
 	}
 	child_stat->flag = CHILD_STATE_HOLD; /* Tell parent I'm done */
         if(cdebug)
-                printf("Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
+	{
+                fprintf(newstdout,"Child %d: throughput %f actual %f \n",(int)chid,child_stat->throughput,
                         child_stat->actual);
+		fflush(newstdout);
+	}
 	if(cpuutilflag)
 	{
 		cputime = cputime_so_far() - cputime;
@@ -19838,7 +19868,7 @@ int sock, size_of_message;
         if(mdebug)
           printf("Master in listening mode on socket %d\n",s);
 again:
-        ret=listen(s,100);
+        ret=listen(s,MAXSTREAMS);
         if(ret != 0)
         {
                 perror("Master: listen returned error\n");
@@ -19889,7 +19919,10 @@ int send_size;
 	struct master_neutral_command outbuf;
 
         if(cdebug)
+	{
            fprintf(newstdout,"Start_child_send: %s  Size %d\n",controlling_host_name,send_size);
+	   fflush(newstdout);
+	}
         he = gethostbyname(controlling_host_name);
         if (he == NULL)
         {
@@ -19930,8 +19963,11 @@ over:
                 exit(24);
         }
         if(cdebug)
+	{
           fprintf(newstdout,"Child sender bound to port %d Master port %d \n",tmp_port,HOST_LIST_PORT);
 again:
+	  fflush(newstdout);
+	}
         rc = connect(child_socket_val, (struct sockaddr *)&cs_raddr,
                         sizeof(struct sockaddr_in));
         if (rc < 0)
@@ -19943,8 +19979,8 @@ again:
                 }
                 if(cdebug)
                 {
-                   perror("Child: connect failed...\n");
-                   printf("Error %d\n",errno);
+          	   fprintf(newstdout,"Child: connect failed. Errno %d \n",errno);
+		   fflush(newstdout);
                 }
                 close(child_socket_val);
                 sleep(1);
@@ -19953,15 +19989,18 @@ again:
         }
         ecount=0;
         if(cdebug)
+	{
           fprintf(newstdout,"Child connected\n");
+	  fflush(newstdout);
+	}
 
 	/* NOW send */
 
 	bzero(&outbuf, sizeof(struct master_neutral_command));
 	if(cdebug>=1)
 	{
-		printf("Child %d sending message to %s \n",(int)chid, controlling_host_name);
-		fflush(stdout);
+		fprintf(newstdout,"Child %d sending message to %s \n",(int)chid, controlling_host_name);
+		fflush(newstdout);
 	}
 	/* 
 	 * Convert internal commands to string format to neutral format for portability
@@ -19975,6 +20014,7 @@ again:
 	sprintf(outbuf.m_command,"%d",send_buffer->m_command);
 	sprintf(outbuf.m_testnum,"%d",send_buffer->m_testnum);
 	sprintf(outbuf.m_version,"%d",send_buffer->m_version);
+	sprintf(outbuf.m_mygen,"%d",send_buffer->m_mygen);
 	sprintf(outbuf.m_throughput,"%f",send_buffer->m_throughput);
 	sprintf(outbuf.m_cputime,"%f", send_buffer->m_cputime);
 	sprintf(outbuf.m_walltime,"%f",send_buffer->m_walltime);
@@ -20096,6 +20136,7 @@ int send_size;
 	sprintf(outbuf.c_advise_op,"%d",send_buffer->c_advise_op);
 	sprintf(outbuf.c_advise_flag,"%d",send_buffer->c_advise_flag);
 	sprintf(outbuf.c_restf,"%d",send_buffer->c_restf);
+	sprintf(outbuf.c_mygen,"%d",send_buffer->c_mygen);
 #ifdef NO_PRINT_LLD
 	sprintf(outbuf.c_stride,"%ld",send_buffer->c_stride);
 	sprintf(outbuf.c_rest_val,"%ld",send_buffer->c_rest_val);
@@ -20256,12 +20297,13 @@ int size_of_message;
 	child_port = ntohs(child_sync_sock.sin_port);
 	if(cdebug ==1)
 	{
-		printf("Child %d: Listen: Bound at port %d\n",(int)chid, tmp_port);
-		fflush(stdout);
+		fprintf(newstdout,"Child %d: Listen: Bound at port %d\n",(int)chid, tmp_port);
+		fflush(newstdout);
 	}
 	if(rc < 0)
 	{
-		perror("bind failed\n");
+		fprintf(newstdout,"Child bind failed. Errno %d\n",errno);
+		fflush(newstdout);
 		exit(20);
 	}
 	return(s);
@@ -20283,8 +20325,8 @@ int s,flag;
 		addr=&child_async_sock;
 		if(cdebug)
 		{
-			printf("Child %d attach async\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d attach async\n",(int)chid);
+			fflush(newstdout);
 		}
 	}
 	else
@@ -20292,8 +20334,8 @@ int s,flag;
 		addr=&child_sync_sock;
 		if(cdebug)
 		{
-			printf("Child %d attach sync\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d attach sync\n",(int)chid);
+			fflush(newstdout);
 		}
 	}
 	me=sizeof(struct sockaddr_in);
@@ -20305,14 +20347,15 @@ int s,flag;
 	listen(s,10);
 	if(cdebug)
 	{
-		printf("Child %d enters accept\n",(int)chid);
-		fflush(stdout);
+		fprintf(newstdout,"Child %d enters accept\n",(int)chid);
+		fflush(newstdout);
 	}
 	ns=accept(s,(void *)addr,&me);
 	if(cdebug)
 	{
-		printf("Child %d attached for receive. Sock %d  %d\n",(int)chid, ns,errno);
-		fflush(stdout);
+		fprintf(newstdout,"Child %d attached for receive. Sock %d  %d\n",
+		    (int)chid, ns,errno);
+		fflush(newstdout);
 	}
 	return(ns);
 }
@@ -20346,27 +20389,28 @@ int sock, size_of_message;
 	{
 		if(cdebug ==1)
 		{
-			printf("Child %d In recieve \n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d In recieve \n",(int)chid);
+			fflush(newstdout);
 		}
 		rc=read(s,cnc,size_of_message);
 		if(rc < 0)
 		{
-			perror("Read failed\n");
+			fprintf(newstdout,"Read failed. Errno %d \n",errno);
+			fflush(newstdout);
 			exit(21);
 		}
 		if(cdebug >= 1)
 		{
-			printf("Child %d: Got %d bytes\n",(int)chid, rc);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d: Got %d bytes\n",(int)chid, rc);
+			fflush(newstdout);
 		}
 		rcvd+=rc;
 		cnc+=rc;
 	}
 	if(cdebug >= 1)
 	{
-		printf("Child %d: return from listen\n",(int)chid);
-		fflush(stdout);
+		fprintf(newstdout,"Child %d: return from listen\n",(int)chid);
+		fflush(newstdout);
 	}
 }
 /*
@@ -20426,12 +20470,14 @@ int size_of_message;
 	child_async_port = ntohs(child_async_sock.sin_port);
 	if(cdebug ==1)
 	{
-		printf("Child %d: Async Listen: Bound at port %d\n",(int)chid,tmp_port);
-		fflush(stdout);
+		fprintf(newstdout,"Child %d: Async Listen: Bound at port %d\n",
+			(int)chid,tmp_port);
+		fflush(newstdout);
 	}
 	if(rc < 0)
 	{
-		perror("bind failed\n");
+		fprintf(newstdout,"bind failed. Errno %d \n",errno);
+		fflush(newstdout);
 		exit(20);
 	}
 	return(s);
@@ -20463,13 +20509,14 @@ int sock, size_of_message;
 	{
 		if(cdebug ==1)
 		{
-			printf("Child %d In async recieve \n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d In async recieve \n",(int)chid);
+			fflush(newstdout);
 		}
 		rc=read(s,cnc,size_of_message);
 		if(rc < 0)
 		{
-			perror("Read failed\n");
+			fprintf(newstdout,"Read failed. Errno %d \n",errno);
+			fflush(newstdout);
 			exit(21);
 		}
 		/* Special case. If master gets final results, it can 
@@ -20481,16 +20528,16 @@ int sock, size_of_message;
 			exit(0);
 		if(cdebug >= 1)
 		{
-			printf("Child %d: Got %d bytes (async) \n",(int)chid,rc);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d: Got %d bytes (async) \n",(int)chid,rc);
+			fflush(newstdout);
 		}
 		rcvd+=rc;
 		cnc+=rc;
 	}
 	if(cdebug >= 1)
 	{
-		printf("Child %d: return from async listen\n",(int)chid);
-		fflush(stdout);
+		fprintf(newstdout,"Child %d: return from async listen\n",(int)chid);
+		fflush(newstdout);
 	}
 }
 
@@ -20884,6 +20931,7 @@ long long numrecs64, reclen;
 	cc.c_advise_op = advise_op;
 	cc.c_advise_flag = advise_flag;
 	cc.c_restf = restf;
+	cc.c_mygen = mygen;
 	cc.c_Q_flag = Q_flag;
 	cc.c_L_flag = L_flag;
 	cc.c_xflag = xflag;
@@ -21000,7 +21048,8 @@ become_client()
 	}
 	if(cdebug>=1)
 	{
-		printf("My name = %s, Controller's name = %s\n",client_name, controlling_host_name);
+		fprintf(newstdout,"My name = %s, Controller's name = %s\n",client_name, controlling_host_name);
+		fflush(newstdout);
 	}
 
 	/* 1. Start client receive channel 				*/
@@ -21019,9 +21068,9 @@ become_client()
 	
 	if(cdebug)
 	{
-		printf("Child %s sends JOIN to master %s Host Port %d\n",
+		fprintf(newstdout,"Child %s sends JOIN to master %s Host Port %d\n",
 			client_name,controlling_host_name,controlling_host_port);
-		fflush(stdout);
+		fflush(newstdout);
 	}
 	child_send(controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
 
@@ -21033,8 +21082,8 @@ become_client()
 
 	if(cdebug>=1)
 	{
-		printf("Child %s waiting for who am I\n",client_name);
-		fflush(stdout);
+		fprintf(newstdout,"Child %s waiting for who am I\n",client_name);
+		fflush(newstdout);
 	}
 	child_listen(l_sock,sizeof(struct client_neutral_command));
 	cnc = (struct client_neutral_command *)&child_rcv_buf;
@@ -21051,17 +21100,17 @@ become_client()
 	{
 		if(cdebug)
 		{
-			printf("Child %d received terminate on sync channel !!\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d received terminate on sync channel !!\n",(int)chid);
+			fflush(newstdout);
 		}
 		exit(1);
 	}
 	
 	if(cdebug)
 	{
-		printf("Child sees: \n Client name %s \n Client_num # %d \n Host_name %s\n",
-		cc.c_client_name,cc.c_client_number,cc.c_host_name);
-		fflush(stdout);
+         fprintf(newstdout,"Child sees: \n Client name %s \n Client_num # %d \n Host_name %s\n"
+			,cc.c_client_name,cc.c_client_number,cc.c_host_name);
+	 fflush(newstdout);
 	}
 
 	/*
@@ -21137,6 +21186,7 @@ become_client()
 	sscanf(cnc->c_advise_op,"%d",&cc.c_advise_op);
 	sscanf(cnc->c_advise_flag,"%d",&cc.c_advise_flag);
 	sscanf(cnc->c_restf,"%d",&cc.c_restf);
+	sscanf(cnc->c_mygen,"%d",&cc.c_mygen);
 	sscanf(cnc->c_oflag,"%d",&cc.c_oflag);
 	sscanf(cnc->c_mfflag,"%d",&cc.c_mfflag);
 	sscanf(cnc->c_unbuffered,"%d",&cc.c_unbuffered);
@@ -21177,7 +21227,10 @@ become_client()
 	if(mfflag)
 		strcpy(filearray[chid],cc.c_file_name);
 	if(cdebug)
-		printf("File name given %s\n",cc.c_file_name);
+	{
+		fprintf(newstdout,"File name given %s\n",cc.c_file_name);
+		fflush(newstdout);
+	}
 	unbuffered = cc.c_unbuffered;
 	noretest = cc.c_noretest;
 	notruncate = cc.c_notruncate;
@@ -21219,6 +21272,7 @@ become_client()
 	advise_op=cc.c_advise_op;
 	advise_flag=cc.c_advise_flag;
 	restf=cc.c_restf;
+	mygen=cc.c_mygen;
 	Q_flag = cc.c_Q_flag;
 	L_flag = cc.c_L_flag;
 	xflag = cc.c_xflag;
@@ -21248,8 +21302,8 @@ become_client()
 	compute_time = cc.c_compute_time;
 	if(cdebug)
 	{
-		printf("Child %d change directory to %s\n",(int)chid,workdir);
-		fflush(stdout);
+		fprintf(newstdout,"Child %d change directory to %s\n",(int)chid,workdir);
+		fflush(newstdout);
 	}
 	if(purge)
 		alloc_pbuf();
@@ -21278,8 +21332,8 @@ become_client()
 	case THREAD_WRITE_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child %d running thread_write_test\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d running thread_write_test\n",(int)chid);
+			fflush(newstdout);
 		}
 		thread_write_test((long)0);
 		break;
@@ -21287,8 +21341,8 @@ become_client()
 	case THREAD_PWRITE_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child %d running thread_pwrite_test\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d running thread_pwrite_test\n",(int)chid);
+			fflush(newstdout);
 		}
 		thread_pwrite_test((long)0);
 		break;
@@ -21296,16 +21350,16 @@ become_client()
 	case THREAD_REWRITE_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child %d running thread_rewrite_test\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d running thread_rewrite_test\n",(int)chid);
+			fflush(newstdout);
 		}
 		thread_rwrite_test((long)0);
 		break;
 	case THREAD_READ_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child %d running thread_read_test\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d running thread_read_test\n",(int)chid);
+			fflush(newstdout);
 		}
 		thread_read_test((long)0);
 		break;
@@ -21313,8 +21367,8 @@ become_client()
 	case THREAD_PREAD_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child %d running thread_read_test\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d running thread_read_test\n",(int)chid);
+			fflush(newstdout);
 		}
 		thread_pread_test((long)0);
 		break;
@@ -21322,64 +21376,64 @@ become_client()
 	case THREAD_REREAD_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child %d running thread_reread_test\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d running thread_reread_test\n",(int)chid);
+			fflush(newstdout);
 		}
 		thread_rread_test((long)0);
 		break;
 	case THREAD_STRIDE_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child %d running thread_stride_read_test\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d running thread_stride_read_test\n",(int)chid);
+			fflush(newstdout);
 		}
 		thread_stride_read_test((long)0);
 		break;
 	case THREAD_RANDOM_READ_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child %d running random read test\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d running random read test\n",(int)chid);
+			fflush(newstdout);
 		}
 		thread_ranread_test((long)0);
 		break;
 	case THREAD_RANDOM_WRITE_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child %d running random write test\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d running random write test\n",(int)chid);
+			fflush(newstdout);
 		}
 		thread_ranwrite_test((long)0);
 		break;
 	case THREAD_REVERSE_READ_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child %d running reverse read test\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d running reverse read test\n",(int)chid);
+			fflush(newstdout);
 		}
 		thread_reverse_read_test((long)0);
 		break;
 	case THREAD_RANDOM_MIX_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child %d running mixed workload test\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d running mixed workload test\n",(int)chid);
+			fflush(newstdout);
 		}
 		thread_mix_test((long)0);
 		break;
 	case THREAD_CLEANUP_TEST : 
 		if(cdebug>=1)
 		{
-			printf("Child %d running cleanup\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d running cleanup\n",(int)chid);
+			fflush(newstdout);
 		}
 		thread_cleanup_test((long)0);
 		break;
 	};
 	if(cdebug>=1)
 	{
-		printf("Child %d finished running test.\n",(int)chid);
-		fflush(stdout);
+		fprintf(newstdout,"Child %d finished running test.\n",(int)chid);
+		fflush(newstdout);
 	}
 	
 	/* 8. Release the listen and send sockets to the master */
@@ -21432,11 +21486,12 @@ long long child_flag;
 	mc.m_stop_flag = stop_flag;
 	mc.m_child_flag = child_flag;
 	mc.m_command = R_STAT_DATA;
+	mc.m_mygen = mygen;
 	mc.m_version = proto_version;
 	if(cdebug>=1)
 	{
-		printf("Child %d: Tell master stats and terminate\n",(int)chid);
-		fflush(stdout);
+		fprintf(newstdout,"Child %d: Tell master stats and terminate\n",(int)chid);
+		fflush(newstdout);
 	}
 	child_send(controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
 }
@@ -21477,10 +21532,11 @@ long long chid;
 	bzero(&mc,sizeof(struct master_command));
 	if(cdebug>=1)
 	{
-		printf("Child %d: Tell master to go\n",(int)chid);
-		fflush(stdout);
+		fprintf(newstdout,"Child %d: Tell master to go\n",(int)chid);
+		fflush(newstdout);
 	}
 	mc.m_command = R_FLAG_DATA;
+	mc.m_mygen = mygen;
 	mc.m_version = proto_version;
 	mc.m_child_flag = CHILD_STATE_READY; 
 	mc.m_client_number = (int)chid; 
@@ -21511,13 +21567,16 @@ long long chid;
 	{
 		if(cdebug)
 		{
-			printf("Child %d received terminate on sync channel at barrier !!\n",(int)chid);
-			fflush(stdout);
+			fprintf(newstdout,"Child %d received terminate on sync channel at barrier !!\n",(int)chid);
+			fflush(newstdout);
 		}
 		exit(1);
 	}
 	if(cdebug>=1)
-		printf("Child %d return from wait_for_master_go\n",(int)chid);
+	{
+		fprintf(newstdout,"Child %d return from wait_for_master_go\n",(int)chid);
+		fflush(newstdout);
+	}
 }
 
 /*
@@ -21562,6 +21621,7 @@ int num;
 		sscanf(mnc->m_command,"%d",&mc.m_command);
 		sscanf(mnc->m_client_number,"%d",&mc.m_client_number);
 		sscanf(mnc->m_client_error,"%d",&mc.m_client_error);
+		sscanf(mnc->m_mygen,"%d",&mc.m_mygen);
 		sscanf(mnc->m_version,"%d",&mc.m_version);
 		if(mc.m_version != proto_version)
 		{
@@ -21587,6 +21647,16 @@ int num;
 
 		switch(mc.m_command) {
 		case R_STAT_DATA:
+			if(mc.m_mygen != mygen)
+			{
+				/* 
+				 * >>> You are NOT one of my children !!!  <<<
+				 * Probably children left behind from another run !!!
+				 * Ignore their messages, and go on without them.
+				 */
+				printf("*** Unknown Iozone children responding !!! ***\n");
+				continue;
+			}
 			i = mc.m_client_number;
 			if(mdebug)
 				printf("loop: R_STAT_DATA for client %d\n",i);
@@ -21600,6 +21670,12 @@ int num;
 			master_join_count--;
 			break;
 		case R_FLAG_DATA:
+			if(mc.m_mygen != mygen)
+			{
+				/* You are NOT one of my children !!! */
+				printf("*** Unknown Iozone children responding !!! ***\n");
+				continue;
+			}
 			if(mdebug)
 				printf("loop: R_FLAG_DATA: Client %d flag %d \n",
 				  (int)mc.m_client_number,
@@ -21609,6 +21685,12 @@ int num;
 			child_stat->flag = (long long)(mc.m_child_flag);
 			break;
 		case R_STOP_FLAG:
+			if(mc.m_mygen != mygen)
+			{
+				/* You are NOT one of my children !!! */
+				printf("*** Unknown Iozone children responding !!! ***\n");
+				continue;
+			}
 			if(mdebug)
 			  printf("Master loop: R_STOP_FLAG: Client %d STOP_FLAG \n",
 				  (int)mc.m_client_number);
@@ -21646,8 +21728,10 @@ start_child_listen_loop()
 	if(client_listen_pid!=0)
 		return;
 	if(cdebug>=1)
-		printf("Child %d starting client listen loop\n",(int)chid);
-
+	{
+		fprintf(newstdout,"Child %d starting client listen loop\n",(int)chid);
+		fflush(newstdout);
+	}
 	while(1)
 	{
 		bzero(&cc,sizeof(struct client_command));
@@ -21664,7 +21748,10 @@ start_child_listen_loop()
 		case R_STOP_FLAG:
 			i = cc.c_client_number;
 			if(cdebug)
-				printf("child loop: R_STOP_FLAG for client %d\n",i);
+			{
+				fprintf(newstdout,"child loop: R_STOP_FLAG for client %d\n",i);
+				fflush(newstdout);
+			}
 			child_stat = (struct child_stats *)&shmaddr[i];	
 			*stop_flag = cc.c_stop_flag; /* In shared memory with other copy */
 			sent_stop=1;
@@ -21672,9 +21759,9 @@ start_child_listen_loop()
 		case R_TERMINATE:
 			if(cdebug)
 			{
-				printf("Child loop: R_TERMINATE: Client %d \n",
+				fprintf(newstdout,"Child loop: R_TERMINATE: Client %d \n",
 				  (int)cc.c_client_number);
-				fflush(stdout);
+				fflush(newstdout);
 			}
 			sleep(2);
 			/* Aync listener goes away */
@@ -21683,9 +21770,9 @@ start_child_listen_loop()
 		case R_DEATH:
 			if(cdebug)
 			{
-				printf("Child loop: R_DEATH: Client %d \n",
+				fprintf(newstdout,"Child loop: R_DEATH: Client %d \n",
 				  (int)cc.c_client_number);
-				fflush(stdout);
+				fflush(newstdout);
 			}
 			i = cc.c_client_number;
 			child_remove_files(i);
@@ -21863,7 +21950,8 @@ int i;
 	}
 	if(cdebug)
 	{
-		printf("Child %d remove: %s \n",(int)chid, dummyfile[i]);
+		fprintf(newstdout,"Child %d remove: %s \n",(int)chid, dummyfile[i]);
+		fflush(newstdout);
 	}
 	if(check_filename(dummyfile[i]))
 		unlink(dummyfile[i]);
@@ -21955,13 +22043,14 @@ send_stop()
 
 	bzero(&mc, sizeof(struct master_command));
 	mc.m_command = R_STOP_FLAG;
+	mc.m_mygen = mygen;
 	mc.m_version = proto_version;
 	mc.m_client_number = chid;
 	mc.m_client_error = client_error;
 	if(cdebug)
 	{
-		printf("Child %d sending stop flag to master\n",(int)chid);
-		fflush(stdout);
+		fprintf(newstdout,"Child %d sending stop flag to master\n",(int)chid);
+		fflush(newstdout);
 	}
         child_send(controlling_host_name,(struct master_command *)&mc, sizeof(struct master_command));
 	client_error=0;  /* clear error, it has been delivered */
@@ -22291,7 +22380,10 @@ float throughput;
 	msfd=sp_start_child_send(sp_dest, port, &sp_my_cs_addr);
 	junk=write(msfd,mybuf,1024);
 	if(cdebug)
-		printf("Sending result\n");
+	{
+		fprintf(newstdout,"Sending result\n");
+		fflush(newstdout);
+	}
 	close(msfd);
 }
 
@@ -22462,12 +22554,16 @@ int size_of_message;
 	sp_child_listen_port = ntohs(sp_child_sync_sock.sin_port);
 	if(cdebug ==1)
 	{
-		printf("Child: Listen: Bound at port %d\n", tmp_port);
-		fflush(stdout);
+		fprintf(newstdout,"Child: Listen: Bound at port %d\n", tmp_port);
+		fflush(newstdout);
 	}
 	if(rc < 0)
 	{
-		perror("bind failed\n");
+		if(cdebug ==1)
+		{
+		   fprintf(newstdout,"bind failed. Errno %d\n", errno);
+		   fflush(newstdout);
+		}
 		exit(20);
 	}
 
@@ -22475,14 +22571,14 @@ int size_of_message;
 	listen(s,10);
 	if(cdebug)
 	{
-		printf("Child enters accept\n");
-		fflush(stdout);
+		fprintf(newstdout,"Child enters accept\n");
+		fflush(newstdout);
 	}
 	ns=accept(s,(void *)addr,&me);
 	if(cdebug)
 	{
-		printf("Child attached for receive. Sock %d  %d\n", ns,errno);
-		fflush(stdout);
+		fprintf(newstdout,"Child attached for receive. Sock %d  %d\n", ns,errno);
+		fflush(newstdout);
 	}
 	close(s);
 	return(ns);
@@ -22518,13 +22614,19 @@ sp_do_child_t()
 			if(y < 0)
 			{
 			      	if(cdebug)
-					printf("Child error %d offset %d\n",
+				{
+					fprintf(newstdout,"Child error %d offset %d\n",
 						errno,offset);
+					fflush(newstdout);
+				}
 				exit(1);
 			}
 			offset+=y;
 			if(cdebug)
-				printf("Child offset %d read %d\n",offset,y);
+			{
+				fprintf(newstdout,"Child offset %d read %d\n",offset,y);
+				fflush(newstdout);
+			}
 		}
 		sp_tcount+=offset;
 	}
@@ -22555,7 +22657,10 @@ sp_do_child_t()
 	sp_send_result(sp_master_results_port, sp_tcount/1024, 
 		(float)(sp_tcount/1024)/(sp_finish_time-sp_start_time));
 	if(cdebug)
-		printf("child exits\n");
+	{
+		fprintf(newstdout,"child exits\n");
+		fflush(newstdout);
+	}
 }
 
 /*
@@ -22745,10 +22850,10 @@ struct in_addr *sp_my_cs_addr;
         }
 	if(cdebug ==1)
 	{
-	        printf("Child: start child send: %s\n", he->h_name);
-	        printf("To: %s at port %d\n",sp_master_host_name,
+	        fprintf(newstdout,"Child: start child send: %s\n", he->h_name);
+	        fprintf(newstdout,"To: %s at port %d\n",sp_master_host_name,
 			sp_master_listen_port);
-		fflush(stdout);
+		fflush(newstdout);
 	}
         ip = (struct in_addr *)he->h_addr_list[0];
 
@@ -22783,8 +22888,8 @@ struct in_addr *sp_my_cs_addr;
         }
 	if(cdebug ==1)
 	{
-		printf("Child: Bound port %d\n",tmp_port);
-		fflush(stdout);
+		fprintf(newstdout,"Child: Bound port %d\n",tmp_port);
+		fflush(newstdout);
 	}
         if (rc < 0)
         {
@@ -22802,14 +22907,14 @@ again:
 			goto again;
 		}
 
-                perror("child: connect failed\n");
-		printf("Error %d\n",errno);
+		fprintf(newstdout,"child: connect failed. Errno %d \n",errno);
+		fflush(newstdout);
 		exit(25);
         }
 	if(cdebug ==1)
 	{
-		printf("child Connected\n");
-		fflush(stdout);
+		fprintf(newstdout,"child Connected\n");
+		fflush(newstdout);
 	}
 	return (sp_child_socket_val);
 }

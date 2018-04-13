@@ -2333,3 +2333,10 @@ Added -+O Op_rate control.
 Revision 3.370
 Close race condition with master closing socket to child async reader
 =============================================================================
+Revision 3.371
+Add "mygen" generation to the remote children protocol.
+This prevents zombies from coming back to life and killing future masters.
+=============================================================================
+Revision 3.371
+Set Listen(s,100) to Listen(s,MAXSTREAMS)
+=============================================================================
