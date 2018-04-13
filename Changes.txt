@@ -1324,5 +1324,10 @@ Add -+m cluster option to the help list and the list of options.
 Revision 3.84 -> 3.88
 =============================================================================
 Fix file descriptor leak in cluster mode.
+=============================================================================
+Revision 3.89 -> 3.91
+=============================================================================
+Support for heterogeneous clusters, bug fix for -C 
+
 
 

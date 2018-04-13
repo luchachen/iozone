@@ -53,7 +53,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.90 $"
+#define THISVERSION "        Version $Revision: 3.91 $"
 
 /* Include for Cygnus development environment for Windows */
 #ifdef Windows
@@ -325,19 +325,19 @@ struct piovec piov[PVECMAX];
 struct child_stats {
 	long long flag;		/* control space */
 	long long flag1;	/* pad */
-	double walltime;	/* child elapsed time */
-	double cputime;		/* child CPU time */
-	double throughput; 	/* Throughput in either kb/sec or ops/sec */
-	double actual;	   	/* Either actual kb read or # of ops performed */
-	double start_time;	/* Actual start time */
-	double stop_time;	/* Actual end time */
-	double fini_time;	/* always set, while stop_time is not always set for a child */
+	float walltime;	/* child elapsed time */
+	float cputime;		/* child CPU time */
+	float throughput; 	/* Throughput in either kb/sec or ops/sec */
+	float actual;	   	/* Either actual kb read or # of ops performed */
+	float start_time;	/* Actual start time */
+	float stop_time;	/* Actual end time */
+	float fini_time;	/* always set, while stop_time is not always set for a child */
 } VOLATILE *child_stat;
 
 struct runtime {
-	double	walltime;
-	double	cputime;
-	double	cpuutil;
+	float	walltime;
+	float	cputime;
+	float	cpuutil;
 };
 
 #ifdef __convex_spp
@@ -351,6 +351,7 @@ struct runtime {
 
 /* 
  * Messages the controlling process sends to children.
+ * Internal representation that is arch specific.
  */
 struct client_command {
 	char c_host_name[128];
@@ -385,11 +386,56 @@ struct client_command {
 	long long c_numrecs64;
 	long long c_reclen;
 	long long c_child_flag;
-	double c_stop_flag;
+	float c_stop_flag;
+};	
+
+/*
+ * All data in this is in string format for portability in a 
+ * hetrogeneous environment.
+ *
+ * Messages that the master will send to the clients
+ * over the socket. This provides neutral format
+ * so that heterogeneous clusters will work.
+ */
+struct client_neutral_command {
+	char c_host_name[128];
+	char c_client_name[128];
+	char c_working_dir[256];
+	char c_path_dir[256];
+	char c_execute_name[256];
+	char c_oflag;
+	char c_jflag;
+	char c_async_flag;
+	char c_mmapflag;
+	char c_verify;
+	char c_Q_flag;
+	char c_include_flush;
+	char c_OPS_flag;
+	char c_mmapnsflag;
+	char c_mmapssflag;
+	char c_no_copy_flag;
+	char c_include_close;
+	char c_disrupt_flag;
+	char c_compute_flag;
+	char c_xflag;
+	char c_direct_flag[20]; 	/* int */
+	char c_client_number[20]; 	/* int */
+	char c_command[20]; 		/* int */
+	char c_testnum[20]; 		/* int */
+	char c_no_unlink[20]; 		/* int */
+	char  c_file_lock[20]; 		/* int */
+	char c_delay[80]; 		/* long long */
+	char c_purge[80]; 		/* long long */
+	char c_fetchon[80]; 		/* long long */
+	char c_numrecs64[80]; 		/* long long */
+	char c_reclen[80]; 		/* long long */
+	char c_child_flag[80]; 		/* long long */
+	char c_stop_flag[80]; 		/* double */
 };	
 
 /* 
  * Messages the clients will send to the master.
+ * Internal representation on each client and the master.
  */
 struct master_command {
 	char m_host_name[128];
@@ -399,13 +445,35 @@ struct master_command {
 	int m_child_async_port;
 	int m_command;
 	int m_testnum;
-	double m_throughput;
-	double m_stop_time;
-	double m_start_time;
-	double m_fini_time;
-	double m_stop_flag;
-	double m_actual;
+	float m_throughput;
+	float m_stop_time;
+	float m_start_time;
+	float m_fini_time;
+	float m_stop_flag;
+	float m_actual;
 	long long m_child_flag;
+};	
+
+/*
+ * Messages that the clients will send to the master
+ * over the socket. This provides neutral format
+ * so that heterogeneous clusters will work.
+ */
+struct master_neutral_command {
+	char m_host_name[128];
+	char m_client_name[128];
+	char m_client_number[20];	/* int */
+	char m_child_port[20];		/* int */
+	char m_child_async_port[20];	/* int */
+	char m_command[20];		/* int */
+	char m_testnum[20];		/* int */
+	char m_throughput[80];		/* double */
+	char m_stop_time[80];		/* double */
+	char m_start_time[80];		/* double */
+	char m_fini_time[80];		/* double */
+	char m_stop_flag[80];		/* double */
+	char m_actual[80];		/* double */
+	char m_child_flag[80];		/* long long */
 };	
 
 
@@ -902,12 +970,12 @@ int child_async_port; /* Virtualized due to fork */
 int client_listen_pid; /* Virtualized due to fork */
 int master_join_count;
 int l_sock,s_sock,l_async_sock;
-char master_rcv_buf[10240];
+char master_rcv_buf[8192];
 int master_listen_pid;
-char master_send_buf[10240];
-char child_rcv_buf[10240];
-char child_async_rcv_buf[10240];
-char child_send_buf[10240];
+char master_send_buf[8192];
+char child_rcv_buf[8192];
+char child_async_rcv_buf[8192];
+char child_send_buf[8192];
 int child_send_socket;
 int child_listen_socket;
 int child_listen_socket_async;
@@ -2791,16 +2859,24 @@ waitout:
 		}
 	}
 	if(Cflag)
-		for(xyz=0;xyz<num_child;xyz++){
+	{
+		for(xyz=0;xyz<num_child;xyz++)
+		{
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
-				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
+			{
+				if(!silent) 
+					printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			}
 			else
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
+			}
 		}
+	}
 	/**********************************************************/
 	/*************** End of intitial writer *******************/
 	/**********************************************************/
@@ -3013,16 +3089,23 @@ jump3:
 		}
 	}
 	if(Cflag)
-		for(xyz=0;xyz<num_child;xyz++){
+	{
+		for(xyz=0;xyz<num_child;xyz++)
+		{
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			}
 			else
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
+			}
 		}
+	}
 	*stop_flag=0;
 	/**********************************************************/
 	/*************** End of rewrite throughput ****************/
@@ -3227,16 +3310,23 @@ jumpend:
 		}
 	}
 	if(Cflag)
-		for(xyz=0;xyz<num_child;xyz++){
+	{
+		for(xyz=0;xyz<num_child;xyz++)
+		{
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			}
 			else
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
+			}
 		}
+	}
 	/**********************************************************/
 	/*************** End of readers throughput ****************/
 	/**********************************************************/
@@ -3442,16 +3532,23 @@ jumpend2:
 		}
 	}
 	if(Cflag)
-		for(xyz=0;xyz<num_child;xyz++){
+	{
+		for(xyz=0;xyz<num_child;xyz++)
+		{
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			}
 			else
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
+			}
 		}
+	}
 	/**********************************************************/
 	/*************** End of re-readers throughput ****************/
 	/**********************************************************/
@@ -3658,16 +3755,23 @@ next1:
 		}
 	}
 	if(Cflag)
-		for(xyz=0;xyz<num_child;xyz++){
+	{
+		for(xyz=0;xyz<num_child;xyz++)
+		{
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			}
 			else
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
+			}
 		}
+	}
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -3869,16 +3973,23 @@ next2:
 		}
 	}
 	if(Cflag)
-		for(xyz=0;xyz<num_child;xyz++){
+	{
+		for(xyz=0;xyz<num_child;xyz++)
+		{
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			}
 			else
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
+			}
 		}
+	}
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -4080,16 +4191,23 @@ next3:
 		}
 	}
 	if(Cflag)
-		for(xyz=0;xyz<num_child;xyz++){
+	{
+		for(xyz=0;xyz<num_child;xyz++)
+		{
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			}
 			else
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
+			}
 		}
+	}
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -4291,16 +4409,23 @@ next4:
 		}
 	}
 	if(Cflag)
-		for(xyz=0;xyz<num_child;xyz++){
+	{
+		for(xyz=0;xyz<num_child;xyz++)
+		{
 			child_stat = (struct child_stats *) &shmaddr[xyz];
 			if(cpuutilflag)
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec, wall=%6.3f, cpu=%6.3f, %%=%6.2f\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit, child_stat->walltime, 
 					child_stat->cputime, cpu_util(child_stat->cputime, child_stat->walltime));
+			}
 			else
+			{
 				if(!silent) printf("\tChild[%d] xfer count = %10.2f %s, Throughput = %10.2f %s/sec\n",
 					(long)xyz, child_stat->actual, unit, child_stat->throughput, unit);
+			}
 		}
+	}
         if(distributed && master_iozone)
 	{
                 stop_master_listen(master_listen_socket);
@@ -8781,6 +8906,7 @@ long long mint, maxt;
 	long long i,xx;
 	for(i=mint;i<=maxt;i++){
 		num_child =i;
+		current_client_number=0; /* Need to start with 1 */
 		throughput_test();
 		current_x=0;
 		current_y++;
@@ -14099,13 +14225,40 @@ int send_size;
 	struct hostent *he;
 	int port;
 	struct in_addr *ip;
-
+	struct master_neutral_command outbuf;
+	
 	if(cdebug>=1)
 	{
-		printf("Child sending message to %s\n",controlling_host_name);
+		fprintf(newstdout,"Child sending message to %s 0\n",controlling_host_name);
 		fflush(newstdout);
 	}
-        rc = send(child_socket_val, send_buffer, send_size, 0);
+	/* 
+	 * Convert internal commands to string format to neutral format for portability
+	 */
+	strcpy(outbuf.m_host_name,send_buffer->m_host_name);
+	strcpy(outbuf.m_client_name,send_buffer->m_client_name);
+	sprintf(outbuf.m_client_number,"%d",send_buffer->m_client_number);
+	sprintf(outbuf.m_child_port,"%d",send_buffer->m_child_port);
+	sprintf(outbuf.m_child_async_port,"%d",send_buffer->m_child_async_port);
+	sprintf(outbuf.m_command,"%d",send_buffer->m_command);
+	sprintf(outbuf.m_testnum,"%d",send_buffer->m_testnum);
+	sprintf(outbuf.m_throughput,"%f",send_buffer->m_throughput);
+	sprintf(outbuf.m_stop_time,"%f",send_buffer->m_stop_time);
+	sprintf(outbuf.m_start_time,"%f",send_buffer->m_start_time);
+	sprintf(outbuf.m_fini_time,"%f",send_buffer->m_fini_time);
+	sprintf(outbuf.m_stop_flag,"%f",send_buffer->m_stop_flag);
+	sprintf(outbuf.m_actual,"%f",send_buffer->m_actual);
+#ifdef NO_PRINT_LLD
+	sprintf(outbuf.m_child_flag,"%ld",send_buffer->m_child_flag);
+#else
+	sprintf(outbuf.m_child_flag,"%lld",send_buffer->m_child_flag);
+#endif
+	if(cdebug>=1)
+	{
+		fprintf(newstdout,"Child sending message to %s\n",controlling_host_name);
+		fflush(newstdout);
+	}
+        rc = send(child_socket_val, &outbuf, sizeof(struct master_neutral_command), 0);
         if (rc < 0)
         {
                 perror("write failed\n");
@@ -14136,10 +14289,57 @@ int send_size;
 	struct hostent *he;
 	int port;
 	struct in_addr *ip;
+	struct client_neutral_command outbuf;
+
+	/* 
+	 * Convert internal commands to string format for neutral format/portability
+	 */
+	strcpy(outbuf.c_host_name,send_buffer->c_host_name);
+	strcpy(outbuf.c_client_name,send_buffer->c_client_name);
+	strcpy(outbuf.c_working_dir,send_buffer->c_working_dir);
+	strcpy(outbuf.c_path_dir,send_buffer->c_path_dir);
+	strcpy(outbuf.c_execute_name,send_buffer->c_execute_name);
+	sprintf(&outbuf.c_oflag,"%c",send_buffer->c_oflag);
+	sprintf(&outbuf.c_jflag,"%c",send_buffer->c_jflag);
+	sprintf(&outbuf.c_async_flag,"%c",send_buffer->c_async_flag);
+	sprintf(&outbuf.c_mmapflag,"%c",send_buffer->c_mmapflag);
+	sprintf(&outbuf.c_verify,"%c",send_buffer->c_verify);
+	sprintf(&outbuf.c_Q_flag,"%c",send_buffer->c_Q_flag);
+	sprintf(&outbuf.c_include_flush,"%c",send_buffer->c_include_flush);
+	sprintf(&outbuf.c_OPS_flag,"%c",send_buffer->c_OPS_flag);
+	sprintf(&outbuf.c_mmapnsflag,"%c",send_buffer->c_mmapnsflag);
+	sprintf(&outbuf.c_mmapssflag,"%c",send_buffer->c_mmapssflag);
+	sprintf(&outbuf.c_no_copy_flag,"%c",send_buffer->c_no_copy_flag);
+	sprintf(&outbuf.c_include_close,"%c",send_buffer->c_include_close);
+	sprintf(&outbuf.c_disrupt_flag,"%c",send_buffer->c_disrupt_flag);
+	sprintf(&outbuf.c_compute_flag,"%c",send_buffer->c_compute_flag);
+	sprintf(&outbuf.c_xflag,"%c",send_buffer->c_xflag);
+	sprintf(outbuf.c_direct_flag,"%d",send_buffer->c_direct_flag);
+	sprintf(outbuf.c_client_number,"%d",send_buffer->c_client_number);
+	sprintf(outbuf.c_command,"%d",send_buffer->c_command);
+	sprintf(outbuf.c_testnum,"%d",send_buffer->c_testnum);
+	sprintf(outbuf.c_no_unlink,"%d",send_buffer->c_no_unlink);
+	sprintf(outbuf.c_file_lock,"%d",send_buffer->c_file_lock);
+#ifdef NO_PRINT_LLD
+	sprintf(outbuf.c_delay,"%ld",send_buffer->c_delay);
+	sprintf(outbuf.c_purge,"%ld",send_buffer->c_purge);
+	sprintf(outbuf.c_fetchon,"%ld",send_buffer->c_fetchon);
+	sprintf(outbuf.c_numrecs64,"%ld",send_buffer->c_numrecs64);
+	sprintf(outbuf.c_reclen,"%ld",send_buffer->c_reclen);
+	sprintf(outbuf.c_child_flag,"%ld",send_buffer->c_child_flag);
+#else
+	sprintf(outbuf.c_delay,"%lld",send_buffer->c_delay);
+	sprintf(outbuf.c_purge,"%lld",send_buffer->c_purge);
+	sprintf(outbuf.c_fetchon,"%lld",send_buffer->c_fetchon);
+	sprintf(outbuf.c_numrecs64,"%lld",send_buffer->c_numrecs64);
+	sprintf(outbuf.c_reclen,"%lld",send_buffer->c_reclen);
+	sprintf(outbuf.c_child_flag,"%lld",send_buffer->c_child_flag);
+#endif
+	sprintf(outbuf.c_stop_flag,"%f",send_buffer->c_stop_flag);
 
 	if(mdebug >= 1)
 		printf("Master sending message to %s \n",host_name);
-        rc = send(child_socket_val, send_buffer, send_size, 0);
+        rc = send(child_socket_val, &outbuf, sizeof(struct client_neutral_command), 0);
         if (rc < 0)
         {
                 perror("write failed\n");
@@ -14325,7 +14525,7 @@ int size_of_message;
                 exit(19);
         }
         bzero(&addr, sizeof(struct sockaddr_in));
-        addr.sin_port = CHILD_LIST_PORT;
+        addr.sin_port = CHILD_LIST_PORT+chid;
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
         rc = -1;
@@ -14721,7 +14921,8 @@ long long numrecs64, reclen;
 	int x;
 	int c_command,child_index;
 	struct client_command cc;
-	struct master_command *mc;
+	struct master_command mc;
+	struct master_neutral_command *mnc;
 	char command[512];
 	struct in_addr my_s_addr;
 
@@ -14760,11 +14961,19 @@ long long numrecs64, reclen;
 
 	if(mdebug>=1)
 		printf("Master listening for child to send join message.\n");
-	master_listen(master_listen_socket,sizeof(struct master_command));
-	mc = (struct master_command *)&master_rcv_buf;
-	c_port = mc->m_child_port; 
-	a_port = mc->m_child_async_port; 
-	c_command = mc->m_command;
+	master_listen(master_listen_socket,sizeof(struct master_neutral_command));
+	mnc = (struct master_neutral_command *)&master_rcv_buf;
+
+	/* 
+	 * Convert from string format back to internal representation
+	 */
+	sscanf(mnc->m_child_port,"%d",&mc.m_child_port);	
+	sscanf(mnc->m_child_async_port,"%d",&mc.m_child_async_port);	
+	sscanf(mnc->m_command,"%d",&mc.m_command);	
+
+	c_port = mc.m_child_port; 
+	a_port = mc.m_child_async_port; 
+	c_command = mc.m_command;
 	if(mdebug>=1)
 	{
 		printf("Master back from listen child Joined.\n");
@@ -14832,11 +15041,21 @@ long long numrecs64, reclen;
 	/*             the barrier.  					*/
 	if(mdebug>=1)
 	   printf("Master listening for child to send at barrier message.\n");
-	master_listen(master_listen_socket,sizeof(struct master_command));
-	mc = (struct master_command *)&master_rcv_buf;
-	child_index = mc->m_client_number;
+	master_listen(master_listen_socket,sizeof(struct master_neutral_command));
+	mnc = (struct master_neutral_command *)&master_rcv_buf;
+	/*
+	 * Convert from string back to arch specific 
+	 */
+	sscanf(mnc->m_client_number,"%d",&mc.m_client_number);	
+#ifdef NO_PRINT_LLD
+	sscanf(mnc->m_child_flag,"%ld",&mc.m_child_flag);	
+#else
+	sscanf(mnc->m_child_flag,"%lld",&mc.m_child_flag);	
+#endif
+
+	child_index = mc.m_client_number;
 	child_stat = (struct child_stats *)&shmaddr[child_index];	
-	child_stat->flag = (long long)(mc->m_child_flag);
+	child_stat->flag = (long long)(mc.m_child_flag);
 	if(mdebug>=1)
 	   printf("Master sees child %d at barrier message.\n",child_index);
 
@@ -14868,7 +15087,8 @@ become_client()
 {
 	int x,testnum;
 	struct master_command mc;
-	struct client_command *cc;
+	struct client_command cc;
+	struct client_neutral_command *cnc;
 	char client_name[256];
 	char *workdir;
 
@@ -14895,8 +15115,8 @@ become_client()
 
 	/* 1. Start client receive channel 					*/
 
-	l_sock = start_child_listen(sizeof(struct client_command));
-	l_async_sock = start_child_listen_async(sizeof(struct client_command));
+	l_sock = start_child_listen(sizeof(struct client_neutral_command));
+	l_async_sock = start_child_listen_async(sizeof(struct client_neutral_command));
 
 	/* 2. Start client send channel 					*/
 
@@ -14925,9 +15145,17 @@ become_client()
 		fprintf(newstdout,"Child waiting for who am I\n");
 		fflush(newstdout);
 	}
-	child_listen(l_sock,sizeof(struct client_command));
-	cc = (struct client_command *)&child_rcv_buf;
-	if(cc->c_command == R_TERMINATE)
+	child_listen(l_sock,sizeof(struct client_neutral_command));
+	cnc = (struct client_neutral_command *)&child_rcv_buf;
+	
+	/* Convert from string format to arch format
+	 */
+	sscanf(cnc->c_command,"%d",&cc.c_command);
+	sscanf(cnc->c_client_name,"%s",cc.c_client_name);
+	sscanf(cnc->c_client_number,"%d",&cc.c_client_number);
+	sscanf(cnc->c_host_name,"%s",cc.c_host_name);
+
+	if(cc.c_command == R_TERMINATE)
 	{
 		if(cdebug)
 		{
@@ -14940,7 +15168,7 @@ become_client()
 	if(cdebug)
 	{
 		fprintf(newstdout,"Child sees: \n Client name %s \n Client_num # %d \n Host_name %s\n",
-		cc->c_client_name,cc->c_client_number,cc->c_host_name);
+		cc.c_client_name,cc.c_client_number,cc.c_host_name);
 		fflush(newstdout);
 	}
 
@@ -14951,32 +15179,67 @@ become_client()
 
 	/* 5. Get state information from the master */
 
-	numrecs64 = cc->c_numrecs64;
-	reclen = cc->c_reclen;
-	testnum = cc->c_testnum;
-	chid = cc->c_client_number;
-	workdir=cc->c_working_dir;
-	oflag = cc->c_oflag;
-	jflag = cc->c_jflag;
-	direct_flag = cc->c_direct_flag;
-	async_flag = cc->c_async_flag;
-	mmapflag = cc->c_mmapflag;
-	fetchon = cc->c_fetchon;
-	verify = cc->c_verify;
-	file_lock = cc->c_file_lock;
-	Q_flag = cc->c_Q_flag;
-	xflag = cc->c_xflag;
-	include_flush = cc->c_include_flush;
-	OPS_flag = cc->c_OPS_flag;
-	purge = cc->c_purge;
-	mmapnsflag = cc->c_mmapnsflag;
-	mmapssflag = cc->c_mmapssflag; 
-	no_copy_flag = cc->c_no_copy_flag;
-	no_unlink = cc->c_no_unlink;
-	include_close = cc->c_include_close;
-	disrupt_flag = cc->c_disrupt_flag;
-	compute_flag = cc->c_compute_flag;
-	delay = cc->c_delay;
+#ifdef NO_PRINT_LLD
+	sscanf(cnc->c_numrecs64,"%ld",&cc.c_numrecs64);
+	sscanf(cnc->c_reclen,"%ld",&cc.c_reclen);
+	sscanf(cnc->c_fetchon,"%ld",&cc.c_fetchon);
+	sscanf(cnc->c_purge,"%ld",&cc.c_purge);
+	sscanf(cnc->c_delay,"%ld",&cc.c_delay);
+#else
+	sscanf(cnc->c_numrecs64,"%lld",&cc.c_numrecs64);
+	sscanf(cnc->c_reclen,"%lld",&cc.c_reclen);
+	sscanf(cnc->c_fetchon,"%lld",&cc.c_fetchon);
+	sscanf(cnc->c_purge,"%lld",&cc.c_purge);
+	sscanf(cnc->c_delay,"%lld",&cc.c_delay);
+#endif
+	sscanf(cnc->c_testnum,"%d",&cc.c_testnum);
+	sscanf(cnc->c_client_number,"%d",&cc.c_client_number);
+	sscanf(cnc->c_working_dir,"%d",cc.c_working_dir);
+	sscanf(&cnc->c_oflag,"%c",&cc.c_oflag);
+	sscanf(&cnc->c_jflag,"%c",&cc.c_jflag);
+	sscanf(cnc->c_direct_flag,"%d",&cc.c_direct_flag);
+	sscanf(&cnc->c_async_flag,"%c",&cc.c_async_flag);
+	sscanf(&cnc->c_mmapflag,"%c",&cc.c_mmapflag);
+	sscanf(&cnc->c_verify,"%c",&cc.c_verify);
+	sscanf(cnc->c_file_lock,"%d",&cc.c_file_lock);
+	sscanf(&cnc->c_Q_flag,"%c",&cc.c_Q_flag);
+	sscanf(&cnc->c_xflag,"%c",&cc.c_xflag);
+	sscanf(&cnc->c_include_flush,"%c",&cc.c_include_flush);
+	sscanf(&cnc->c_OPS_flag,"%c",&cc.c_OPS_flag);
+	sscanf(&cnc->c_mmapnsflag,"%c",&cc.c_mmapnsflag);
+	sscanf(&cnc->c_mmapssflag,"%c",&cc.c_mmapssflag);
+	sscanf(&cnc->c_no_copy_flag,"%c",&cc.c_no_copy_flag);
+	sscanf(cnc->c_no_unlink,"%d",&cc.c_no_unlink);
+	sscanf(&cnc->c_include_close,"%c",&cc.c_include_close);
+	sscanf(&cnc->c_disrupt_flag,"%c",&cc.c_disrupt_flag);
+	sscanf(&cnc->c_compute_flag,"%c",&cc.c_compute_flag);
+
+	numrecs64 = cc.c_numrecs64;
+	reclen = cc.c_reclen;
+	testnum = cc.c_testnum;
+	chid = cc.c_client_number;
+	workdir=cc.c_working_dir;
+	oflag = cc.c_oflag;
+	jflag = cc.c_jflag;
+	direct_flag = cc.c_direct_flag;
+	async_flag = cc.c_async_flag;
+	mmapflag = cc.c_mmapflag;
+	fetchon = cc.c_fetchon;
+	verify = cc.c_verify;
+	file_lock = cc.c_file_lock;
+	Q_flag = cc.c_Q_flag;
+	xflag = cc.c_xflag;
+	include_flush = cc.c_include_flush;
+	OPS_flag = cc.c_OPS_flag;
+	purge = cc.c_purge;
+	mmapnsflag = cc.c_mmapnsflag;
+	mmapssflag = cc.c_mmapssflag; 
+	no_copy_flag = cc.c_no_copy_flag;
+	no_unlink = cc.c_no_unlink;
+	include_close = cc.c_include_close;
+	disrupt_flag = cc.c_disrupt_flag;
+	compute_flag = cc.c_compute_flag;
+	delay = cc.c_delay;
 	if(cdebug)
 	{
 		fprintf(newstdout,"Child change directory to %s\n",workdir);
@@ -15184,10 +15447,12 @@ wait_for_master_go()
 long long chid;
 #endif
 {
-	struct client_command *cc;
-	child_listen(l_sock,sizeof(struct client_command));
-	cc = (struct client_command *)child_rcv_buf;
-	if(cc->c_command == R_TERMINATE)
+	struct client_neutral_command *cnc;
+	struct client_command cc;
+	child_listen(l_sock,sizeof(struct client_neutral_command));
+	cnc = (struct client_neutral_command *)child_rcv_buf;
+	sscanf(cnc->c_command,"%d",&cc.c_command);
+	if(cc.c_command == R_TERMINATE)
 	{
 		if(cdebug)
 		{
@@ -15219,7 +15484,8 @@ int num;
 {
 	int i;
 	struct child_stats *child_stat;
-	struct master_command *mc;
+	struct master_neutral_command *mnc;
+	struct master_command mc;
 
 	master_join_count=num;
 	master_listen_pid=fork();
@@ -15231,35 +15497,52 @@ int num;
 
 	while(master_join_count)
 	{
-		master_listen(master_listen_socket,sizeof(struct master_command));
-		mc=(struct master_command *)&master_rcv_buf;
-		switch(mc->m_command) {
+		master_listen(master_listen_socket,sizeof(struct master_neutral_command));
+		mnc=(struct master_neutral_command *)&master_rcv_buf;
+		
+		/*
+		 * Convert from string format to arch format
+		 */
+		sscanf(mnc->m_command,"%d",&mc.m_command);
+		sscanf(mnc->m_client_number,"%d",&mc.m_client_number);
+#ifdef NO_PRINT_LLD
+		sscanf(mnc->m_child_flag,"%ld",&mc.m_child_flag);
+#else
+		sscanf(mnc->m_child_flag,"%lld",&mc.m_child_flag);
+#endif
+		sscanf(mnc->m_actual,"%f",&mc.m_actual);
+		sscanf(mnc->m_throughput,"%f",&mc.m_throughput);
+		sscanf(mnc->m_start_time,"%f",&mc.m_start_time);
+		sscanf(mnc->m_stop_time,"%f",&mc.m_stop_time);
+		sscanf(mnc->m_stop_flag,"%f",&mc.m_stop_flag);
+
+		switch(mc.m_command) {
 		case R_STAT_DATA:
-			i = mc->m_client_number;
+			i = mc.m_client_number;
 			if(mdebug)
 				printf("loop: R_STAT_DATA for client %d\n",i);
 			child_stat = (struct child_stats *)&shmaddr[i];	
-			child_stat->flag = mc->m_child_flag;
-			child_stat->actual = mc->m_actual;
-			child_stat->throughput = mc->m_throughput;
-			child_stat->start_time = mc->m_start_time;
-			child_stat->stop_time = mc->m_stop_time;
-			*stop_flag = mc->m_stop_flag;
+			child_stat->flag = mc.m_child_flag;
+			child_stat->actual = mc.m_actual;
+			child_stat->throughput = mc.m_throughput;
+			child_stat->start_time = mc.m_start_time;
+			child_stat->stop_time = mc.m_stop_time;
+			*stop_flag = mc.m_stop_flag;
 			master_join_count--;
 			break;
 		case R_FLAG_DATA:
 			if(mdebug)
 				printf("loop: R_FLAG_DATA: Client %d flag %d \n",
-				  (int)mc->m_client_number,
-				  (int)mc->m_child_flag);
-			i = mc->m_client_number;
+				  (int)mc.m_client_number,
+				  (int)mc.m_child_flag);
+			i = mc.m_client_number;
 			child_stat = (struct child_stats *)&shmaddr[i];	
-			child_stat->flag = (long long)(mc->m_child_flag);
+			child_stat->flag = (long long)(mc.m_child_flag);
 			break;
 		case R_STOP_FLAG:
 			if(mdebug)
 			  printf("Master loop: R_STOP_FLAG: Client %d STOP_FLAG \n",
-				  (int)mc->m_client_number);
+				  (int)mc.m_client_number);
 			*stop_flag=1;
 			distribute_stop();
 			break;
@@ -15282,34 +15565,42 @@ start_child_listen_loop()
 {
 	int i;
 	struct child_stats *child_stat;
-	struct client_command *cc;
+	struct client_command cc;
+	struct client_neutral_command *cnc;
 
 	client_listen_pid=fork();
 	if(client_listen_pid!=0)
 		return;
-	if(mdebug>=1)
-		printf("Starting client listen loop\n");
+	if(cdebug>=1)
+		fprintf(newstdout,"Starting client listen loop\n");
 
 	while(1)
 	{
-		child_listen_async(l_async_sock,sizeof(struct client_command));
-		cc=(struct client_command *)&child_async_rcv_buf;
-		switch(cc->c_command) {
+		child_listen_async(l_async_sock,sizeof(struct client_neutral_command));
+		cnc=(struct client_neutral_command *)&child_async_rcv_buf;
+		/*
+		 * Convert from string format to arch format
+	 	 */
+		sscanf(cnc->c_command,"%d",&cc.c_command);
+		sscanf(cnc->c_client_number,"%d",&cc.c_client_number);
+		sscanf(cnc->c_stop_flag,"%f",&cc.c_stop_flag);
+
+		switch(cc.c_command) {
 		case R_STOP_FLAG:
-			i = cc->c_client_number;
+			i = cc.c_client_number;
 			if(cdebug)
 				fprintf(newstdout,"child loop: R_STOP_FLAG for client %d\n",i);
 			child_stat = (struct child_stats *)&shmaddr[i];	
-			*stop_flag = cc->c_stop_flag; /* In shared memory with other copy */
+			*stop_flag = cc.c_stop_flag; /* In shared memory with other copy */
 			break;
 		case R_TERMINATE:
 			if(cdebug)
 			{
 				fprintf(newstdout,"Child loop: R_TERMINATE: Client %d \n",
-				  (int)cc->c_client_number);
+				  (int)cc.c_client_number);
 				fflush(newstdout);
 			}
-			i = cc->c_client_number;
+			i = cc.c_client_number;
 			child_remove_files(i);
 			exit(0);
 		}
