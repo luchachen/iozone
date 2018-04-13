@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.383 $"
+#define THISVERSION "        Version $Revision: 3.384 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -19791,6 +19791,7 @@ start_master_listen()
 	int sockerr;
 	struct sockaddr_in addr;
 	int recv_buf_size=65536*4;
+	int optval=1;
 #if defined(Windows)
 	struct linger dummy={1,0};
 #endif
@@ -19807,7 +19808,7 @@ start_master_listen()
 		perror("Error in setsockopt 1\n");
 	}
 	sockerr = setsockopt (s, SOL_SOCKET, SO_REUSEADDR, (char *)
-		&recv_buf_size, sizeof(int));
+		&optval, sizeof(int));
 	if ( sockerr == -1 ) {
 		perror("Error in setsockopt 2\n");
 	}
@@ -20277,6 +20278,7 @@ int size_of_message;
 	int tmp_port;
 	int sockerr;
 	int recv_buf_size=65536;
+	int optval=1;
 #if defined(Windows)
 	struct linger dummy={1,0};
 #endif
@@ -20294,7 +20296,7 @@ int size_of_message;
 		perror("Error in setsockopt 3\n");
 	}
 	sockerr = setsockopt (s, SOL_SOCKET, SO_REUSEADDR, (char *)
-		&recv_buf_size, sizeof(int));
+		&optval, sizeof(int));
 	if ( sockerr == -1 ) {
 		perror("Error in setsockopt 4\n");
 	}
@@ -20460,6 +20462,7 @@ int size_of_message;
 	int tmp_port;
 	int sockerr;
 	int recv_buf_size=65536;
+	int optval=1;
 	xx = 0;
 	tsize=size_of_message; /* Number of messages to receive */
         s = socket(AF_INET, SOCK_STREAM, 0);
@@ -20474,7 +20477,7 @@ int size_of_message;
 		perror("Error in setsockopt 5\n");
 	}
 	sockerr = setsockopt (s, SOL_SOCKET, SO_REUSEADDR, (char *)
-		&recv_buf_size, sizeof(int));
+		&optval, sizeof(int));
 	if ( sockerr == -1 ) {
 		perror("Error in setsockopt 6\n");
 	}
@@ -22553,6 +22556,7 @@ int size_of_message;
 	struct sockaddr_in *addr;
 	int sockerr;
 	int recv_buf_size=65536;
+	int optval=1;
 	xx = 0;
 	me=sizeof(struct sockaddr_in);
 	tsize=size_of_message; /* Number of messages to receive */
@@ -22568,7 +22572,7 @@ int size_of_message;
 		perror("Error in setsockopt 7\n");
 	}
 	sockerr = setsockopt (s, SOL_SOCKET, SO_REUSEADDR, (char *)
-		&recv_buf_size, sizeof(int));
+		&optval, sizeof(int));
 	if ( sockerr == -1 ) {
 		perror("Error in setsockopt 8\n");
 	}
@@ -22793,6 +22797,7 @@ int sp_master_listen_port;
 	struct sockaddr_in *addr;
 	int sockerr;
 	int recv_buf_size=65536;
+	int optval=1;
 	xx = 0;
 	me=sizeof(struct sockaddr_in);
 	tsize=sp_size_of_message; /* Number of messages to receive */
@@ -22808,7 +22813,7 @@ int sp_master_listen_port;
 		perror("Error in setsockopt 9\n");
 	}
 	sockerr = setsockopt (s, SOL_SOCKET, SO_REUSEADDR, (char *)
-		&recv_buf_size, sizeof(int));
+		&optval, sizeof(int));
 	if ( sockerr == -1 ) {
 		perror("Error in setsockopt 10\n");
 	}
