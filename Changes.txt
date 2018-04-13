@@ -2605,3 +2605,6 @@ Revision 3.467
 Fix compiler warning from Clang on MacOS for mythread_create(). Prototype
 didn't match the formal function definition.
 =============================================================================
+Revision 3.469
+Switch to IOZ_macosx everywhere for compatibility with Mountain Lion.
+=============================================================================
