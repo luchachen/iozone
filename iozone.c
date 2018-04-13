@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.469 $"
+#define THISVERSION "        Version $Revision: 3.470 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -848,7 +848,7 @@ struct master_neutral_command {
 #endif
 
 /* Maximum number of children. Threads/procs/clients */
-#define	MAXSTREAMS	256		
+#define	MAXSTREAMS	1024		
 
 /* Minimum buffer size */
 #define MINBUFFERSIZE 128

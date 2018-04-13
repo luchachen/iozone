@@ -2608,3 +2608,7 @@ didn't match the formal function definition.
 Revision 3.469
 Switch to IOZ_macosx everywhere for compatibility with Mountain Lion.
 =============================================================================
+Revision 3.470
+Increase MAXSTREAMS to 1024. Systems have more power today than 20+ years ago.
+=============================================================================
+
