@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.417 $"
+#define THISVERSION "        Version $Revision: 3.420 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -1299,6 +1299,7 @@ char *barray[MAXSTREAMS];
 char *haveshm;
 extern int optind;
 long long onetime, auto_mode, sfd, multi_buffer;
+int exit_code = 0;  
 int fd;
 int sp_msfd,sp_mrfd,sp_csfd,sp_crfd;
 int begin_proc,num_processors,ioz_processor_bind;
@@ -1691,7 +1692,7 @@ char **argv;
     	sprintf(splash[splash_line++],"\t             Jean-Marc Zucconi, Jeff Blomberg, Benny Halevy, Dave Boone,\n");
     	sprintf(splash[splash_line++],"\t             Erik Habbinga, Kris Strecker, Walter Wong, Joshua Root,\n");
     	sprintf(splash[splash_line++],"\t             Fabrice Bacchella, Zhenghua Xue, Qin Li, Darren Sawyer,\n");
-    	sprintf(splash[splash_line++],"\t             Vangel Bojaxhi, Ben England.\n\n");
+    	sprintf(splash[splash_line++],"\t             Vangel Bojaxhi, Ben England, Vikentsi Lapa.\n\n");
 	sprintf(splash[splash_line++],"\tRun began: %s\n",ctime(&time_run));
 	argcsave=argc;
 	argvsave=argv;
@@ -3419,7 +3420,7 @@ void signal_handler()
 		close(sp_msfd);
 	if(sp_mrfd)
 		close(sp_mrfd);
-    	exit(0);
+    	exit(exit_code);
 }
 
 /****************************************************************/
@@ -7561,6 +7562,7 @@ long long *data2;
 #endif
 				if(wval==-1)
 					perror("write");
+				exit_code = 74; 
 				signal_handler();
 			}
 			I_LSEEK(fd,0,SEEK_SET);
@@ -7701,6 +7703,7 @@ long long *data2;
 #endif
 			    	if(wval == -1)
 					perror("write");
+				exit_code = 74;
 				signal_handler();
 			    }
 #if defined(Windows)
@@ -8010,6 +8013,7 @@ long long *data2;
 					 fd);
 #endif
 				perror("fwrite");
+				exit_code = 74;
 				signal_handler();
 			}
 		}
@@ -9239,6 +9243,7 @@ long long *data1, *data2;
 #endif
 						if(wval==-1)
 							perror("write");
+						exit_code = 74;
 						signal_handler();
 			 		  }
 					}
@@ -9799,6 +9804,7 @@ long long *data1,*data2;
 #endif
 		if(wval==-1)
 			perror("write");
+		exit_code = 74;
 		signal_handler();
 	}
 	*/
@@ -9870,6 +9876,7 @@ long long *data1,*data2;
 #endif
 				   if(wval==-1)
 				   	perror("write");
+				   exit_code = 74;
 				   signal_handler();
 			       }
 			  }
@@ -10480,6 +10487,7 @@ long long *data1,*data2;
 					 fd);
 #endif
 				perror("pwrite");
+				exit_code = 74;
 				signal_handler();
 			}
 			if(rlocking)
@@ -14129,6 +14137,7 @@ fprintf(newstdout,"Chid: %lld Rewriting offset %lld for length of %lld\n",chid, 
 #endif
 				if(wval==-1)
 					perror("write");
+				exit_code = 74;
 				if (!no_unlink)
 				{
 				   if(check_filename(dummyfile[xx]))
@@ -21465,6 +21474,7 @@ long long numrecs64, reclen;
           strcat(command,my_port_num);
         }
 	strcat(command," '");
+	usleep(100000); /* Don't spawn rsh too fast... */
 	junk=system(command);
 /*
 	system("remsh rsnperf '/home/capps/niozone/iozone -+s -t 1 -r 4 -s 8 -+c rsnperf'");
@@ -24824,6 +24834,7 @@ void * thread_fwrite_test( x)
                                  fd);
 #endif
                         perror("fwrite");
+			exit_code = 74;
                         signal_handler();
                 }
 		if(hist_summary)
