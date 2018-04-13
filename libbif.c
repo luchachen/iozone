@@ -29,7 +29,7 @@
 #include <stdlib.h>
 #endif
 
-#if defined(solaris) && defined( __LP64__ )
+#if ((defined(solaris) && defined( __LP64__ )) || defined(__s390x__))
 /* If we are building for 64-bit Solaris, all functions that return pointers
  * must be declared before they are used; otherwise the compiler will assume
  * that they return ints and the top 32 bits of the pointer will be lost,
@@ -78,7 +78,7 @@ void do_label(int,char *,int,int);
 /*	  column							*/
 /************************************************************************/
 
-char libbif_version[] = "Libbif Version $Revision: 3.9 $";
+char libbif_version[] = "Libbif Version $Revision: 3.10 $";
 void do_eof(int );		/* Used internally */
 void do_header(int );		/* Used internally */
 #endif
@@ -277,7 +277,8 @@ int row,column;
         floatrec.lo_column=(char)((s_column>>8)&0xff);
 	sptr =(unsigned char *) &value;
 	dptr =(unsigned char *) &floatrec.data;
-#if defined(BIG_ENDIAN) && !defined(linux)
+/*#if defined(BIG_ENDIAN) && !defined(linux)*/
+#if defined(BIG_ENDIAN) 
 	dptr[0]=sptr[7]; /* Convert to Little Endian */
 	dptr[1]=sptr[6];
 	dptr[2]=sptr[5];

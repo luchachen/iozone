@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.79 $
+# Version $Revision: 1.80 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -43,6 +43,8 @@ all:
 	@echo "        ->   OSFV3                (64bit)   <-"
 	@echo "        ->   OSFV4                (64bit)   <-"
 	@echo "        ->   OSFV5                (64bit)   <-"
+	@echo "        ->   S390-linux           (32bit)   <-"
+	@echo "        ->   S390X-linux          (64bit)   <-"
 	@echo "        ->   SCO                  (32bit)   <-"
 	@echo "        ->   SCO_Unixware_gcc     (32bit)   <-"
 	@echo "        ->   Solaris              (32bit)   <-"
@@ -181,6 +183,26 @@ linux-ia64:	iozone_linux-ia64.o  libbif.o
 		-DNO_THREADS -D_LARGEFILE64_SOURCE -Dlinux \
 		iozone_linux-ia64.o libbif.o \
 		-o iozone
+
+#
+# GNU 'C' compiler Linux build with S/390, threads, largfiles, async I/O
+#
+S390-linux:	iozone_linux-s390.o libbif.o libasync.o
+	cc  -O2 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM \
+		-D_LARGFILE64_SOURCE -Dlinux -lpthread -lrt \
+		iozone_linux-s390.o libbif.o libasync.o \
+		-o iozone
+
+#
+# GNU 'C' compiler Linux build with S/390, threads, largfiles, async I/O
+#
+S390X-linux:	iozone_linux-s390x.o libbif.o libasync.o
+	cc  -O2 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM \
+		-D_LARGFILE64_SOURCE -Dlinux -lpthread -lrt \
+		iozone_linux-s390x.o libbif.o libasync.o \
+		-o iozone
+
+
 # 
 # AIX
 # I would have built with ASYNC_IO but the AIX machine does not have 
@@ -598,6 +620,31 @@ iozone_linux-ia64.o:	iozone.c libbif.c
 		-o iozone_linux-ia64.o
 	cc -c -O3 -Dunix -DHAVE_ANSIC_C -D_LARGEFILE64_SOURCE \
 		-DSHARED_MEM -Dlinux libbif.c -o libbif.o
+
+iozone_linux-s390.o:	iozone.c libbif.c libasync.c
+	@echo ""
+	@echo "Building iozone for Linux-s390"
+	@echo ""
+	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DHAVE_PREAD \
+		-DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE iozone.c \
+		-DNAME='"linux-s390"' -o iozone_linux-s390.o
+	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM -Dlinux \
+		-DBIG_ENDIAN -D_LARGEFILE64_SOURCE libbif.c -o libbif.o
+	cc -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
+		-D_LARGEFILE64_SOURCE libasync.c -o libasync.o
+
+iozone_linux-s390x.o:	iozone.c libbif.c libasync.c
+	@echo ""
+	@echo "Building iozone for Linux-s390x"
+	@echo ""
+	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DHAVE_PREAD \
+		-DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE iozone.c \
+		-DNAME='"linux-s390x"' -o iozone_linux-s390x.o
+	cc -c -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM -Dlinux \
+		-DBIG_ENDIAN -D_LARGEFILE64_SOURCE libbif.c -o libbif.o
+	cc -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
+		-D_LARGEFILE64_SOURCE libasync.c -o libasync.o
+
 
 iozone_AIX.o:	iozone.c libbif.c 
 	@echo ""

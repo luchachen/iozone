@@ -117,7 +117,7 @@
 #include <stdlib.h>
 #endif
 
-#if defined(solaris) && defined(__LP64__)
+#if ((defined(solaris) && defined(__LP64__)) || defined(__s390x__))
 /* If we are building for 64-bit Solaris, all functions that return pointers
  * must be declared before they are used; otherwise the compiler will assume
  * that they return ints and the top 32 bits of the pointer will be lost,
@@ -148,7 +148,7 @@ extern int one;
  * cache, pointed to by async_init(gc) will be of
  * this structure type.
  */
-char version[] = "Libasync Version $Revision: 3.15 $";
+char version[] = "Libasync Version $Revision: 3.16 $";
 struct cache_ent {
 	struct aiocb myaiocb;			/* For use in small file mode */
 #ifdef _LARGEFILE64_SOURCE 

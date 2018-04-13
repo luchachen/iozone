@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.185 $"
+#define THISVERSION "        Version $Revision: 3.189 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -192,6 +192,7 @@ char *help[] = {
 "           -+p # Percentage of mix to be reads",
 "           -+r Enable O_RSYNC|O_SYNC for all testing.",
 "           -+t Enable network performance test. Requires -+m ",
+"           -+n No retests selected.",
 #ifndef NO_MADVISE
 "           -+A #  Enable madvise. 0 = normal, 1=random, 2=sequential",
 "                                  3=dontneed, 4=willneed",
@@ -247,7 +248,7 @@ THISVERSION,
 #endif
 #endif
 
-#if defined(solaris) && defined(__LP64__)
+#if ((defined(solaris) && defined(__LP64__)) || defined(__s390x_))
 /* If we are building for 64-bit Solaris, all functions that return pointers
  * must be declared before they are used; otherwise the compiler will assume
  * that they return ints and the top 32 bits of the pointer will be lost,
@@ -416,6 +417,7 @@ struct client_command {
 	char c_write_traj_filename[256];
 	char c_read_traj_filename[256];
 	int c_oflag;
+	int c_noretest;
 	int c_read_sync;
 	int c_jflag;
 	int c_async_flag;
@@ -491,6 +493,7 @@ struct client_neutral_command {
 	char c_write_traj_filename[100];
 	char c_read_traj_filename[100];
 	char c_oflag[2];
+	char c_noretest[2];
 	char c_read_sync[2];
 	char c_jflag[2];
 	char c_async_flag[2];
@@ -1288,7 +1291,7 @@ struct sockaddr_in child_sync_sock, child_async_sock;
 /*
  * Change this whenever you change the message format of master or client.
  */
-int proto_version = 10;
+int proto_version = 11;
 
 /******************************************************************************/
 /* Tele-port zone. These variables are updated on the clients when one is     */
@@ -1310,6 +1313,7 @@ struct child_ident {
 char write_traj_filename [MAXNAMESIZE];     /* name of write telemetry file */
 char read_traj_filename [MAXNAMESIZE];    /* name of read telemetry file  */
 char oflag,jflag,k_flag,h_flag,mflag,pflag;
+char noretest;
 char async_flag,stride_flag,mmapflag,mmapasflag,mmapssflag,mmapnsflag,mmap_mix;
 char verify = 1;
 char sverify = 1;
@@ -2189,6 +2193,10 @@ char **argv;
 					sprintf(splash[splash_line++],"\tMadvise enabled: %d\n",advise_op);
 					break;
 #endif
+				case 'n':	/* Set no-retest */
+					noretest = 1;	
+    					sprintf(splash[splash_line++],"\tNo retest option selected\n");
+					break;
 				default:
 					printf("Unsupported Plus option -> %s <-\n",optarg);
 					exit(0);
@@ -3325,6 +3333,11 @@ waitout:
 	total_kilos=0;
 	toutputindex=1;
 	strcpy(&toutput[1][0],throughput_tests[1]);
+	if(noretest)
+	{
+		store_dvalue( (double)0);
+		goto next0;
+	}
 	/* Hooks to start the distributed Iozone client/server code */
 	if(distributed)
 	{
@@ -3759,6 +3772,7 @@ jumpend:
 
 	if (no_unlink)
 	{
+		store_dvalue( (double)0);
 		toutputindex++;
 		goto next1;	/* rags: skip rereader */
 	}
@@ -3768,6 +3782,11 @@ jumpend:
 	/**************************************************************/
 	toutputindex++;
 	strcpy(&toutput[toutputindex][0],throughput_tests[3]);
+	if(noretest)
+	{
+		store_dvalue( (double)0);
+		goto next1;
+	}
 	walltime = 0.0;
 	cputime = 0.0;
 	jstarttime=0;
@@ -5992,6 +6011,7 @@ long long *data2;
 	long long traj_size;
 	unsigned long long writerate[2];
 	off64_t filebytes64;
+	int ltest;
 	char *maddr;
 	char *wmaddr,*free_addr;
 	char *pbuff;
@@ -6065,7 +6085,12 @@ long long *data2;
 #endif
 #endif
 
-	for( j=0; j<2; j++)
+	if(noretest)
+		ltest=1;
+	else
+		ltest=2;
+
+	for( j=0; j<ltest; j++)
 	{
 		if(cpuutilflag)
 		{
@@ -6330,7 +6355,7 @@ long long *data2;
 	}else
 	   filebytes64=w_traj_bytes_completed;
 		
-        for(j=0;j<2;j++)
+        for(j=0;j<ltest;j++)
         {
 		writerate[j] = 
 		      (unsigned long long) ((double) filebytes64 / writetime[j]);
@@ -6343,6 +6368,15 @@ long long *data2;
 		   writerate[j] >>= 10;
 	}
 	data1[0]=writerate[0];
+	if(noretest)
+	{	
+		writerate[1]=(long long) 0;
+		if(cpuutilflag)
+		{
+			walltime[1]=0.0;
+			cputime[1]=0.0;
+		}
+	}
 	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
 	if(cpuutilflag)
 		store_times(walltime[0], cputime[0]);
@@ -6385,6 +6419,7 @@ long long *data2;
 	off64_t filebytes64;
 	FILE *stream = NULL;
 	int fd;
+	int ltest;
 	char *how;
 	char *stdio_buf;
 
@@ -6393,7 +6428,12 @@ long long *data2;
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	stdio_buf=(char *)malloc((size_t)reclen);
-	for( j=0; j<2; j++)
+	if(noretest)
+		ltest=1;
+	else
+		ltest=2;
+
+	for( j=0; j<ltest; j++)
 	{
 		if(cpuutilflag)
 		{
@@ -6508,7 +6548,7 @@ long long *data2;
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
 	}
-        for(j=0;j<2;j++)
+        for(j=0;j<ltest;j++)
         {
 		writerate[j] = 
 		      (unsigned long long) ((double) filebytes64 / writetime[j]);
@@ -6521,6 +6561,15 @@ long long *data2;
 			writerate[j] >>= 10;
 	}
 	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
+	if(noretest)
+	{
+		writerate[1]=(long long)0;
+		if(cpuutilflag)
+		{
+			walltime[1]=0.0;
+			cputime[1]=0.0;
+		}
+	}
 	if(cpuutilflag)
 		store_times(walltime[0], cputime[0]);
 	store_value((off64_t)writerate[0]);
@@ -6563,7 +6612,7 @@ long long *data1,*data2;
 	off64_t filebytes64;
 	FILE *stream = 0;
 	char *stdio_buf;
-	int fd;
+	int fd,ltest;
 
 	if(mmapflag || async_flag)
 		return;
@@ -6571,7 +6620,12 @@ long long *data1,*data2;
 	filebytes64 = numrecs64*reclen;
 	stdio_buf=(char *)malloc((size_t)reclen);
 
-	for( j=0; j<2; j++ )
+	if(noretest)
+		ltest=1;
+	else
+		ltest=2;
+
+	for( j=0; j<ltest; j++ )
 	{
 		if(cpuutilflag)
 		{
@@ -6685,7 +6739,7 @@ long long *data1,*data2;
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
 	}
-        for(j=0;j<2;j++)
+        for(j=0;j<ltest;j++)
         {
 	   	readrate[j] = 
 		     (unsigned long long) ((double) filebytes64 / readtime[j]);
@@ -6699,6 +6753,15 @@ long long *data1,*data2;
 	}
 	data1[0]=readrate[0];
 	data2[0]=1;
+	if(noretest)
+	{
+		readrate[1]=(long long)0;
+		if(cpuutilflag)
+		{
+			walltime[1]=0.0;
+			cputime[1]=0.0;
+		}
+	}
 	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
 	if(cpuutilflag)
 		store_times(walltime[0], cputime[0]);
@@ -6751,7 +6814,7 @@ long long *data1,*data2;
 	char *maddr;
 	char *wmaddr;
 	int fd,open_flags;
-	int test_foo;
+	int test_foo,ltest;
 	double qtime_start,qtime_stop;
 #ifdef ASYNC_IO
 	struct cache *gc=0;
@@ -6812,7 +6875,12 @@ long long *data1,*data2;
 	/* 
 	 * begin real testing
 	 */
-	for( j=0; j<2; j++ )
+	if(noretest)
+		ltest=1;
+	else
+		ltest=2;
+
+	for( j=0; j<ltest; j++ )
 	{
 
 		if(cpuutilflag)
@@ -7078,7 +7146,7 @@ long long *data1,*data2;
 	} else
 	   filebytes64=r_traj_bytes_completed;
 
-        for(j=0;j<2;j++)
+        for(j=0;j<ltest;j++)
         {
 	   	readrate[j] = 
 		     (unsigned long long) ((double) filebytes64 / readtime[j]);
@@ -7093,6 +7161,15 @@ long long *data1,*data2;
 	}
 	data1[0]=readrate[0];
 	data2[0]=1;
+	if(noretest)
+	{
+		readrate[1]=(long long)0;
+		if(cpuutilflag)
+		{
+			walltime[1]=0.0;
+			cputime[1]=0.0;
+		}
+	}
 	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
 	if(cpuutilflag)
 		store_times(walltime[0], cputime[0]);
@@ -7513,6 +7590,7 @@ long long *data1,*data2;
 	int fd,open_flags;
 	char *maddr,*wmaddr;
 	volatile char *buffer1;
+	int ltest;
 	char *nbuff;
 #ifdef VXFS
 	int test_foo=0;
@@ -7542,7 +7620,11 @@ long long *data1,*data2;
 	numrecs64 = (kilo64*1024)/reclen;
 	filebytes64 = numrecs64*reclen;
 	fd = 0;
-	for( j=0; j<2; j++ )
+	if(noretest)
+		ltest=1;
+	else
+		ltest=2;
+	for( j=0; j<ltest; j++ )
 	{
 		if(cpuutilflag)
 		{
@@ -7713,7 +7795,7 @@ long long *data1,*data2;
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
 	}
-	for(j=0;j<2;j++){
+	for(j=0;j<ltest;j++){
 	    	revreadrate[j] = 
 		      (unsigned long long) ((double) filebytes64 / revreadtime[j]);
 		if(MS_flag)
@@ -8302,7 +8384,7 @@ long long *data1,*data2;
 	unsigned long long pwriterate[2];
 	off64_t filebytes64;
 	long long flags_here = 0;
-	int fd;
+	int fd,ltest;
 #ifdef VXFS
 	int test_foo=0;
 #endif
@@ -8335,7 +8417,11 @@ long long *data1,*data2;
 #endif
 #endif
 	unlink(filename);
-	for( j=0; j<2; j++)
+	if(noretest)
+		ltest=1;
+	else
+		ltest=2;
+	for( j=0; j<ltest; j++)
 	{
 		if(cpuutilflag)
 		{
@@ -8472,7 +8558,7 @@ long long *data1,*data2;
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
 	}
-	for(j=0;j<2;j++){
+	for(j=0;j<ltest;j++){
 		pwriterate[j] = 
 		      (unsigned long long) ((double) filebytes64 / pwritetime[j]);
 		if(MS_flag)
@@ -8484,6 +8570,16 @@ long long *data1,*data2;
 			pwriterate[j] >>= 10;
 	}
 	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
+	if(noretest)
+	{
+		pwriterate[1]=(long long)0;
+		if(cpuutilflag)
+		{
+			walltime[1]=0.0;
+			cputime[1]=0.0;
+		}
+	}
+	
 	if(cpuutilflag)
 		store_times(walltime[0], cputime[0]);
 	store_value((off64_t)pwriterate[0]);
@@ -8525,6 +8621,7 @@ long long *data1, *data2;
 	unsigned long long preadrate[2];
 	off64_t filebytes64;
 	int fd,open_flags;
+	int ltest;
 #ifdef VXFS
 	int test_foo = 0;
 #endif
@@ -8550,7 +8647,11 @@ long long *data1, *data2;
 	filebytes64 = numrecs64*reclen;
 
 	fd = 0;
-	for( j=0; j<2; j++ ) 		/* Pread and Re-Pread */
+	if(noretest)
+		ltest=1;
+	else
+		ltest=2;
+	for( j=0; j<ltest; j++ ) 		/* Pread and Re-Pread */
 	{
 		if(cpuutilflag)
 		{
@@ -8651,7 +8752,7 @@ long long *data1, *data2;
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
 	}
-	for(j=0;j<2;j++){
+	for(j=0;j<ltest;j++){
 		preadrate[j] = 
 			(unsigned long long) ((double) filebytes64 / preadtime[j]);
 		if(MS_flag)
@@ -8662,6 +8763,16 @@ long long *data1, *data2;
 		if(!(OPS_flag || MS_flag))
 			preadrate[j] >>= 10;
 	}
+	if(noretest)
+	{
+		preadrate[1]=(long long)0;
+		if(cpuutilflag)
+		{
+			walltime[1]=0.0;
+			cputime[1]=0.0;
+		}
+	}
+
 	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
 	if(cpuutilflag)
 		store_times(walltime[0], cputime[0]);
@@ -8704,7 +8815,7 @@ long long *data1,*data2;
 	unsigned long long pwritevrate[2];
 	off64_t filebytes64,i;
 	off64_t numrecs64;
-	int fd;
+	int fd,ltest;
 #ifdef VXFS
 	int test_foo = 0;
 #endif
@@ -8735,7 +8846,12 @@ long long *data1,*data2;
 #endif
 #endif
 	 
-	for( j=0; j<2; j++)
+	if(noretest)
+		ltest=1;
+	else
+		ltest=2;
+
+	for( j=0; j<ltest; j++)
 	{
 		if(cpuutilflag)
 		{
@@ -8881,7 +8997,7 @@ long long *data1,*data2;
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
 	}
-	for(j=0;j<2;j++){
+	for(j=0;j<ltest;j++){
 	    	pwritevrate[j] = 
 		      (unsigned long long) ((double) filebytes64 / pwritevtime[j]);
 		if(MS_flag)
@@ -8892,6 +9008,15 @@ long long *data1,*data2;
 		if(!(OPS_flag || MS_flag))
 			pwritevrate[j] >>= 10;
 	}
+	if(noretest)
+	{
+		pwritevrate[1]=(long long)0;
+		if(cpuutilflag)
+		{
+			walltime[1]=0.0;
+			cputime[1]=0.0;
+		}
+	}	
 	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
 	if(cpuutilflag)
 		store_times(walltime[0], cputime[0]);
@@ -9001,7 +9126,7 @@ long long *data1,*data2;
 	off64_t numrecs64;
 	unsigned long long preadvrate[2];
 	off64_t filebytes64;
-	int fd,open_flags;
+	int fd,open_flags,ltest;
 #ifdef VXFS
 	int test_foo = 0;
 #endif
@@ -9026,7 +9151,12 @@ long long *data1,*data2;
 	filebytes64 = numrecs64*reclen;
 	nbuff = mainbuffer;
 	fd = 0;
-	for( j=0; j<2; j++ )
+	if(noretest)
+		ltest=1;
+	else
+		ltest=2;
+
+	for( j=0; j<ltest; j++ )
 	{
 		if(cpuutilflag)
 		{
@@ -9135,7 +9265,7 @@ long long *data1,*data2;
 	if(OPS_flag || MS_flag){
 	   filebytes64=filebytes64/reclen;
 	}
-	for(j=0;j<2;j++){
+	for(j=0;j<ltest;j++){
 	    	preadvrate[j] = 
 		      (unsigned long long) ((double) filebytes64 / preadvtime[j]);
 		if(MS_flag)
@@ -9146,6 +9276,16 @@ long long *data1,*data2;
 		if(!(OPS_flag || MS_flag))
 			preadvrate[j] >>= 10;
 	}
+	if(noretest)
+	{
+		preadvrate[1]=(long long)0;
+		if(cpuutilflag)
+		{
+			walltime[1]=0.0;
+			cputime[1]=0.0;
+		}
+	}
+	
 	/* Must save walltime & cputime before calling store_value() for each/any cell.*/
 	if(cpuutilflag)
 		store_times(walltime[0], cputime[0]);
@@ -16484,6 +16624,7 @@ int send_size;
 	strcpy(outbuf.c_write_traj_filename,send_buffer->c_write_traj_filename);
 	strcpy(outbuf.c_read_traj_filename,send_buffer->c_read_traj_filename);
 	sprintf(outbuf.c_oflag,"%d",send_buffer->c_oflag);
+	sprintf(outbuf.c_noretest,"%d",send_buffer->c_noretest);
 	sprintf(outbuf.c_read_sync,"%d",send_buffer->c_read_sync);
 	sprintf(outbuf.c_jflag,"%d",send_buffer->c_jflag);
 	sprintf(outbuf.c_async_flag,"%d",send_buffer->c_async_flag);
@@ -17314,6 +17455,7 @@ long long numrecs64, reclen;
 	cc.c_numrecs64 = numrecs64;
 	cc.c_reclen = reclen;
 	cc.c_oflag = oflag;
+	cc.c_noretest = noretest;
 	cc.c_read_sync = read_sync;
 	cc.c_jflag = jflag;
 	cc.c_direct_flag = direct_flag;
@@ -17545,7 +17687,7 @@ become_client()
 	sscanf(cnc->c_working_dir,"%s",cc.c_working_dir);
 	sscanf(cnc->c_write_traj_filename,"%s",cc.c_write_traj_filename);
 	sscanf(cnc->c_read_traj_filename,"%s",cc.c_read_traj_filename);
-	sscanf(cnc->c_oflag,"%d",&cc.c_oflag);
+	sscanf(cnc->c_noretest,"%d",&cc.c_noretest);
 	sscanf(cnc->c_read_sync,"%d",&cc.c_read_sync);
 	sscanf(cnc->c_jflag,"%d",&cc.c_jflag);
 	sscanf(cnc->c_direct_flag,"%d",&cc.c_direct_flag);
@@ -17595,6 +17737,7 @@ become_client()
 	chid = cc.c_client_number;
 	workdir=cc.c_working_dir;
 	oflag = cc.c_oflag;
+	noretest = cc.c_noretest;
 	read_sync = cc.c_read_sync;
 	jflag = cc.c_jflag;
 	direct_flag = cc.c_direct_flag;
