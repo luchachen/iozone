@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.189 $"
+#define THISVERSION "        Version $Revision: 3.190 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -248,7 +248,7 @@ THISVERSION,
 #endif
 #endif
 
-#if ((defined(solaris) && defined(__LP64__)) || defined(__s390x_))
+#if ((defined(solaris) && defined(__LP64__)) || defined(__s390x__))
 /* If we are building for 64-bit Solaris, all functions that return pointers
  * must be declared before they are used; otherwise the compiler will assume
  * that they return ints and the top 32 bits of the pointer will be lost,

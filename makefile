@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.80 $
+# Version $Revision: 1.81 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -43,8 +43,8 @@ all:
 	@echo "        ->   OSFV3                (64bit)   <-"
 	@echo "        ->   OSFV4                (64bit)   <-"
 	@echo "        ->   OSFV5                (64bit)   <-"
-	@echo "        ->   S390-linux           (32bit)   <-"
-	@echo "        ->   S390X-linux          (64bit)   <-"
+	@echo "        ->   linux-S390           (32bit)   <-"
+	@echo "        ->   linux-S390X          (64bit)   <-"
 	@echo "        ->   SCO                  (32bit)   <-"
 	@echo "        ->   SCO_Unixware_gcc     (32bit)   <-"
 	@echo "        ->   Solaris              (32bit)   <-"
@@ -187,7 +187,7 @@ linux-ia64:	iozone_linux-ia64.o  libbif.o
 #
 # GNU 'C' compiler Linux build with S/390, threads, largfiles, async I/O
 #
-S390-linux:	iozone_linux-s390.o libbif.o libasync.o
+linux-S390:	iozone_linux-s390.o libbif.o libasync.o
 	cc  -O2 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM \
 		-D_LARGFILE64_SOURCE -Dlinux -lpthread -lrt \
 		iozone_linux-s390.o libbif.o libasync.o \
@@ -196,7 +196,7 @@ S390-linux:	iozone_linux-s390.o libbif.o libasync.o
 #
 # GNU 'C' compiler Linux build with S/390, threads, largfiles, async I/O
 #
-S390X-linux:	iozone_linux-s390x.o libbif.o libasync.o
+linux-S390X:	iozone_linux-s390x.o libbif.o libasync.o
 	cc  -O2 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM \
 		-D_LARGFILE64_SOURCE -Dlinux -lpthread -lrt \
 		iozone_linux-s390x.o libbif.o libasync.o \
