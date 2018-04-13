@@ -1,5 +1,5 @@
 #
-# Version $Revision: 1.94 $
+# Version $Revision: 1.97 $
 #
 # The makefile for building all versions of iozone for all supported
 # platforms
@@ -43,6 +43,7 @@ all:
 	@echo "        ->   linux-AMD64          (64bit)   <-"
 	@echo "        ->   linux-ia64           (64bit)   <-"
 	@echo "        ->   linux-powerpc        (32bit)   <-"
+	@echo "        ->   linux-powerpc64      (64bit)   <-"
 	@echo "        ->   linux-sparc          (32bit)   <-"
 	@echo "        ->   macosx               (32bit)   <-"
 	@echo "        ->   netbsd               (32bit)   <-"
@@ -60,6 +61,7 @@ all:
 	@echo "        ->   Solaris7gcc          (32bit)   <-"
 	@echo "        ->   Solaris8-64          (64bit)   <-"
 	@echo "        ->   Solaris8-64-VXFS     (64bit)   <-"
+	@echo "        ->   Solaris10gcc         (32bit)   <-"
 	@echo "        ->   sppux                (32bit)   <-"
 	@echo "        ->   sppux-10.1           (32bit)   <-"
 	@echo "        ->   sppux_no_ansi-10.1   (32bit)   <-"
@@ -173,6 +175,15 @@ linux-ia64:	iozone_linux-ia64.o  libbif.o libasync.o
 	$(CC) -O3 $(LDFLAGS) iozone_linux-ia64.o libbif.o libasync.o \
 		-lrt -lpthread -o iozone
 
+#
+# GNU 'C' compiler Linux build for powerpc chip with threads, largefiles, async I/O 
+#
+linux-powerpc64: iozone_linux-powerpc64.o  libbif.o libasync.o
+	$(CC) -O3 -Dunix -DHAVE_ANSIC_C -DSHARED_MEM -DASYNC_IO \
+		-D_LARGEFILE64_SOURCE -Dlinux \
+		iozone_linux-powerpc64.o libasync.o libbif.o -lpthread \
+		-lrt -o iozone
+		
 #
 # GNU 'C' compiler Linux build with threads, largefiles, async I/O
 #
@@ -296,6 +307,14 @@ Solaris7gcc:	iozone_solaris7gcc.o libasync7.o libbif7.o
 	$(GCC)  -O $(LDFLAGS) iozone_solaris7gcc.o libasync7.o libbif7.o \
 		-lthread -lpthread -lposix4 -lnsl -laio \
 		-lsocket -o iozone
+#
+# Solaris 32 bit build with threads, largefiles, and async I/O
+#
+Solaris10gcc:	iozone_solaris10gcc.o libasync10.o libbif10.o 
+	$(GCC)  -O $(LDFLAGS) iozone_solaris10gcc.o libasync7.o libbif10.o \
+		-lthread -lpthread -lposix4 -lnsl -laio \
+		-lsocket -o iozone
+
 
 #
 # Solaris 2.6 (32 bit) build with no threads, no largefiles, and no async I/O
@@ -571,6 +590,19 @@ iozone_linux-powerpc.o:	iozone.c libbif.c libasync.c
 	$(CC) -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE $(CFLAGS) libasync.c  -o libasync.o 
 
+iozone_linux-powerpc64.o:	iozone.c libbif.c libasync.c
+	@echo ""
+	@echo "Building iozone for Linux PowerPC64"
+	@echo ""
+	$(CC) -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -DNAME='"linux-powerpc64"' \
+		-DSHARED_MEM -Dlinux -D_LARGEFILE64_SOURCE $(CFLAGS) iozone.c \
+		-o iozone_linux-powerpc64.o
+	$(CC) -c -O3 -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D_LARGEFILE64_SOURCE \
+		-DSHARED_MEM -Dlinux $(CFLAGS) libbif.c -o libbif.o
+	$(CC) -c -O3 -Dunix -Dlinux -DHAVE_ANSIC_C -DASYNC_IO \
+		-D_LARGEFILE64_SOURCE $(CFLAGS) libasync.c  -o libasync.o 
+		
+
 iozone_linux-sparc.o:	iozone.c libbif.c libasync.c
 	@echo ""
 	@echo "Building iozone for Linux Sparc"
@@ -711,6 +743,20 @@ iozone_solaris7gcc.o:	iozone.c libasync.c libbif.c
 	$(GCC) -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
 		-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
 		-DNAME='"Solaris7gcc"' $(CFLAGS) iozone.c -o iozone_solaris7gcc.o
+
+iozone_solaris10gcc.o:  iozone.c libbif.c
+	@echo ""
+	@echo "Building iozone for Solaris10gcc"
+	@echo ""
+	$(GCC) -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
+                -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+                $(CFLAGS) libbif.c -o libbif10.o
+	$(GCC) -O -c  -Dunix -DHAVE_ANSIC_C -DASYNC_IO -D__LP64__ \
+                -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+                -DNAME='"Solaris10gcc"' $(CFLAGS) libasync.c -o libasync10.o
+	$(GCC) -c -O -Dunix -DHAVE_ANSIC_C -DASYNC_IO \
+                -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -Dsolaris \
+                -DNAME='"Solaris10gcc"' $(CFLAGS) iozone.c -o iozone_solaris10gcc.o
 
 #
 #		-DSHARED_MEM -Dsolaris libasync.c -o libasync.o

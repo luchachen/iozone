@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.239 $"
+#define THISVERSION "        Version $Revision: 3.242 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -3873,13 +3873,6 @@ jumpend:
 		cleanup_comm();
 	}
 
-	if (no_unlink)
-	{
-		store_dvalue( (double)0);
-		toutputindex++;
-		goto next1;	/* rags: skip rereader */
-	}
-
 	/**************************************************************/
 	/*** ReReader throughput tests **********************************/
 	/**************************************************************/
@@ -6398,7 +6391,7 @@ long long *data2;
 			if(async_flag && no_copy_flag)
 			{
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
-				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
+				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
 				if(verify)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 				if(purge)
@@ -7660,7 +7653,7 @@ long long *data1, *data2;
 				if(async_flag && no_copy_flag)
 				{
 					free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
-					nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
+					nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
 					if(verify)
 						fill_buffer(nbuff,reclen,(long long)pattern,sverify,offset64/reclen);
 				}
@@ -8222,7 +8215,7 @@ long long *data1,*data2;
 		if(async_flag && no_copy_flag)
 		{
 			free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
-			nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
+			nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
 			if(verify)
 				fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)0);
 		}
@@ -10955,7 +10948,7 @@ again:
 			     if(no_copy_flag)
 			     {
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
-				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
+				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
 				if(verify)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (i*reclen), depth,free_addr);
@@ -11509,7 +11502,7 @@ again:
 			     if(no_copy_flag)
 			     {
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
-				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
+				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
 				if(verify)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (traj_offset), depth,free_addr);
@@ -11997,7 +11990,7 @@ thread_rwrite_test(x)
 		if(async_flag && no_copy_flag)
 		{
 			free_addr=buffer=(char *)malloc((size_t)reclen+page_size);
-			nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
+			nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
 			if(verify)
 				fill_buffer(nbuff,reclen,(long long)pattern,sverify,i);
 		}
@@ -15296,7 +15289,7 @@ again:
 			     if(no_copy_flag)
 			     {
 				free_addr=nbuff=(char *)malloc((size_t)reclen+page_size);
-				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
+				nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
 				if(verify)
 					fill_buffer(nbuff,reclen,(long long)pattern,sverify,(long long)(current_offset/reclen));
 			        async_write_no_copy(gc, (long long)fd, nbuff, reclen, (current_offset), depth,free_addr);
@@ -16571,7 +16564,7 @@ int fd;
 	off64_t current;
 
 	free_addr=nbuff=(char *)malloc((size_t)page_size+page_size);
-	nbuff=(char *)(((long)nbuff+(long)page_size) & (long)(~page_size-1));
+	nbuff=(char *)(((long)nbuff+(long)page_size) & (long)~(page_size-1));
 
 	/* Save current position */
 	current = I_LSEEK(fd,0,SEEK_CUR);
@@ -19062,6 +19055,11 @@ int num;
 		}
 			
 	}
+        sleep(2); /* Let the clients report results before exiting.
+                     Also, exiting too quickly can close the async
+                     socket to the child, and cause it to become ill.
+                     On Solaris, it gets stuck in a 0=read() loop. */
+
 	exit(0);
 }
 /*

@@ -52,7 +52,7 @@ void file_unlink(int);
 void splash(void);
 void usage(void);
 
-#define THISVERSION "        $Revision: 1.7 $"
+#define THISVERSION "        $Revision: 1.9 $"
 /*#define NULL 0*/
 
 char version[]=THISVERSION;
@@ -184,8 +184,6 @@ void
 file_stat(int x)
 {
 	int i,j,k,y;
-	int fd;
-	int ret;
 	char buf[100];
 	struct stat mystat;
 	for(i=0;i<x;i++)
@@ -216,10 +214,7 @@ void
 file_access(int x)
 {
 	int i,j,k,y;
-	int fd;
-	int ret;
 	char buf[100];
-	struct stat mystat;
 	for(i=0;i<x;i++)
 	{
 	  sprintf(buf,"iozone_L1_%d",i);
@@ -247,12 +242,8 @@ file_access(int x)
 void 
 file_readdir(int x)
 {
-	int i,j,k,ret1;
-	int fd;
-	int ret;
+	int i,j,ret1;
 	char buf[100];
-	char buf1[100];
-	struct stat mystat;
 	DIR *dirbuf;
 	struct dirent *y;
 	for(i=0;i<x;i++)
@@ -290,11 +281,8 @@ void
 file_link(int x)
 {
 	int i,j,k,y;
-	int fd;
-	int ret;
 	char buf[100];
 	char bufn[100];
-	struct stat mystat;
 	for(i=0;i<x;i++)
 	{
 	  sprintf(buf,"iozone_L1_%d",i);
@@ -323,11 +311,8 @@ void
 file_unlink(int x)
 {
 	int i,j,k,y;
-	int fd;
-	int ret;
 	char buf[100];
 	char bufn[100];
-	struct stat mystat;
 	for(i=0;i<x;i++)
 	{
 	  sprintf(buf,"iozone_L1_%d",i);

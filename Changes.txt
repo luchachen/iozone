@@ -1931,4 +1931,13 @@ Revision 3.239
 =============================================================================
 Add -+h hostname. Permits one to manually set the hostname. For systems
 with multiple names/NICs.
+=============================================================================
+Revision 3.241
+=============================================================================
+Add -+h, set hostname, and fix Solaris hang.
+=============================================================================
+Revision 3.242
+=============================================================================
+Remove the side effect of no-rereads when using -w. Now use -+n for
+consistancy.
 
