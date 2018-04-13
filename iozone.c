@@ -51,7 +51,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.252 $"
+#define THISVERSION "        Version $Revision: 3.254 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -123,7 +123,7 @@ char *help[] = {
 "                  [-J milliseconds] [-X write_telemetry_filename] [-w] [-W]",
 "                  [-Y read_telemetry_filename] [-y minrecsize_Kb] [-q maxrecsize_Kb]",
 "                  [-+u] [-+m cluster_filename] [-+d] [-+x multiplier] [-+p # ]",
-"                  [-+r] [-+t]",
+"                  [-+r] [-+t] [-+X] [-+Z]",
 " ",
 "           -a  Auto mode",
 "           -A  Auto2 mode",
@@ -210,6 +210,11 @@ char *help[] = {
 #if defined(Windows)
 "           -+U Windows Unbufferd I/O API (Very Experimental)",
 #endif
+"           -+X Enable short circuit mode for filesystem testing ONLY",
+"               ALL Results are NOT valid in this mode.",
+"           -+Z Enable old data set compatibility mode. WARNING.. Published",
+"               hacks may invalidate these results and generate bogus, high",
+"               values for results.",
 "" };
 
 char *head1[] = {
@@ -723,6 +728,7 @@ struct master_neutral_command {
 #define MAXTESTS 10
 /* Default fill pattern for verification */
 #define PATTERN get_pattern();
+#define PATTERN1 0xBB
 /* Used for Excel internal tables */
 #define MAX_X 100			
 /* Used for Excel internal tables */
@@ -1368,7 +1374,7 @@ char odsync = 0;
 char Q_flag,OPS_flag;
 char L_flag=0;
 char no_copy_flag,include_close,include_flush;
-char disrupt_flag,compute_flag,xflag;
+char disrupt_flag,compute_flag,xflag,Z_flag, X_flag;
 int no_unlink = 0;
 int r_traj_flag,w_traj_flag;
 char MS_flag;
@@ -2303,6 +2309,29 @@ char **argv;
 					break;
 				case 'T':  /* Time stamps on */
 					L_flag=1;
+					break;
+				case 'X': /* Short circuit test mode */
+					X_flag = 1;
+					sverify=1;
+					verify=1;
+					inp_pat = 0xBB;
+					pattern = ((inp_pat << 24) | 
+					  (inp_pat << 16) | (inp_pat << 8) |
+					   inp_pat);
+	    				sprintf(splash[splash_line++],"\tShort circuit mode. For\n");
+	    				sprintf(splash[splash_line++],"\t filesystem development testing ONLY !\n");
+					break;
+				case 'Z': /* Compatibility mode for 0xA5 */	
+					Z_flag = 1;
+					sverify=1;
+					verify=1;
+					inp_pat = 0xA5;
+					pattern = ((inp_pat << 24) | 
+					  (inp_pat << 16) | (inp_pat << 8) |
+					   inp_pat);
+	    				sprintf(splash[splash_line++],"\tUsing old data sets.\n");
+    					sprintf(splash[splash_line++],"\t Performance measurements may be invalid in this\n");
+    					sprintf(splash[splash_line++],"\t mode due to published hack.\n");
 					break;
 #if defined(Windows)
 				case 'U':  /* Windows only Unbufferd I/O */
@@ -20732,8 +20761,11 @@ get_date(char *where)
 /* Richard Sharpe decided to hack up Samba and
  * have it detect Iozone running, and then
  * produce the data without doing any actual
- * I/O. This was a HIGHLY un-ethical thing to
- * be doing (my opinion). So... the pattern
+ * I/O. This was a HIGHLY questionable thing to
+ * be doing (my opinion). It may have been a lab
+ * experiment that was accidentally released into 
+ * the wild, but now that it is, no choice but
+ * to prevent its use. So... the pattern
  * that he was locking on to, is now random,
  * and will change with every release of Iozone.
  * See: http://lists.samba.org/archive/samba-technical/2005-April/040541.html
@@ -20745,6 +20777,7 @@ get_pattern(void)
         int i,x,y;
         char cp[100],*ptr;
         int pat;
+	unsigned char inp_pat;
 
         y=0;
         ptr=&cp[0];
@@ -20754,6 +20787,15 @@ get_pattern(void)
                 y+=*ptr++;
         srand(y);
         pat=(rand()& 0xff);
+	/* For compatibility with old 0xa5 data sets. */
+	if(Z_flag)
+		pat=0xa5;
+	/* Lock pattern to 0xBB, for filesystem short circuit debug */
+	if(X_flag)
+		pat=PATTERN1;
+	/* Set global pattern */
+	inp_pat = pat;
+	pattern =((inp_pat << 24) | (inp_pat << 16) | (inp_pat << 8) | inp_pat);
         return(pat);
 }
 
