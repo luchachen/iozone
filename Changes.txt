@@ -2371,3 +2371,9 @@ Fix for linger addition
 Revision 3.385
 Make linger for all
 =============================================================================
+Revision 3.387
+Change sleep() calls, that help connect() to nanosleep() calls.
+=============================================================================
+Revision 3.388
+Fixup remainder for nanosleep()
+=============================================================================

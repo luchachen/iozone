@@ -60,7 +60,7 @@
 
 
 /* The version number */
-#define THISVERSION "        Version $Revision: 3.385 $"
+#define THISVERSION "        Version $Revision: 3.388 $"
 
 #if defined(linux)
   #define _GNU_SOURCE
@@ -19924,6 +19924,10 @@ int send_size;
         struct in_addr *ip;
         struct sockaddr_in cs_addr,cs_raddr;
 	struct master_neutral_command outbuf;
+	struct timespec req,rem;
+
+	req.tv_sec = 10000000;
+	rem.tv_nsec = 10000000;
 
         if(cdebug)
 	{
@@ -19975,21 +19979,15 @@ over:
 	  fflush(newstdout);
 	}
 again:
-	/* Solaris STINKS !!!!!!!!!!!!! 
-	 * Without this sleep for 5 seconds the
-         * first connect will always FAIL, but
- 	 * wait 5 seconds and it always works. CRAP-O-LA 
-	 */
-#if defined(solarit)
-	sleep(5);
-#endif
+	nanosleep(&req,&rem);
         rc = connect(child_socket_val, (struct sockaddr *)&cs_raddr,
                         sizeof(struct sockaddr_in));
         if (rc < 0)
         {
                 if((ecount++ < 200) && (errno != EISCONN))
                 {
-                        sleep(1);
+			nanosleep(&req,&rem);
+                        /*sleep(1);*/
                         goto again;
                 }
                 if(cdebug)
@@ -19998,7 +19996,8 @@ again:
 		   fflush(newstdout);
                 }
                 close(child_socket_val);
-                sleep(1);
+		nanosleep(&req,&rem);
+                /*sleep(1);*/
                 ecount=0;
                 goto over;
         }
@@ -20586,6 +20585,11 @@ struct in_addr *my_s_addr;
 	int port,tmp_port;
 	int ecount = 0;
 	struct in_addr *ip;
+	struct timespec req,rem;
+
+	req.tv_sec = 10000000;
+	rem.tv_nsec = 10000000;
+
         he = gethostbyname(child_host_name);
         if (he == NULL)
         {
@@ -20648,6 +20652,7 @@ struct in_addr *my_s_addr;
                 perror("Master: bind failed for sync channel to child.\n");
                 exit(24);
         }
+	nanosleep(&req,&rem);
 again:
         rc = connect(master_socket_val, (struct sockaddr *)&raddr, 
 			sizeof(struct sockaddr_in));
@@ -20655,7 +20660,8 @@ again:
         {
 		if(ecount++ < 300)
 		{
-			sleep(1);
+			nanosleep(&req,&rem);
+			/*sleep(1);*/
 			goto again;
 		}
                 perror("Master: connect failed\n");
@@ -20689,16 +20695,14 @@ struct in_addr my_s_addr;
 	struct sockaddr_in addr,raddr;
 	int port,tmp_port;
 	int ecount = 0;
+	struct timespec req,rem;
+
+	req.tv_sec = 10000000;
+	rem.tv_nsec = 10000000;
+
 
 	port=child_port;
-	/* Solaris STINKS !!!!!!!!!!!!! 
-	 * Without this sleep for 5 seconds the
-         * first connect will always FAIL, but
- 	 * wait 5 seconds and it always works. CRAP-O-LA 
-	 */
-#if defined(solaris)
-	sleep(5);
-#endif
+	nanosleep(&req,&rem);
 
 over:
         raddr.sin_family = AF_INET;
@@ -20745,12 +20749,14 @@ again:
         {
 		if(ecount++ < 300)
 		{
-			sleep(1);
+			nanosleep(&req,&rem);
+			/*sleep(1);*/
 			goto again;
 		}
                 perror("Master: async connect failed\n");
                 close(master_socket_val);
-                sleep(1);
+		nanosleep(&req,&rem);
+                /*sleep(1);*/
                 ecount=0;
                 goto over;
         }
@@ -21628,6 +21634,11 @@ int num;
 	struct master_neutral_command *mnc;
 	struct master_command mc;
 	int temp;
+	struct timespec req,rem;
+
+	req.tv_sec = 10000000;
+	rem.tv_nsec = 10000000;
+
 
 	master_join_count=num;
 	master_listen_pid=fork();
@@ -21735,7 +21746,7 @@ int num;
 #if defined(solaris)
 	sleep(5);
 #else
-        sleep(2); 
+	nanosleep(&req,&rem);
 #endif
 
 	exit(0);
@@ -22442,6 +22453,11 @@ struct in_addr *sp_my_ms_addr;
 	int port,tmp_port;
 	int ecount=0;
 	struct in_addr *ip;
+	struct timespec req,rem;
+
+	req.tv_sec = 10000000;
+	rem.tv_nsec = 10000000;
+
         he = gethostbyname(sp_child_host_name);
         if (he == NULL)
         {
@@ -22504,6 +22520,8 @@ struct in_addr *sp_my_ms_addr;
                 perror("Master: bind failed for sync channel to child.\n");
                 exit(24);
         }
+	nanosleep(&req,&rem);
+
 again:
         rc = connect(master_socket_val, (struct sockaddr *)&raddr, 
 			sizeof(struct sockaddr_in));
@@ -22511,7 +22529,8 @@ again:
         {
 		if(ecount++ < 300)
 		{
-			sleep(1);
+			nanosleep(&req,&rem);
+			/*sleep(1);*/
 			goto again;
 		}
                 perror("Master: connect failed\n");
@@ -22876,6 +22895,11 @@ struct in_addr *sp_my_cs_addr;
 	int port,tmp_port;
 	struct in_addr *ip;
 	int ecount=0;
+	struct timespec req,rem;
+
+	req.tv_sec = 10000000;
+	rem.tv_nsec = 10000000;
+
         he = gethostbyname(sp_master_host_name);
         if (he == NULL)
         {
@@ -22931,6 +22955,7 @@ struct in_addr *sp_my_cs_addr;
                 perror("Child: bind failed for sync channel to child.\n");
                 exit(24);
         }
+	nanosleep(&req,&rem);
 again:
         rc = connect(sp_child_socket_val, (struct sockaddr *)&raddr, 
 			sizeof(struct sockaddr_in));
@@ -22938,7 +22963,8 @@ again:
         {
 		if(ecount++<300)
 		{
-			sleep(1);
+			nanosleep(&req,&rem);
+			/*sleep(1);*/
 			goto again;
 		}
 
