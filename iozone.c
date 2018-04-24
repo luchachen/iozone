@@ -359,6 +359,10 @@ typedef off_t off64_t;
 typedef off_t off64_t;
 #endif
 
+#if defined(__LP64__)
+#define __off64_t_defined
+#endif
+
 
 #ifndef solaris
 #ifndef off64_t

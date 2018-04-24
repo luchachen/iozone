@@ -13,9 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-APP_ABI := armeabi-v7a
+APP_ABI := armeabi-v7a arm64-v8a
 APP_PLATFORM := android-27
 APP_STL := gnustl_static
 APP_MODULES :=  iozone
 NDK_TOOLCHAIN_VERSION := clang
 APP_ALLOW_MISSING_DEPS=true
+
+local_dir :=$(call my-dir)
+APP_BUILD_SCRIPT := $(local_dir)/../Android.mk
